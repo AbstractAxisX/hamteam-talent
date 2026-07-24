@@ -1,0 +1,311 @@
+// Prisma schema — شبکه اجتماعی تخصصی مشاغل و تیم‌سازی
+// SQLite backend. Enums modeled as String with app-level validation.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Auth ───────────────────────────────────────────────
+model User {
+  id              String    @id @default(cuid())
+  phone           String    @unique
+  nationalId      String    @unique
+  name            String
+  role            String    @default("user") // "user" | "admin"
+  isVerifiedBadge Boolean   @default(false)
+  isBanned        Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  profile         Profile?
+  posts           Post[]
+  likes           PostLike[]
+  connectionsReq  Connection[] @relation("ConnectionRequester")
+  connectionsRec  Connection[] @relation("ConnectionReceiver")
+  conversationsA  Conversation[] @relation("ConvUserA")
+  conversationsB  Conversation[] @relation("ConvUserB")
+  messages        Message[]
+  jobPosts        JobPost[]
+  applications    JobApplication[]
+  notifications   Notification[]
+  tickets         Ticket[]
+  ticketReplies   TicketReply[]
+  userCategories  UserCategory[]
+  userSkills      UserSkill[]
+}
+
+model Profile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bioShort      String   @default("")
+  bioLong       String   @default("")
+  avatarUrl     String?
+  bannerUrl     String?
+  province      String?
+  city          String?
+  phoneVisible  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  resume        Resume?
+}
+
+// ─── Category & Skill (admin-managed) ───────────────────────────
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  iconUrl   String?
+  createdAt DateTime @default(now())
+
+  skills    Skill[]
+  posts     Post[]
+  jobPosts  JobPost[]
+  userCats  UserCategory[]
+}
+
+model Skill {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name       String
+  createdAt  DateTime @default(now())
+
+  posts      Post[]
+  jobPostSkills JobPostSkill[]
+  userSkills UserSkill[]
+
+  @@unique([categoryId, name])
+}
+
+// ─── User's selected categories & skills ───────────────────────
+model UserCategory {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, categoryId])
+}
+
+model UserSkill {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillId String
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+}
+
+// ─── Resume ────────────────────────────────────────────────────
+model Resume {
+  id        String   @id @default(cuid())
+  profileId String   @unique
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  experiences  ResumeExperience[]
+  educations   ResumeEducation[]
+}
+
+model ResumeExperience {
+  id           String   @id @default(cuid())
+  resumeId     String
+  resume       Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  jobTitle     String
+  organization String
+  startDate    String?
+  endDate      String?
+  description  String   @default("")
+  categoryId   String?
+  skillId      String?
+  createdAt    DateTime @default(now())
+}
+
+model ResumeEducation {
+  id          String   @id @default(cuid())
+  resumeId    String
+  resume      Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  degree      String
+  institution String
+  year        String?
+  description String   @default("")
+  createdAt   DateTime @default(now())
+}
+
+// ─── Posts ──────────────────────────────────────────────────────
+model Post {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content    String
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  skillId    String?
+  skill      Skill?    @relation(fields: [skillId], references: [id])
+  createdAt  DateTime @default(now())
+
+  media      PostMedia[]
+  likes      PostLike[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([categoryId])
+}
+
+model PostMedia {
+  id     String @id @default(cuid())
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  url    String
+  type   String // "image" | "video"
+  order  Int    @default(0)
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+}
+
+// ─── Connections (bidirectional, request/accept) ───────────────
+model Connection {
+  id          String   @id @default(cuid())
+  requesterId String
+  requester   User     @relation("ConnectionRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  receiverId  String
+  receiver    User     @relation("ConnectionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  status      String   @default("pending") // "pending" | "accepted" | "rejected"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([requesterId, receiverId])
+}
+
+// ─── Chat ──────────────────────────────────────────────────────
+model Conversation {
+  id        String   @id @default(cuid())
+  userAId   String
+  userA     User     @relation("ConvUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId   String
+  userB     User     @relation("ConvUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  messages  Message[]
+
+  @@unique([userAId, userBId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content        String
+  createdAt      DateTime @default(now())
+  readAt         DateTime?
+
+  @@index([conversationId, createdAt])
+}
+
+// ─── Job Posts ─────────────────────────────────────────────────
+model JobPost {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  province    String?
+  city        String?
+  status      String   @default("open") // "open" | "closed"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  skills      JobPostSkill[]
+  applications JobApplication[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([categoryId])
+}
+
+model JobPostSkill {
+  id        String  @id @default(cuid())
+  jobPostId String
+  jobPost   JobPost @relation(fields: [jobPostId], references: [id], onDelete: Cascade)
+  skillId   String
+  skill     Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([jobPostId, skillId])
+}
+
+model JobApplication {
+  id          String   @id @default(cuid())
+  jobPostId   String
+  jobPost     JobPost  @relation(fields: [jobPostId], references: [id], onDelete: Cascade)
+  applicantId String
+  applicant   User     @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  message     String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@unique([jobPostId, applicantId])
+  @@index([applicantId])
+}
+
+// ─── Notifications ─────────────────────────────────────────────
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "job_match" | "connection_request" | "connection_accepted" | "connection_rejected" | "broadcast" | "chat"
+  title     String
+  body      String   @default("")
+  link      String?
+  data      String?  // JSON string
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+// ─── Tickets ───────────────────────────────────────────────────
+model Ticket {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String
+  body      String
+  status    String   @default("open") // "open" | "closed"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  replies   TicketReply[]
+}
+
+model TicketReply {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+}
