@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import { api } from "@/lib/api-client";
+import { navigate } from "@/lib/nav";
 import type { PostWithRelations, CategoryWithSkills } from "@/lib/types";
-import { PostCard } from "@/components/views/feed-view";
+import { PostCard } from "@/components/shared/post-card";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,20 +19,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/shared/empty-state";
 import { toast } from "@/hooks/use-toast";
 import { toFa } from "@/lib/format";
 import { PROVINCES, getProvinceName } from "@/lib/geo";
 import {
   Compass,
-  Sparkles,
-  Flame,
   Clock,
+  Flame,
   X,
   MapPin,
   Tag,
   Layers,
   Filter,
+  Sparkles,
 } from "lucide-react";
 
 const ALL = "__all__";
@@ -128,45 +130,46 @@ export function ExploreView() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="grid place-items-center w-11 h-11 rounded-xl bg-primary/10 text-primary shrink-0">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="flex items-center gap-3"
+      >
+        <div className="grid place-items-center w-12 h-12 rounded-2xl bg-primary/10 text-primary shrink-0 shadow-soft">
           <Compass className="w-6 h-6" />
         </div>
         <div className="min-w-0">
-          <h1 className="text-xl font-bold leading-tight">اکسپلور</h1>
-          <p className="text-sm text-muted-foreground">
-            کشف پست‌ها بر اساس مهارت و موقعیت
+          <h1 className="text-xl font-bold leading-tight">کشف پست‌ها</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            جستجوی پست‌ها بر اساس مهارت، دسته‌بندی و موقعیت مکانی
           </p>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Sort + filter toggle */}
+      {/* Sort toggle + filter toggle */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-1.5">
-          <Button
-            variant={sort === "recent" ? "default" : "outline"}
-            size="sm"
+          <SortButton
+            active={sort === "recent"}
             onClick={() => setSort("recent")}
-            className="gap-1.5"
-          >
-            <Clock className="w-4 h-4" /> جدیدترین
-          </Button>
-          <Button
-            variant={sort === "popular" ? "default" : "outline"}
-            size="sm"
+            icon={Clock}
+            label="جدیدترین"
+          />
+          <SortButton
+            active={sort === "popular"}
             onClick={() => setSort("popular")}
-            className="gap-1.5"
-          >
-            <Flame className="w-4 h-4" /> محبوب‌ترین
-          </Button>
+            icon={Flame}
+            label="محبوب‌ترین"
+          />
         </div>
         <Button
           variant={activeFilterCount > 0 ? "secondary" : "outline"}
           size="sm"
           onClick={() => setFiltersOpen((o) => !o)}
-          className="gap-1.5"
+          className="gap-1.5 rounded-xl font-semibold h-9 lg:hidden"
         >
           <Filter className="w-4 h-4" />
           فیلترها
@@ -179,10 +182,10 @@ export function ExploreView() {
       </div>
 
       {/* Filters card */}
-      <Card className={`p-4 space-y-3 ${filtersOpen ? "" : "hidden"} sm:!block`}>
-        <div className="hidden sm:flex items-center justify-between">
+      <Card className={`p-4 sm:p-5 space-y-3 rounded-2xl border-border/60 shadow-card ${filtersOpen ? "" : "hidden"} lg:!block`}>
+        <div className="hidden lg:flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
-            <Filter className="w-4 h-4" />
+            <Filter className="w-4 h-4 text-primary" />
             فیلتر پیشرفته
           </div>
           {activeFilterCount > 0 && (
@@ -190,9 +193,9 @@ export function ExploreView() {
               variant="ghost"
               size="sm"
               onClick={clearAll}
-              className="gap-1.5 text-muted-foreground hover:text-destructive"
+              className="gap-1.5 text-muted-foreground hover:text-destructive rounded-lg h-8"
             >
-              <X className="w-4 h-4" /> پاک کردن همه ({toFa(activeFilterCount)})
+              <X className="w-3.5 h-3.5" /> پاک کردن همه ({toFa(activeFilterCount)})
             </Button>
           )}
         </div>
@@ -201,10 +204,10 @@ export function ExploreView() {
           {/* Category */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5" /> دسته‌بندی
+              <Tag className="w-3.5 h-3.5 text-primary" /> دسته‌بندی
             </label>
             <Select value={categoryId} onValueChange={onCategoryChange}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full rounded-xl h-10">
                 <SelectValue placeholder="همه دسته‌ها" />
               </SelectTrigger>
               <SelectContent>
@@ -221,10 +224,10 @@ export function ExploreView() {
           {/* Skill (chained to category) */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5" /> مهارت
+              <Layers className="w-3.5 h-3.5 text-primary" /> مهارت
             </label>
             <Select value={skillId} onValueChange={setSkillId}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full rounded-xl h-10">
                 <SelectValue placeholder="همه مهارت‌ها" />
               </SelectTrigger>
               <SelectContent>
@@ -250,10 +253,10 @@ export function ExploreView() {
           {/* Province */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5" /> استان
+              <MapPin className="w-3.5 h-3.5 text-primary" /> استان
             </label>
             <Select value={province} onValueChange={onProvinceChange}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full rounded-xl h-10">
                 <SelectValue placeholder="همه استان‌ها" />
               </SelectTrigger>
               <SelectContent>
@@ -270,14 +273,14 @@ export function ExploreView() {
           {/* City (chained to province) */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5" /> شهر
+              <MapPin className="w-3.5 h-3.5 text-primary" /> شهر
             </label>
             <Select
               value={city}
               onValueChange={setCity}
               disabled={province === ALL}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full rounded-xl h-10">
                 <SelectValue
                   placeholder={
                     province === ALL ? "ابتدا استان را انتخاب کنید" : "همه شهرها"
@@ -300,12 +303,12 @@ export function ExploreView() {
 
         {/* Mobile clear button */}
         {activeFilterCount > 0 && (
-          <div className="sm:hidden">
+          <div className="lg:hidden">
             <Button
               variant="ghost"
               size="sm"
               onClick={clearAll}
-              className="w-full gap-1.5 text-muted-foreground hover:text-destructive"
+              className="w-full gap-1.5 text-muted-foreground hover:text-destructive rounded-lg h-9"
             >
               <X className="w-4 h-4" /> پاک کردن همه فیلترها ({toFa(activeFilterCount)})
             </Button>
@@ -315,7 +318,11 @@ export function ExploreView() {
 
       {/* Active filter chips */}
       {activeFilterCount > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-wrap gap-1.5"
+        >
           {categoryId !== ALL && (
             <FilterChip
               label={cats.find((c) => c.id === categoryId)?.name ?? ""}
@@ -347,6 +354,16 @@ export function ExploreView() {
           {city !== ALL && (
             <FilterChip label={city} onClear={() => setCity(ALL)} />
           )}
+        </motion.div>
+      )}
+
+      {/* Results count */}
+      {!loading && posts.length > 0 && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Sparkles className="w-3.5 h-3.5 text-gold" />
+          <span>
+            {toFa(posts.length)} پست یافت شد
+          </span>
         </div>
       )}
 
@@ -354,26 +371,35 @@ export function ExploreView() {
       {loading ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {[...Array(4)].map((_, i) => (
-            <Card key={i} className="p-4 space-y-3">
+            <Card key={i} className="p-4 space-y-3 rounded-2xl border-border/60 shadow-card">
               <div className="flex items-center gap-3">
-                <Skeleton className="w-10 h-10 rounded-full" />
+                <Skeleton className="w-11 h-11 rounded-full" />
                 <div className="space-y-1.5 flex-1">
-                  <Skeleton className="h-3 w-32" />
-                  <Skeleton className="h-2.5 w-20" />
+                  <Skeleton className="h-3.5 w-32 rounded" />
+                  <Skeleton className="h-2.5 w-20 rounded" />
                 </div>
               </div>
-              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-4 w-full rounded" />
+              <Skeleton className="h-4 w-3/4 rounded" />
+              <div className="flex gap-2 pt-2 border-t border-border/50">
+                <Skeleton className="h-8 w-16 rounded-lg" />
+                <Skeleton className="h-8 w-16 rounded-lg" />
+              </div>
             </Card>
           ))}
         </div>
       ) : posts.length === 0 ? (
         <EmptyState
-          icon={Sparkles}
-          title="پستی با این فیلترها پیدا نشد"
-          description="فیلترها را تغییر دهید یا پاک کنید تا پست‌های بیشتری ببینید."
+          kind={activeFilterCount > 0 ? "search" : "posts"}
+          title={activeFilterCount > 0 ? "پستی با این فیلترها پیدا نشد" : "هنوز پستی وجود ندارد"}
+          description={
+            activeFilterCount > 0
+              ? "فیلترها را تغییر دهید یا پاک کنید تا پست‌های بیشتری ببینید."
+              : "به‌زودی اولین پست‌ها در این صفحه ظاهر می‌شوند."
+          }
           action={
             activeFilterCount > 0 ? (
-              <Button variant="outline" size="sm" onClick={clearAll} className="gap-1.5">
+              <Button variant="outline" size="sm" onClick={clearAll} className="gap-1.5 rounded-xl font-semibold">
                 <X className="w-4 h-4" /> پاک کردن فیلترها
               </Button>
             ) : undefined
@@ -381,32 +407,52 @@ export function ExploreView() {
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {posts.map((p) => (
-            <PostCard key={p.id} post={p} onLike={() => load()} />
+          {posts.map((p, i) => (
+            <PostCard key={p.id} post={p} index={i} />
           ))}
         </div>
-      )}
-
-      {/* Results count */}
-      {!loading && posts.length > 0 && (
-        <p className="text-xs text-muted-foreground text-center pt-2">
-          {toFa(posts.length)} پست یافت شد
-        </p>
       )}
     </div>
   );
 }
 
-function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+function SortButton({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  return (
+    <Button
+      variant={active ? "default" : "outline"}
+      size="sm"
+      onClick={onClick}
+      className="gap-1.5 rounded-xl font-semibold h-9"
+    >
+      <Icon className="w-4 h-4" /> {label}
+    </Button>
+  );
+}
+
+function FilterChip({
+  label,
+  onClear,
+}: {
+  label: string;
+  onClear: () => void;
+}) {
   return (
     <button
       onClick={onClear}
       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
     >
-      {label}
-      <X className="w-3 h-3" />
+      <span className="max-w-[120px] truncate">{label}</span>
+      <X className="w-3 h-3 shrink-0" />
     </button>
   );
 }
-
-

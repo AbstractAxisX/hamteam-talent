@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { io, type Socket } from "socket.io-client";
-import { api, apiPost } from "@/lib/api-client";
+import { motion, AnimatePresence } from "framer-motion";
+import { api } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
 import { Card } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { toast } from "@/hooks/use-toast";
-import { timeAgoFa, toFa } from "@/lib/format";
+import { timeAgoFa } from "@/lib/format";
 import {
   MessageCircle,
   Send,
@@ -20,8 +21,10 @@ import {
   Users,
   Lock,
   Search,
-  Loader2,
+  Sparkles,
 } from "lucide-react";
+
+/* ───────────────────────────── Types ───────────────────────────── */
 
 type OtherUser = {
   id: string;
@@ -56,6 +59,8 @@ type ConversationDetail = {
   messages: ChatMessage[];
 };
 
+/* ───────────────────────────── Main View ───────────────────────────── */
+
 export function ChatView({ conversationId }: { conversationId?: string }) {
   const { user, loading: userLoading } = useUser();
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
@@ -66,13 +71,13 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   const [isTyping, setIsTyping] = useState(false);
   const [search, setSearch] = useState("");
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeConvRef = useRef<ConversationDetail | null>(null);
 
-  // Load conversation list
+  /* ── Load conversation list ── */
   const loadConversations = useCallback(async () => {
     setConvLoading(true);
     try {
@@ -87,7 +92,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     }
   }, []);
 
-  // Load messages of active conversation
+  /* ── Load messages of active conversation ── */
   const loadMessages = useCallback(async (id: string) => {
     setMsgLoading(true);
     try {
@@ -113,7 +118,18 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     else setActiveConv(null);
   }, [conversationId, user, loadMessages]);
 
-  // Socket.io connection — gateway uses XTransformPort=3003 in query, path "/"
+  /* ── Auto-scroll helper ── */
+  const scrollToBottom = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
+
+  /* ── Keep activeConv ref synced for socket handlers ── */
+  useEffect(() => {
+    activeConvRef.current = activeConv;
+  }, [activeConv]);
+
+  /* ── Socket.io connection ── */
   useEffect(() => {
     if (!user) return;
     const socket = io("/", {
@@ -126,41 +142,38 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     });
     socketRef.current = socket;
 
-    socket.on("connect", () => {
-      // connected
-    });
-    socket.on("connect_error", (err) => {
+    socket.on("connect_error", (err: Error) => {
       console.warn("[chat] socket connect_error", err.message);
     });
 
     socket.on("message", (msg: ChatMessage) => {
-      // Only handle if it belongs to the active conversation
       if (activeConvRef.current?.conversation?.id === msg.conversationId) {
         setActiveConv((prev) => {
           if (!prev) return prev;
-          // Avoid duplicates (we also emit optimistically for own messages)
           if (prev.messages.some((m) => m.id === msg.id)) return prev;
           return { ...prev, messages: [...prev.messages, msg] };
         });
-        // Scroll to bottom
         queueMicrotask(() => scrollToBottom());
       }
       // Always refresh conversation list to update last message preview
       loadConversations();
     });
 
-    socket.on("typing", (data: { conversationId: string; userId: string; isTyping: boolean }) => {
-      if (
-        activeConvRef.current?.conversation?.id === data.conversationId &&
-        data.userId !== user.id
-      ) {
-        setIsTyping(data.isTyping);
-        if (data.isTyping) {
-          if (typingClearRef.current) clearTimeout(typingClearRef.current);
-          typingClearRef.current = setTimeout(() => setIsTyping(false), 4000);
+    socket.on(
+      "typing",
+      (data: { conversationId: string; userId: string; isTyping: boolean }) => {
+        if (
+          activeConvRef.current?.conversation?.id === data.conversationId &&
+          data.userId !== user.id
+        ) {
+          setIsTyping(data.isTyping);
+          if (data.isTyping) {
+            if (typingClearRef.current) clearTimeout(typingClearRef.current);
+            typingClearRef.current = setTimeout(() => setIsTyping(false), 4000);
+          }
         }
       }
-    });
+    );
 
     return () => {
       socket.disconnect();
@@ -168,15 +181,9 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       if (typingClearRef.current) clearTimeout(typingClearRef.current);
     };
-  }, [user]);
+  }, [user, loadConversations, scrollToBottom]);
 
-  // Keep a ref of activeConv for socket handlers (avoid stale closures)
-  const activeConvRef = useRef<ConversationDetail | null>(null);
-  useEffect(() => {
-    activeConvRef.current = activeConv;
-  }, [activeConv]);
-
-  // Emit join when active conversation changes
+  /* ── Emit join when active conversation changes ── */
   useEffect(() => {
     if (!conversationId || !socketRef.current) return;
     if (socketRef.current.connected) {
@@ -188,21 +195,16 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     }
   }, [conversationId]);
 
-  // Auto-scroll to bottom on new messages
-  const scrollToBottom = useCallback(() => {
-    const el = messagesContainerRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, []);
-
+  /* ── Auto-scroll to bottom on new messages ── */
   useEffect(() => {
     queueMicrotask(() => scrollToBottom());
   }, [activeConv?.messages.length, scrollToBottom]);
 
+  /* ── Send a message ── */
   const handleSend = useCallback(async () => {
     const content = draft.trim();
     if (!content || !conversationId || !user || !socketRef.current) return;
     setDraft("");
-    // Reset typing
     socketRef.current.emit("typing", {
       conversationId,
       userId: user.id,
@@ -210,7 +212,6 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     });
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-    // Optimistic message — server will broadcast the persisted version
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const optimistic: ChatMessage = {
       id: tempId,
@@ -230,7 +231,6 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
       content,
     });
 
-    // Update conversation list preview optimistically
     setConversations((prev) =>
       prev
         .map((c) =>
@@ -278,7 +278,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     }
   };
 
-  // Filtered conversation list (search by name)
+  /* ── Filtered list ── */
   const filteredConversations = useMemo(() => {
     if (!search.trim()) return conversations;
     const q = search.trim().toLowerCase();
@@ -287,33 +287,44 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     );
   }, [conversations, search]);
 
-  // Not logged in
+  /* ── Not logged in ── */
   if (!userLoading && !user) {
     return (
-      <div className="space-y-4">
-        <ChatHeader />
-        <Card className="p-8 text-center space-y-3">
-          <div className="grid place-items-center w-12 h-12 rounded-xl bg-primary/10 text-primary mx-auto">
-            <Lock className="w-6 h-6" />
-          </div>
-          <h2 className="font-bold text-lg">برای چت کردن وارد شوید</h2>
-          <p className="text-sm text-muted-foreground">
-            برای شروع گفتگو با همکاران، ابتدا وارد حساب کاربری خود شوید.
-          </p>
-          <Button onClick={() => navigate({ view: "auth" })} className="gap-1.5">
-            ورود / ثبت‌نام
-          </Button>
+      <div className="max-w-3xl mx-auto space-y-5">
+        <PageHeader
+          icon={MessageCircle}
+          title="چت"
+          subtitle="گفتگوی زنده با همکاران"
+        />
+        <Card className="p-0 rounded-2xl border-border/60 shadow-card overflow-hidden">
+          <EmptyState
+            kind="chat"
+            title="برای چت کردن وارد شوید"
+            description="برای شروع گفتگو با همکاران، ابتدا وارد حساب کاربری خود شوید."
+            action={
+              <Button
+                onClick={() => navigate({ view: "auth" })}
+                className="gap-1.5 rounded-xl"
+              >
+                <Lock className="w-4 h-4" />
+                ورود / ثبت‌نام
+              </Button>
+            }
+          />
         </Card>
       </div>
     );
   }
 
-  // Mobile: show conversation list OR active chat
   const showMobileList = !conversationId;
 
   return (
     <div className="space-y-4">
-      <ChatHeader />
+      <PageHeader
+        icon={MessageCircle}
+        title="چت"
+        subtitle="گفتگوی زنده با همکاران"
+      />
 
       {/* Mobile: chat list */}
       {showMobileList && (
@@ -341,13 +352,12 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
             currentUserId={user?.id || ""}
             isTyping={isTyping}
             messagesContainerRef={messagesContainerRef}
-            messagesEndRef={messagesEndRef}
             onBack={() => navigate({ view: "chat" })}
           />
         </div>
       )}
 
-      {/* Desktop: two-pane */}
+      {/* Desktop: two-pane — list on right (RTL start), chat on left */}
       <div className="hidden lg:grid lg:grid-cols-[320px_1fr] gap-4">
         <div>
           <ChatList
@@ -370,19 +380,18 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
               currentUserId={user?.id || ""}
               isTyping={isTyping}
               messagesContainerRef={messagesContainerRef}
-              messagesEndRef={messagesEndRef}
             />
           ) : (
-            <Card className="h-[70vh] flex items-center justify-center">
+            <Card className="h-[70vh] flex items-center justify-center rounded-2xl border-border/60 shadow-card">
               <EmptyState
-                icon={MessageCircle}
+                kind="chat"
                 title="یک گفتگو را انتخاب کنید"
                 description="برای شروع گفتگوی جدید، از پروفایل همکاران یا صفحه‌ی افراد استفاده کنید."
                 action={
                   <Button
                     variant="outline"
                     onClick={() => navigate({ view: "people" })}
-                    className="gap-1.5"
+                    className="gap-1.5 rounded-xl"
                   >
                     <Users className="w-4 h-4" />
                     پیدا کردن همکار
@@ -397,21 +406,33 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   );
 }
 
-function ChatHeader() {
+/* ───────────────────────────── Page Header ───────────────────────────── */
+
+function PageHeader({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  subtitle: string;
+}) {
   return (
-    <div className="flex items-center gap-2.5">
-      <div className="grid place-items-center w-10 h-10 rounded-xl bg-primary/10 text-primary">
-        <MessageCircle className="w-5 h-5" />
+    <div className="flex items-center gap-3">
+      <div className="grid place-items-center w-11 h-11 rounded-2xl bg-brand-gradient text-white shadow-card">
+        <Icon className="w-5 h-5" />
       </div>
       <div>
-        <h1 className="text-xl font-bold leading-tight">چت</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          گفتگوی زنده با همکاران
-        </p>
+        <h1 className="text-xl font-extrabold leading-tight tracking-tight">
+          {title}
+        </h1>
+        <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
       </div>
     </div>
   );
 }
+
+/* ───────────────────────────── Chat List (right pane) ───────────────────────────── */
 
 function ChatList({
   conversations,
@@ -427,14 +448,15 @@ function ChatList({
   activeId?: string;
 }) {
   return (
-    <Card className="flex flex-col h-[70vh] overflow-hidden">
-      <div className="p-3 border-b border-border space-y-2">
+    <Card className="flex flex-col h-[70vh] overflow-hidden rounded-2xl border-border/60 shadow-card">
+      {/* Header */}
+      <div className="p-3.5 border-b border-border/60 space-y-2.5 bg-card">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="font-semibold text-sm">گفتگوها</h2>
+          <h2 className="font-bold text-sm">گفتگوها</h2>
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs gap-1"
+            className="h-7 text-xs gap-1 rounded-lg hover:bg-muted"
             onClick={() => navigate({ view: "people" })}
           >
             <Users className="w-3.5 h-3.5" />
@@ -442,32 +464,34 @@ function ChatList({
           </Button>
         </div>
         <div className="relative">
-          <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <input
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="جست‌وجو در گفتگوها..."
-            className="w-full h-8 pr-7 pl-2 text-xs rounded-md border border-input bg-background/50 focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full h-9 pr-8 pl-3 text-xs rounded-xl border border-input bg-muted/40 focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-transparent transition-all"
           />
         </div>
       </div>
+
+      {/* List */}
       <div className="flex-1 overflow-y-auto slim-scroll">
         {loading ? (
           <div className="p-3 space-y-2">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex items-center gap-2.5 p-2">
-                <Skeleton className="w-10 h-10 rounded-full" />
-                <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-3.5 w-24" />
-                  <Skeleton className="h-2.5 w-32" />
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl">
+                <Skeleton className="w-11 h-11 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3.5 w-28 rounded" />
+                  <Skeleton className="h-2.5 w-40 rounded" />
                 </div>
               </div>
             ))}
           </div>
         ) : conversations.length === 0 ? (
-          <div className="p-6">
+          <div className="p-4">
             <EmptyState
-              icon={MessageCircle}
+              kind="chat"
               title={search ? "موردی پیدا نشد" : "گفتگویی ندارید"}
               description={
                 search
@@ -475,17 +499,35 @@ function ChatList({
                   : "برای شروع گفتگو، به پروفایل یکی از همکاران بروید."
               }
               className="py-6"
+              action={
+                !search ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate({ view: "people" })}
+                    className="gap-1.5 rounded-xl"
+                  >
+                    <Users className="w-4 h-4" />
+                    پیدا کردن همکار
+                  </Button>
+                ) : undefined
+              }
             />
           </div>
         ) : (
-          conversations.map((c) => {
+          conversations.map((c, i) => {
             const active = c.id === activeId;
             return (
-              <button
+              <motion.button
                 key={c.id}
-                onClick={() => navigate({ view: "chat", conversationId: c.id })}
-                className={`w-full text-right flex items-center gap-2.5 p-3 hover:bg-muted/50 transition-colors border-b border-border/50 ${
-                  active ? "bg-primary/10" : ""
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: Math.min(i * 0.03, 0.25) }}
+                onClick={() =>
+                  navigate({ view: "chat", conversationId: c.id })
+                }
+                className={`w-full text-right flex items-center gap-3 p-3 hover:bg-muted/40 transition-colors border-b border-border/40 ${
+                  active ? "bg-primary/8" : ""
                 }`}
               >
                 <UserAvatar
@@ -496,7 +538,13 @@ function ChatList({
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-xs truncate">
+                    <span
+                      className={`text-xs truncate ${
+                        active
+                          ? "font-bold text-primary"
+                          : "font-semibold text-foreground"
+                      }`}
+                    >
                       {c.otherUser.name}
                     </span>
                     {c.lastMessage && (
@@ -505,13 +553,13 @@ function ChatList({
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
+                  <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5 leading-5">
                     {c.lastMessage
                       ? c.lastMessage.content
                       : "گفتگوی جدید — شروع کنید"}
                   </p>
                 </div>
-              </button>
+              </motion.button>
             );
           })
         )}
@@ -519,6 +567,8 @@ function ChatList({
     </Card>
   );
 }
+
+/* ───────────────────────────── Chat Thread (left pane) ───────────────────────────── */
 
 function ChatThread({
   conv,
@@ -530,7 +580,6 @@ function ChatThread({
   currentUserId,
   isTyping,
   messagesContainerRef,
-  messagesEndRef,
   onBack,
 }: {
   conv: ConversationDetail | null;
@@ -542,21 +591,20 @@ function ChatThread({
   currentUserId: string;
   isTyping: boolean;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
   onBack?: () => void;
 }) {
   const other = conv?.conversation?.otherUser;
   const messages = conv?.messages ?? [];
 
   return (
-    <Card className="flex flex-col h-[70vh] overflow-hidden">
-      {/* Header */}
-      <div className="p-3 border-b border-border flex items-center gap-2.5">
+    <Card className="flex flex-col h-[70vh] overflow-hidden rounded-2xl border-border/60 shadow-card">
+      {/* ── Header ── */}
+      <div className="p-3 border-b border-border/60 flex items-center gap-3 bg-card">
         {onBack && (
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0"
+            className="h-9 w-9 shrink-0 rounded-xl hover:bg-muted"
             onClick={onBack}
             aria-label="بازگشت"
           >
@@ -568,6 +616,7 @@ function ChatThread({
             <button
               onClick={() => navigate({ view: "profile", id: other.id })}
               className="shrink-0"
+              aria-label="مشاهده پروفایل"
             >
               <UserAvatar
                 name={other.name}
@@ -579,125 +628,138 @@ function ChatThread({
             <div className="flex-1 min-w-0">
               <button
                 onClick={() => navigate({ view: "profile", id: other.id })}
-                className="font-semibold text-sm hover:text-primary transition-colors truncate block text-right"
+                className="font-bold text-sm hover:text-primary transition-colors truncate block text-right"
               >
                 {other.name}
               </button>
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 h-4">
                 {isTyping ? (
-                  <span className="text-primary flex items-center gap-1">
+                  <span className="text-primary font-medium flex items-center gap-1">
                     <span className="flex gap-0.5">
-                      <span className="w-1 h-1 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
-                      <span className="w-1 h-1 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
-                      <span className="w-1 h-1 rounded-full bg-primary animate-bounce" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" />
                     </span>
                     در حال تایپ...
                   </span>
                 ) : (
-                  <span className="truncate">
-                    {other.bioShort || "مشاهده پروفایل"}
-                  </span>
+                  <span className="truncate">{other.bioShort || "مشاهده پروفایل"}</span>
                 )}
               </p>
             </div>
           </>
         ) : (
           <div className="flex-1">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-2.5 w-20 mt-1" />
+            <Skeleton className="h-4 w-32 rounded" />
+            <Skeleton className="h-2.5 w-20 mt-1.5 rounded" />
           </div>
         )}
       </div>
 
-      {/* Messages */}
+      {/* ── Messages ── */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto slim-scroll p-4 space-y-3 bg-muted/20"
+        className="flex-1 overflow-y-auto slim-scroll p-4 space-y-2.5 bg-muted/30"
       >
         {loading ? (
           <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div
-                key={i}
-                className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}
-              >
-                <Skeleton
-                  className={`h-12 ${i % 2 === 0 ? "w-48" : "w-56"} rounded-2xl`}
-                />
-              </div>
-            ))}
+            {[...Array(6)].map((_, i) => {
+              const mine = i % 2 === 0;
+              return (
+                <div
+                  key={i}
+                  className={`flex ${mine ? "justify-start" : "justify-end"}`}
+                >
+                  <Skeleton
+                    className={`h-12 ${
+                      mine ? "w-48" : "w-56"
+                    } rounded-2xl ${mine ? "rounded-tl-md" : "rounded-tr-md"}`}
+                  />
+                </div>
+              );
+            })}
           </div>
         ) : messages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <EmptyState
-              icon={MessageCircle}
+              kind="chat"
               title="گفتگو را شروع کنید"
               description="اولین پیام را ارسال کنید — گفتگوی شما کاملاً خصوصی است."
               className="py-6"
             />
           </div>
         ) : (
-          messages.map((m, idx) => {
-            const isMine = m.senderId === currentUserId;
-            const prev = messages[idx - 1];
-            const showSender =
-              !isMine && (!prev || prev.senderId !== m.senderId);
-            return (
-              <div
-                key={m.id}
-                className={`flex flex-col ${
-                  isMine ? "items-end" : "items-start"
-                }`}
-              >
-                {showSender && (
-                  <span className="text-[10px] text-muted-foreground mb-1 px-1">
-                    {other?.name}
-                  </span>
-                )}
-                <div
-                  className={`max-w-[80%] sm:max-w-[70%] px-3.5 py-2 rounded-2xl text-sm leading-6 break-words whitespace-pre-wrap ${
-                    isMine
-                      ? "bg-primary text-primary-foreground rounded-bl-md"
-                      : "bg-card border border-border rounded-br-md"
+          <AnimatePresence initial={false}>
+            {messages.map((m, idx) => {
+              const isMine = m.senderId === currentUserId;
+              const prev = messages[idx - 1];
+              const showSender =
+                !isMine && (!prev || prev.senderId !== m.senderId);
+              return (
+                <motion.div
+                  key={m.id}
+                  layout="position"
+                  initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  className={`flex flex-col ${
+                    isMine ? "items-start" : "items-end"
                   }`}
                 >
-                  {m.content}
-                  <span
-                    className={`block text-[9px] mt-1 ${
-                      isMine ? "text-primary-foreground/70" : "text-muted-foreground"
+                  {showSender && (
+                    <span className="text-[10px] text-muted-foreground mb-1 px-2 font-medium">
+                      {other?.name}
+                    </span>
+                  )}
+                  <div
+                    className={`max-w-[80%] sm:max-w-[70%] px-3.5 py-2.5 text-sm leading-6 break-words whitespace-pre-wrap shadow-soft ${
+                      isMine
+                        ? "bg-primary text-primary-foreground rounded-2xl rounded-tl-md"
+                        : "bg-card border border-border/60 rounded-2xl rounded-tr-md"
                     }`}
                   >
-                    {timeAgoFa(m.createdAt)}
-                  </span>
-                </div>
-              </div>
-            );
-          })
+                    {m.content}
+                    <span
+                      className={`block text-[9px] mt-1 ${
+                        isMine
+                          ? "text-primary-foreground/70"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {timeAgoFa(m.createdAt)}
+                    </span>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="p-3 border-t border-border">
+      {/* ── Input ── */}
+      <div className="p-3 border-t border-border/60 bg-card">
         <div className="flex items-end gap-2">
-          <Textarea
-            value={draft}
-            onChange={(e) => onDraftChange(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="پیام بنویسید..."
-            className="flex-1 min-h-[44px] max-h-32 resize-none text-sm"
-            rows={1}
-          />
+          <div className="flex-1 relative">
+            <Textarea
+              value={draft}
+              onChange={(e) => onDraftChange(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="پیام بنویسید..."
+              className="flex-1 min-h-[44px] max-h-32 resize-none text-sm rounded-2xl pr-4 pl-3 py-2.5 border-border/60 focus-visible:ring-1"
+              rows={1}
+            />
+          </div>
           <Button
             onClick={onSend}
             disabled={!draft.trim()}
-            className="h-11 w-11 p-0 shrink-0"
+            className="h-11 w-11 p-0 shrink-0 rounded-full shadow-card hover:shadow-lift transition-shadow"
             aria-label="ارسال"
           >
             <Send className="w-4 h-4" />
           </Button>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-1.5 px-1">
+        <p className="text-[10px] text-muted-foreground mt-1.5 px-2 flex items-center gap-1">
+          <Sparkles className="w-3 h-3 text-gold/70" />
           Enter برای ارسال · Shift+Enter برای خط جدید
         </p>
       </div>

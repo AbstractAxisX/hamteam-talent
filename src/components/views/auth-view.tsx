@@ -4,16 +4,18 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { motion, AnimatePresence } from "framer-motion";
 import { apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "@/hooks/use-toast";
-import { ArrowRight, Loader2, Phone, ShieldCheck, Sparkles } from "lucide-react";
+import { AuthIllustration, LogoMark } from "@/components/shared/illustrations";
+import { ArrowLeft, Loader2, Phone, ShieldCheck, Sparkles, Users, Briefcase, Heart } from "lucide-react";
 
 const schema = z.object({
   name: z.string().min(2, "نام را کامل وارد کنید"),
@@ -25,12 +27,11 @@ type FormData = z.infer<typeof schema>;
 export function AuthView() {
   const [step, setStep] = useState<"info" | "otp">("info");
   const [mode, setMode] = useState<"register" | "login" | null>(null);
-  const [demoOtp, setDemoOtp] = useState<string>("");
+  const [demoOtp, setDemoOtp] = useState("");
   const [otp, setOtp] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [phone, setPhone] = useState("");
   const fetchUser = useUser((s) => s.fetchUser);
-
   const form = useForm<FormData>({ resolver: zodResolver(schema) });
 
   async function onInfoSubmit(data: FormData) {
@@ -44,7 +45,6 @@ export function AuthView() {
       setMode(res.mode);
       setPhone(data.phone);
       setStep("otp");
-      toast({ title: "کد تایید ارسال شد", description: "نسخه دمو — کد نمایش داده می‌شود" });
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -58,7 +58,7 @@ export function AuthView() {
     try {
       await apiPost("/api/auth/verify", { phone, otp });
       await fetchUser();
-      toast({ title: "خوش آمدید! 👋", description: "ورود موفقیت‌آمیز بود" });
+      toast({ title: "خوش آمدید! 👋" });
       navigate({ view: "feed" });
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
@@ -69,121 +69,176 @@ export function AuthView() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
-      {/* Left visual panel */}
-      <div className="hidden lg:flex flex-col justify-between bg-gradient-emerald p-12 text-primary-foreground relative overflow-hidden">
-        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 20% 30%, white 1px, transparent 1px), radial-gradient(circle at 70% 60%, white 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
-        <div className="relative">
-          <div className="flex items-center gap-2 text-2xl font-extrabold">
-            <span className="grid place-items-center w-10 h-10 rounded-xl bg-white/20">
-              <Sparkles className="w-6 h-6" />
-            </span>
-            همتیم
+      {/* ── Left: Brand visual ── */}
+      <div className="hidden lg:flex flex-col justify-between bg-brand-gradient p-12 text-white relative overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+        {/* floating shapes */}
+        <div className="absolute top-20 right-20 w-32 h-32 rounded-full bg-white/5 animate-float" />
+        <div className="absolute bottom-32 left-16 w-24 h-24 rounded-full bg-gold/10 animate-float" style={{ animationDelay: "1.5s" }} />
+
+        <div className="relative flex items-center gap-3">
+          <LogoMark className="w-11 h-11" />
+          <span className="text-2xl font-extrabold">همتیم</span>
+        </div>
+
+        <div className="relative space-y-6">
+          <AuthIllustration className="w-64 h-80 mx-auto" />
+          <div className="space-y-3">
+            <h1 className="text-4xl font-extrabold leading-tight">
+              شبکه تخصصی مشاغل<br />و تیم‌سازی فارسی
+            </h1>
+            <p className="text-lg text-white/75 max-w-md leading-8">
+              پروفایل حرفه‌ای بساز، مهارت‌هایت را نشان بده، روی پروژه‌ها همکاری کن و تیم بساز.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-3 max-w-md">
+            {[
+              { icon: Users, label: "شبکه‌سازی" },
+              { icon: Briefcase, label: "تیم‌سازی" },
+              { icon: Heart, label: "کشف مهارت" },
+            ].map((f) => (
+              <div key={f.label} className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-white/8 backdrop-blur-sm">
+                <f.icon className="w-5 h-5 text-gold" />
+                <span className="text-xs font-medium text-white/80">{f.label}</span>
+              </div>
+            ))}
           </div>
         </div>
-        <div className="relative space-y-4">
-          <h1 className="text-4xl font-extrabold leading-tight">
-            شبکه تخصصی مشاغل<br />و تیم‌سازی فارسی
-          </h1>
-          <p className="text-lg text-primary-foreground/80 max-w-md">
-            پروفایل حرفه‌ای بساز، مهارت‌هایت را نشان بده، روی پروژه‌ها همکاری کن و تیم بساز.
-          </p>
-          <ul className="space-y-2 text-primary-foreground/90">
-            <li className="flex items-center gap-2"><ShieldCheck className="w-5 h-5" /> بدون نقش جدا — همه برابرند</li>
-            <li className="flex items-center gap-2"><ShieldCheck className="w-5 h-5" /> کشف بر اساس مهارت و دسته‌بندی</li>
-            <li className="flex items-center gap-2"><ShieldCheck className="w-5 h-5" /> کاملاً رایگان — مدل درآمدی فقط تبلیغات</li>
-          </ul>
-        </div>
-        <p className="relative text-sm text-primary-foreground/60">© ۱۴۰۳ همتیم</p>
+
+        <p className="relative text-sm text-white/50">© ۱۴۰۳ همتیم — کاملاً رایگان</p>
       </div>
 
-      {/* Right form panel */}
-      <div className="flex items-center justify-center p-6">
-        <Card className="w-full max-w-md border-border/60 shadow-sm">
-          <CardHeader className="space-y-1">
-            <div className="lg:hidden flex items-center gap-2 mb-2">
-              <span className="grid place-items-center w-9 h-9 rounded-xl bg-gradient-emerald text-primary-foreground">
-                <Sparkles className="w-5 h-5" />
-              </span>
-              <span className="text-xl font-extrabold">همتیم</span>
-            </div>
-            <CardTitle className="text-2xl">
-              {step === "info" ? "ورود / ثبت‌نام" : "تایید شماره"}
-            </CardTitle>
-            <CardDescription>
-              {step === "info"
-                ? "با شماره موبایل و کد ملی وارد شوید. ادمین نیز از همین فرم وارد می‌شود."
-                : `کد ۴ رقمی ارسال شده به ${phone} را وارد کنید`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+      {/* ── Right: Form ── */}
+      <div className="flex items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-md">
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center justify-center gap-2.5 mb-8">
+            <LogoMark className="w-10 h-10" />
+            <span className="text-2xl font-extrabold">همتیم</span>
+          </div>
+
+          <AnimatePresence mode="wait">
             {step === "info" ? (
-              <form onSubmit={form.handleSubmit(onInfoSubmit)} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="name">نام و نام خانوادگی</Label>
-                  <Input id="name" placeholder="مثلاً: علی رضایی" {...form.register("name")} />
-                  {form.formState.errors.name && (
-                    <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
-                  )}
+              <motion.div
+                key="info"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="mb-8">
+                  <h2 className="text-3xl font-extrabold tracking-tight">شروع کنید</h2>
+                  <p className="text-muted-foreground mt-2 leading-7">
+                    با شماره موبایل و کد ملی وارد شوید. حساب ندارید؟ خودکار ثبت‌نام می‌شود.
+                  </p>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="phone">شماره موبایل</Label>
-                  <div className="relative">
-                    <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input id="phone" inputMode="numeric" placeholder="۰۹۱۲۳۴۵۶۷۸۹" className="pr-9" {...form.register("phone")} />
-                  </div>
-                  {form.formState.errors.phone && (
-                    <p className="text-xs text-destructive">{form.formState.errors.phone.message}</p>
-                  )}
+
+                <form onSubmit={form.handleSubmit(onInfoSubmit)} className="space-y-5">
+                  <Field label="نام و نام خانوادگی" error={form.formState.errors.name?.message}>
+                    <Input
+                      placeholder="مثلاً: علی رضایی"
+                      className="h-12 rounded-xl text-base"
+                      {...form.register("name")}
+                    />
+                  </Field>
+                  <Field label="شماره موبایل" error={form.formState.errors.phone?.message}>
+                    <div className="relative">
+                      <Phone className="absolute right-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <Input
+                        inputMode="numeric"
+                        placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                        className="h-12 rounded-xl text-base pr-11"
+                        {...form.register("phone")}
+                      />
+                    </div>
+                  </Field>
+                  <Field label="کد ملی" error={form.formState.errors.nationalId?.message}>
+                    <Input
+                      inputMode="numeric"
+                      placeholder="۱۰ رقم"
+                      maxLength={10}
+                      className="h-12 rounded-xl text-base"
+                      {...form.register("nationalId")}
+                    />
+                  </Field>
+
+                  <Button type="submit" className="w-full h-12 rounded-xl text-base font-semibold" disabled={submitting}>
+                    {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "ادامه"}
+                    {!submitting && <ArrowLeft className="w-4 h-4 mr-1" />}
+                  </Button>
+                </form>
+
+                <div className="mt-6 p-4 rounded-xl bg-muted/60 border border-border">
+                  <p className="text-xs text-muted-foreground leading-6">
+                    <Sparkles className="w-3.5 h-3.5 inline-block ml-1 text-gold" />
+                    کد تایید برای همه <strong className="text-foreground">۱۲۳۴</strong> است (نسخه دمو).
+                    ادمین: ۰۹۱۲۰۰۰۰۰۰۰۰ / ۱۱۱۱۱۱۱۱۱۱
+                  </p>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="nationalId">کد ملی</Label>
-                  <Input id="nationalId" inputMode="numeric" placeholder="۱۰ رقم" maxLength={10} {...form.register("nationalId")} />
-                  {form.formState.errors.nationalId && (
-                    <p className="text-xs text-destructive">{form.formState.errors.nationalId.message}</p>
-                  )}
-                </div>
-                <Button type="submit" className="w-full" disabled={submitting}>
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "ادامه"}
-                  {!submitting && <ArrowRight className="w-4 h-4 mr-1 rotate-180" />}
-                </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                  حساب ادمین دمو: ۰۹۱۲۰۰۰۰۰۰۰۰ / کد ملی ۱۱۱۱۱۱۱۱۱۱
-                </p>
-              </form>
+              </motion.div>
             ) : (
-              <div className="space-y-4">
-                <div className="rounded-lg bg-warning/10 border border-warning/20 p-3 text-sm">
-                  <span className="font-medium text-warning">کد دمو: </span>
-                  <span className="font-mono text-lg tracking-widest" dir="ltr">{demoOtp}</span>
+              <motion.div
+                key="otp"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="mb-8">
+                  <div className="grid place-items-center w-16 h-16 rounded-2xl bg-brand-gradient-soft mb-4">
+                    <ShieldCheck className="w-8 h-8 text-primary" />
+                  </div>
+                  <h2 className="text-3xl font-extrabold tracking-tight">تایید شماره</h2>
+                  <p className="text-muted-foreground mt-2 leading-7">
+                    کد ۴ رقمی ارسال شده به <span className="font-semibold text-foreground" dir="ltr">{phone}</span> را وارد کنید.
+                  </p>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>کد تایید</Label>
+
+                <div className="mb-6 p-4 rounded-xl bg-gold/8 border border-gold/20 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">کد دمو</p>
+                  <p className="font-mono text-2xl tracking-[0.5em] font-bold text-gold" dir="ltr">{demoOtp}</p>
+                </div>
+
+                <div className="mb-6">
+                  <Label className="mb-3 block text-center">کد تایید</Label>
                   <div className="flex justify-center" dir="ltr">
                     <InputOTP maxLength={4} value={otp} onChange={setOtp}>
                       <InputOTPGroup>
-                        <InputOTPSlot index={0} />
-                        <InputOTPSlot index={1} />
-                        <InputOTPSlot index={2} />
-                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={0} className="w-14 h-14 text-xl first:rounded-r-xl last:rounded-l-xl" />
+                        <InputOTPSlot index={1} className="w-14 h-14 text-xl" />
+                        <InputOTPSlot index={2} className="w-14 h-14 text-xl" />
+                        <InputOTPSlot index={3} className="w-14 h-14 text-xl" />
                       </InputOTPGroup>
                     </InputOTP>
                   </div>
                 </div>
-                <Button onClick={onVerify} className="w-full" disabled={submitting || otp.length < 4}>
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "login" ? "ورود" : "ثبت‌نام"}
+
+                <Button onClick={onVerify} className="w-full h-12 rounded-xl text-base font-semibold" disabled={submitting || otp.length < 4}>
+                  {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : mode === "login" ? "ورود" : "ثبت‌نام"}
                 </Button>
+
                 <button
                   type="button"
                   onClick={() => setStep("info")}
-                  className="w-full text-sm text-muted-foreground hover:text-foreground"
+                  className="w-full mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  بازگشت و ویرایش اطلاعات
+                  ← بازگشت و ویرایش
                 </button>
-              </div>
+              </motion.div>
             )}
-          </CardContent>
-        </Card>
+          </AnimatePresence>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-semibold">{label}</Label>
+      {children}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

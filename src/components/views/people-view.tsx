@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import { api } from "@/lib/api-client";
 import { navigate } from "@/lib/nav";
 import type { CategoryWithSkills } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -16,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -26,8 +27,6 @@ import { PROVINCES, getProvinceName } from "@/lib/geo";
 import {
   Users,
   Search,
-  Sparkles,
-  UserCheck,
   Clock,
   TrendingUp,
   X,
@@ -36,6 +35,8 @@ import {
   Layers,
   Filter,
   MapPinned,
+  UserCheck,
+  Sparkles,
 } from "lucide-react";
 
 const ALL = "__all__";
@@ -158,35 +159,45 @@ export function PeopleView() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="grid place-items-center w-11 h-11 rounded-xl bg-primary/10 text-primary shrink-0">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="flex items-center gap-3"
+      >
+        <div className="grid place-items-center w-12 h-12 rounded-2xl bg-primary/10 text-primary shrink-0 shadow-soft">
           <Users className="w-6 h-6" />
         </div>
         <div className="min-w-0">
-          <h1 className="text-xl font-bold leading-tight">افراد</h1>
-          <p className="text-sm text-muted-foreground">
-            کشف افراد حرفه‌ای بر اساس مهارت
+          <h1 className="text-xl font-bold leading-tight">کشف افراد</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            جستجوی افراد حرفه‌ای بر اساس مهارت، تخصص و موقعیت
           </p>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Search + sort + filter toggle */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+      {/* Search input */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+        className="flex items-center gap-2 flex-wrap"
+      >
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="جستجوی نام یا تخصص..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="pr-9"
+            className="pr-10 h-11 rounded-xl text-[15px] shadow-soft border-border/60"
           />
           {q && (
             <button
               onClick={() => setQ("")}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label="پاک کردن"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="پاک کردن جستجو"
             >
               <X className="w-4 h-4" />
             </button>
@@ -196,7 +207,7 @@ export function PeopleView() {
           variant={activeFilterCount > 0 ? "secondary" : "outline"}
           size="sm"
           onClick={() => setFiltersOpen((o) => !o)}
-          className="gap-1.5"
+          className="gap-1.5 rounded-xl font-semibold h-11 lg:hidden"
         >
           <Filter className="w-4 h-4" />
           فیلتر
@@ -206,33 +217,29 @@ export function PeopleView() {
             </span>
           )}
         </Button>
-      </div>
+      </motion.div>
 
       {/* Sort toggle */}
       <div className="flex items-center gap-1.5">
-        <Button
-          variant={sort === "recent" ? "default" : "outline"}
-          size="sm"
+        <SortButton
+          active={sort === "recent"}
           onClick={() => setSort("recent")}
-          className="gap-1.5"
-        >
-          <Clock className="w-4 h-4" /> جدیدترین
-        </Button>
-        <Button
-          variant={sort === "followers" ? "default" : "outline"}
-          size="sm"
+          icon={Clock}
+          label="جدیدترین"
+        />
+        <SortButton
+          active={sort === "followers"}
           onClick={() => setSort("followers")}
-          className="gap-1.5"
-        >
-          <TrendingUp className="w-4 h-4" /> بیشترین دنبال‌کننده
-        </Button>
+          icon={TrendingUp}
+          label="پرطرفدارترین"
+        />
       </div>
 
       {/* Filters card */}
-      <Card className={`p-4 space-y-3 ${filtersOpen ? "" : "hidden"} sm:!block`}>
-        <div className="hidden sm:flex items-center justify-between">
+      <Card className={`p-4 sm:p-5 space-y-3 rounded-2xl border-border/60 shadow-card ${filtersOpen ? "" : "hidden"} lg:!block`}>
+        <div className="hidden lg:flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
-            <Filter className="w-4 h-4" />
+            <Filter className="w-4 h-4 text-primary" />
             فیلتر پیشرفته
           </div>
           {activeFilterCount > 0 && (
@@ -240,9 +247,9 @@ export function PeopleView() {
               variant="ghost"
               size="sm"
               onClick={clearAll}
-              className="gap-1.5 text-muted-foreground hover:text-destructive"
+              className="gap-1.5 text-muted-foreground hover:text-destructive rounded-lg h-8"
             >
-              <X className="w-4 h-4" /> پاک کردن همه ({toFa(activeFilterCount)})
+              <X className="w-3.5 h-3.5" /> پاک کردن همه ({toFa(activeFilterCount)})
             </Button>
           )}
         </div>
@@ -251,10 +258,10 @@ export function PeopleView() {
           {/* Category */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5" /> دسته‌بندی
+              <Tag className="w-3.5 h-3.5 text-primary" /> دسته‌بندی
             </label>
             <Select value={categoryId} onValueChange={onCategoryChange}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full rounded-xl h-10">
                 <SelectValue placeholder="همه دسته‌ها" />
               </SelectTrigger>
               <SelectContent>
@@ -271,10 +278,10 @@ export function PeopleView() {
           {/* Skill (chained) */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5" /> مهارت
+              <Layers className="w-3.5 h-3.5 text-primary" /> مهارت
             </label>
             <Select value={skillId} onValueChange={setSkillId}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full rounded-xl h-10">
                 <SelectValue placeholder="همه مهارت‌ها" />
               </SelectTrigger>
               <SelectContent>
@@ -300,10 +307,10 @@ export function PeopleView() {
           {/* Province */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5" /> استان
+              <MapPin className="w-3.5 h-3.5 text-primary" /> استان
             </label>
             <Select value={province} onValueChange={onProvinceChange}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full rounded-xl h-10">
                 <SelectValue placeholder="همه استان‌ها" />
               </SelectTrigger>
               <SelectContent>
@@ -320,14 +327,14 @@ export function PeopleView() {
           {/* City (chained) */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5" /> شهر
+              <MapPin className="w-3.5 h-3.5 text-primary" /> شهر
             </label>
             <Select
               value={city}
               onValueChange={setCity}
               disabled={province === ALL}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full rounded-xl h-10">
                 <SelectValue
                   placeholder={
                     province === ALL ? "ابتدا استان را انتخاب کنید" : "همه شهرها"
@@ -349,12 +356,12 @@ export function PeopleView() {
         </div>
 
         {activeFilterCount > 0 && (
-          <div className="sm:hidden">
+          <div className="lg:hidden">
             <Button
               variant="ghost"
               size="sm"
               onClick={clearAll}
-              className="w-full gap-1.5 text-muted-foreground hover:text-destructive"
+              className="w-full gap-1.5 text-muted-foreground hover:text-destructive rounded-lg h-9"
             >
               <X className="w-4 h-4" /> پاک کردن همه فیلترها ({toFa(activeFilterCount)})
             </Button>
@@ -364,7 +371,11 @@ export function PeopleView() {
 
       {/* Active filter chips */}
       {activeFilterCount > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-wrap gap-1.5"
+        >
           {debouncedQ && (
             <FilterChip label={`«${debouncedQ}»`} onClear={() => setQ("")} />
           )}
@@ -399,6 +410,16 @@ export function PeopleView() {
           {city !== ALL && (
             <FilterChip label={city} onClear={() => setCity(ALL)} />
           )}
+        </motion.div>
+      )}
+
+      {/* Results count */}
+      {!loading && users.length > 0 && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Sparkles className="w-3.5 h-3.5 text-gold" />
+          <span>
+            {toFa(users.length)} نفر یافت شد
+          </span>
         </div>
       )}
 
@@ -406,30 +427,33 @@ export function PeopleView() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <Card key={i} className="p-4 space-y-3">
-              <div className="flex items-center gap-3">
-                <Skeleton className="w-14 h-14 rounded-full" />
-                <div className="space-y-1.5 flex-1">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
+            <Card key={i} className="p-5 space-y-3 rounded-2xl border-border/60 shadow-card text-center">
+              <div className="flex flex-col items-center gap-2">
+                <Skeleton className="w-16 h-16 rounded-full" />
+                <Skeleton className="h-4 w-28 rounded" />
+                <Skeleton className="h-3 w-20 rounded" />
               </div>
-              <Skeleton className="h-12 w-full" />
-              <div className="flex gap-1.5">
-                <Skeleton className="h-5 w-16" />
-                <Skeleton className="h-5 w-16" />
+              <Skeleton className="h-3 w-full rounded" />
+              <Skeleton className="h-3 w-2/3 mx-auto rounded" />
+              <div className="flex justify-center gap-1.5 pt-1">
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-5 w-16 rounded-full" />
               </div>
             </Card>
           ))}
         </div>
       ) : users.length === 0 ? (
         <EmptyState
-          icon={Sparkles}
-          title="فردی با این مشخصات پیدا نشد"
-          description="فیلترها را تغییر دهید یا عبارت جستجو را اصلاح کنید."
+          kind={activeFilterCount > 0 ? "search" : "people"}
+          title={activeFilterCount > 0 ? "فردی با این مشخصات پیدا نشد" : "هنوز کاربری وجود ندارد"}
+          description={
+            activeFilterCount > 0
+              ? "فیلترها را تغییر دهید یا عبارت جستجو را اصلاح کنید."
+              : "به‌زودی کاربران حرفه‌ای در این صفحه ظاهر می‌شوند."
+          }
           action={
             activeFilterCount > 0 ? (
-              <Button variant="outline" size="sm" onClick={clearAll} className="gap-1.5">
+              <Button variant="outline" size="sm" onClick={clearAll} className="gap-1.5 rounded-xl font-semibold">
                 <X className="w-4 h-4" /> پاک کردن فیلترها
               </Button>
             ) : undefined
@@ -437,108 +461,141 @@ export function PeopleView() {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {users.map((u) => (
-            <PeopleCard key={u.id} user={u} />
+          {users.map((u, i) => (
+            <PeopleCard key={u.id} user={u} index={i} />
           ))}
         </div>
-      )}
-
-      {/* Results count */}
-      {!loading && users.length > 0 && (
-        <p className="text-xs text-muted-foreground text-center pt-2">
-          {toFa(users.length)} نفر یافت شد
-        </p>
       )}
     </div>
   );
 }
 
-function PeopleCard({ user }: { user: PeopleListItem }) {
-  const provinceName = getProvinceName(user.province);
-  const location = [provinceName, user.city].filter(Boolean).join("، ");
-
+function SortButton({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
   return (
-    <Card
-      className="p-4 hover:shadow-md transition-all cursor-pointer hover:border-primary/30 group"
-      onClick={() => navigate({ view: "profile", id: user.id })}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          navigate({ view: "profile", id: user.id });
-        }
-      }}
+    <Button
+      variant={active ? "default" : "outline"}
+      size="sm"
+      onClick={onClick}
+      className="gap-1.5 rounded-xl font-semibold h-9"
     >
-      <div className="flex items-start gap-3">
-        <UserAvatar
-          name={user.name}
-          avatarUrl={user.avatarUrl}
-          verified={user.isVerifiedBadge}
-          size="lg"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <h3 className="font-bold text-sm truncate group-hover:text-primary transition-colors">
-              {user.name}
-            </h3>
-          </div>
-          {location && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-              <MapPinned className="w-3 h-3 shrink-0" />
-              <span className="truncate">{location}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {user.bioShort && (
-        <p className="mt-3 text-sm text-muted-foreground line-clamp-2 leading-6 min-h-[3rem]">
-          {user.bioShort}
-        </p>
-      )}
-
-      {user.categories.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {user.categories.slice(0, 3).map((c, i) => (
-            <Badge
-              key={`${c.name}-${i}`}
-              variant={i === 0 ? "secondary" : "outline"}
-              className="text-[10px] py-0 h-5"
-            >
-              {c.name}
-            </Badge>
-          ))}
-          {user.categories.length > 3 && (
-            <Badge variant="outline" className="text-[10px] py-0 h-5">
-              +{toFa(user.categories.length - 3)}
-            </Badge>
-          )}
-        </div>
-      )}
-
-      <div className="mt-3 pt-3 border-t flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <UserCheck className="w-3.5 h-3.5 text-primary" />
-          <span>{formatCount(user.followersCount)} دنبال‌کننده</span>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 text-xs gap-1 text-primary hover:text-primary"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate({ view: "profile", id: user.id });
-          }}
-        >
-          مشاهده پروفایل
-        </Button>
-      </div>
-    </Card>
+      <Icon className="w-4 h-4" /> {label}
+    </Button>
   );
 }
 
-function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+function PeopleCard({
+  user,
+  index = 0,
+}: {
+  user: PeopleListItem;
+  index?: number;
+}) {
+  const provinceName = getProvinceName(user.province);
+  const location = [provinceName, user.city].filter(Boolean).join("، ");
+  const visibleCategories = user.categories.slice(0, 3);
+  const overflowCount = Math.max(0, user.categories.length - 3);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.35,
+        delay: Math.min(index * 0.05, 0.3),
+        ease: [0.16, 1, 0.3, 1],
+      }}
+    >
+      <Card
+        className="p-5 rounded-2xl border-border/60 shadow-card hover:shadow-lift hover:border-primary/30 transition-all duration-300 cursor-pointer group text-center"
+        onClick={() => navigate({ view: "profile", id: user.id })}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            navigate({ view: "profile", id: user.id });
+          }
+        }}
+      >
+        {/* Avatar */}
+        <div className="flex justify-center">
+          <UserAvatar
+            name={user.name}
+            avatarUrl={user.avatarUrl}
+            verified={user.isVerifiedBadge}
+            size="lg"
+            className="transition-transform duration-300 group-hover:scale-105"
+          />
+        </div>
+
+        {/* Name */}
+        <h3 className="mt-3 font-bold text-[15px] truncate group-hover:text-primary transition-colors">
+          {user.name}
+        </h3>
+
+        {/* Location */}
+        {location && (
+          <div className="mt-1 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+            <MapPinned className="w-3 h-3 shrink-0 text-primary/70" />
+            <span className="truncate max-w-[180px]">{location}</span>
+          </div>
+        )}
+
+        {/* Bio */}
+        {user.bioShort && (
+          <p className="mt-3 text-sm text-muted-foreground line-clamp-2 leading-6 min-h-[3rem]">
+            {user.bioShort}
+          </p>
+        )}
+
+        {/* Category badges */}
+        {visibleCategories.length > 0 && (
+          <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+            {visibleCategories.map((c, i) => (
+              <Badge
+                key={`${c.name}-${i}`}
+                variant={i === 0 ? "secondary" : "outline"}
+                className="text-[10px] py-0 h-5 rounded-md font-medium"
+              >
+                {c.name}
+              </Badge>
+            ))}
+            {overflowCount > 0 && (
+              <Badge variant="outline" className="text-[10px] py-0 h-5 rounded-md font-medium">
+                +{toFa(overflowCount)}
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Followers count */}
+        <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          <UserCheck className="w-3.5 h-3.5 text-primary" />
+          <span className="nums-fa">{formatCount(user.followersCount)}</span>
+          <span>دنبال‌کننده</span>
+        </div>
+      </Card>
+    </motion.div>
+  );
+}
+
+function FilterChip({
+  label,
+  onClear,
+}: {
+  label: string;
+  onClear: () => void;
+}) {
   return (
     <button
       onClick={onClear}
