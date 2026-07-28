@@ -13,12 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PostCard } from "@/components/shared/post-card";
+import { LandingView } from "@/components/views/landing-view";
 import { toast } from "@/hooks/use-toast";
 import { toFa } from "@/lib/format";
 import { Loader2, Clock, Flame, Sparkles, Image as ImageIcon, X } from "lucide-react";
 
 export function FeedView() {
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const [posts, setPosts] = useState<PostWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState<"recent" | "popular">("recent");
@@ -35,30 +36,20 @@ export function FeedView() {
     }
   }, [sort]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    // Only fetch posts if logged in (guests see landing)
+    if (user) load();
+    else setLoading(false);
+  }, [load, user]);
+
+  // Show landing page for guests
+  if (!user && !userLoading) return <LandingView />;
+  if (userLoading) return <div className="space-y-4"><Skeleton className="h-32 rounded-2xl" /><Skeleton className="h-48 rounded-2xl" /></div>;
 
   return (
     <div className="space-y-5 max-w-2xl mx-auto">
-      {/* Welcome banner for guests */}
+      {/* Create post box for logged-in users */}
       {user && <CreatePostBox onCreated={load} />}
-      {!user && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="p-5 bg-brand-gradient text-white border-0 shadow-lift overflow-hidden relative">
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
-            <div className="relative flex items-center justify-between gap-4">
-              <div>
-                <h2 className="font-extrabold text-xl">به همتیم خوش آمدید 👋</h2>
-                <p className="text-sm text-white/80 mt-1 leading-6">
-                  برای پست‌گذاری، تیم‌سازی و ارتباطات حرفه‌ای وارد شوید.
-                </p>
-              </div>
-              <Button onClick={() => navigate({ view: "auth" })} variant="secondary" className="shrink-0 rounded-xl">
-                شروع
-              </Button>
-            </div>
-          </Card>
-        </motion.div>
-      )}
 
       {/* Sort toggle */}
       <div className="flex items-center gap-2">

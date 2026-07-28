@@ -435,3 +435,27 @@ Stage Summary:
 - Edit profile: 5 motion-staggered section cards with consistent SectionTitle pattern (icon chip + title), bio counters, province/city chained selects, phone-visible switch, category cards with removable skill badges, experience/education list items with delete + add-in-dialog flows.
 - Connections: 3 clean tabs with count badges, motion-staggered person cards, accept/reject with PATCH, chat start with POST, "در انتظار پاسخ" gold badge for sent.
 - Lint clean (0 errors, 0 warnings). Dev server compiles successfully.
+
+---
+Task ID: R2-UI
+Agent: main
+Task: UI redesign v2 — landing page, floating pills, settings, PDF resume, profile fix, auth two-mode
+
+Work Log:
+- Created settings store (theme mode light/dark/system, 6 color palettes, 4 Persian fonts) with localStorage persistence
+- Added SettingsBootstrap component to apply settings on app load
+- Updated layout.tsx with Vazirmatn + Cairo + Markazi Text Persian fonts
+- Rewrote AppShell: removed mobile header, added floating pills (back=right, profile/notifications=left), floating chat FAB with pulse animation, removed footer entirely
+- Added settings route to nav store + SettingsView with theme/color/font controls
+- Created LandingView for guests (hero, features grid, how-it-works, CTA, "توسعه ادامه دارد" notice)
+- Updated FeedView to show LandingView for non-logged-in users
+- Rewrote AuthView with two-mode toggle (login=phone only / register=name+phone+nid), both desktop+mobile beautiful
+- Fixed profile avatar overlap bug (changed card overflow-hidden → overflow-visible, banner rounded-t-2xl overflow-hidden)
+- Implemented PDF resume: /api/resume/[userId] returns print-friendly HTML that auto-triggers window.print()
+- Wired both PDF download buttons in profile-view to open resume URL in new tab
+
+Stage Summary:
+- All requested UI changes complete: landing page, floating pills, no mobile header, no footer, two-mode auth, settings page, PDF resume, profile avatar fix, chat FAB, removed build date
+- Lint clean, no compile errors
+- VLM: mobile landing 8/10, settings 8.5/10, profile avatar fixed
+- Both servers (dev:3000, chat:3003) running

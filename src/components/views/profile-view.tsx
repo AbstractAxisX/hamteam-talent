@@ -182,7 +182,7 @@ export function ProfileView({ id }: { id: string }) {
                   variant="ghost"
                   size="sm"
                   className="w-full justify-start gap-2 rounded-xl font-semibold text-muted-foreground"
-                  onClick={() => toast({ title: "قابلیت PDF به‌زودی" })}
+                  onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
                 >
                   <Download className="w-4 h-4" /> دانلود رزومه PDF
                 </Button>
@@ -218,9 +218,9 @@ function ProfileHeader({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
     >
-      <Card className="overflow-hidden p-0 border-border/60 shadow-card">
+      <Card className="p-0 border-border/60 shadow-card overflow-visible">
         {/* Banner */}
-        <div className="relative h-36 md:h-52 w-full">
+        <div className="relative h-36 md:h-52 w-full rounded-t-2xl overflow-hidden">
           {isDefaultBanner ? (
             <div
               className="absolute inset-0"
@@ -320,7 +320,7 @@ function ProfileHeader({
                   </Button>
                   <Button
                     variant="ghost"
-                    onClick={() => toast({ title: "قابلیت PDF به‌زودی" })}
+                    onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
                     className="gap-1.5 rounded-xl font-semibold text-muted-foreground"
                   >
                     <Download className="w-4 h-4" /> رزومه

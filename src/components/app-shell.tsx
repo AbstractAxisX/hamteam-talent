@@ -19,8 +19,9 @@ import {
   Shield,
   LogOut,
   Settings,
-  Search,
   X,
+  ChevronRight,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/shared/illustrations";
@@ -41,6 +42,7 @@ import { NotificationsView } from "@/components/views/notifications-view";
 import { TicketsView } from "@/components/views/tickets-view";
 import { TicketDetailView } from "@/components/views/ticket-detail-view";
 import { AdminView } from "@/components/views/admin-view";
+import { SettingsView } from "@/components/views/settings-view";
 import { apiPost } from "@/lib/api-client";
 import { toast } from "@/hooks/use-toast";
 
@@ -62,12 +64,12 @@ function renderView(route: Route) {
     case "tickets": return <TicketsView />;
     case "ticket": return <TicketDetailView id={route.id} />;
     case "admin": return <AdminView />;
+    case "settings": return <SettingsView />;
     case "auth": return <AuthView />;
     default: return <FeedView />;
   }
 }
 
-/* ── Desktop top nav items ── */
 const TOP_NAV = [
   { key: "feed", label: "خانه", icon: Home },
   { key: "explore", label: "کشف", icon: Compass },
@@ -75,13 +77,15 @@ const TOP_NAV = [
   { key: "people", label: "افراد", icon: Users },
 ] as const;
 
-/* ── Mobile bottom nav items ── */
 const BOTTOM_NAV = [
   { key: "feed", label: "خانه", icon: Home },
   { key: "explore", label: "کشف", icon: Compass },
   { key: "jobs", label: "آگهی‌ها", icon: Briefcase },
   { key: "people", label: "افراد", icon: Users },
 ] as const;
+
+// Routes where the back pill should be hidden (top-level tabs)
+const TOP_LEVEL = new Set(["feed", "explore", "people", "jobs", "admin", "settings"]);
 
 export function AppShell({ children }: { children?: React.ReactNode }) {
   const route = useNav((s) => s.route);
@@ -96,7 +100,6 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
     return cleanup;
   }, [init, fetchUser]);
 
-  // Fetch unread notification count
   useEffect(() => {
     if (!user) return;
     const tick = async () => {
@@ -128,12 +131,17 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
     (k === "jobs" && ["job", "create-job", "my-jobs"].includes(activeView)) ||
     (k === "feed" && activeView === "profile");
 
+  const showBack = !TOP_LEVEL.has(activeView) && activeView !== "auth";
+
+  function goBack() {
+    if (typeof window !== "undefined") window.history.back();
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* ═══ Desktop Header ═══ */}
       <header className="hidden md:flex sticky top-0 z-40 glass bg-card/80 border-b border-border">
         <div className="mx-auto max-w-6xl w-full px-6 h-16 flex items-center justify-between gap-6">
-          {/* Logo + nav */}
           <div className="flex items-center gap-8">
             <button onClick={() => navigate({ view: "feed" })} className="flex items-center gap-2.5 group">
               <LogoMark className="w-9 h-9 transition-transform group-hover:scale-105" />
@@ -178,8 +186,6 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
               )}
             </nav>
           </div>
-
-          {/* Right actions */}
           <div className="flex items-center gap-1.5">
             {user ? (
               <>
@@ -199,6 +205,12 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
                   className="grid place-items-center w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 >
                   <MessageCircle className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => navigate({ view: "settings" })}
+                  className="grid place-items-center w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <Settings className="w-5 h-5" />
                 </button>
                 <div className="w-px h-6 bg-border mx-1" />
                 <button
@@ -220,42 +232,78 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
         </div>
       </header>
 
-      {/* ═══ Mobile Header (minimal) ═══ */}
-      <header className="md:hidden sticky top-0 z-30 glass bg-card/80 border-b border-border pt-safe">
-        <div className="h-14 px-4 flex items-center justify-between">
-          <button onClick={() => navigate({ view: "feed" })} className="flex items-center gap-2">
-            <LogoMark className="w-8 h-8" />
-            <span className="text-lg font-extrabold tracking-tight">همتیم</span>
-          </button>
-          {user ? (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => navigate({ view: "notifications" })}
-                className="relative grid place-items-center w-9 h-9 rounded-xl text-muted-foreground hover:bg-muted transition-colors"
-              >
-                <Bell className="w-5 h-5" />
-                {unread > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 grid place-items-center rounded-full bg-rose text-white text-[9px] font-bold">
-                    {unread > 9 ? "۹" : unread}
-                  </span>
-                )}
-              </button>
-              <button onClick={() => navigate({ view: "my-profile" })}>
-                <UserAvatar name={user.name} avatarUrl={user.profile?.avatarUrl} verified={user.isVerifiedBadge} size="sm" />
-              </button>
-            </div>
+      {/* ═══ Mobile floating pills (instead of header) ═══ */}
+      <div className="md:hidden fixed top-0 inset-x-0 z-30 px-4 pt-3 pt-safe pointer-events-none">
+        <div className="flex items-center justify-between">
+          {/* Right pill (RTL start) = Back button */}
+          {showBack ? (
+            <motion.button
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              onClick={goBack}
+              className="pointer-events-auto grid place-items-center w-11 h-11 rounded-full glass bg-card/85 shadow-lift text-foreground active:scale-90 transition-transform"
+              aria-label="بازگشت"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </motion.button>
           ) : (
-            !loading && (
-              <Button size="sm" onClick={() => navigate({ view: "auth" })} className="rounded-lg px-4">
-                ورود
-              </Button>
-            )
+            <motion.button
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              onClick={() => navigate({ view: "feed" })}
+              className="pointer-events-auto flex items-center gap-2 h-11 px-3 rounded-full glass bg-card/85 shadow-lift active:scale-95 transition-transform"
+            >
+              <LogoMark className="w-7 h-7" />
+              <span className="font-extrabold text-sm">همتیم</span>
+            </motion.button>
           )}
+
+          {/* Left pill (RTL end) = Profile / Login + Notifications */}
+          <div className="flex items-center gap-2">
+            {user ? (
+              <>
+                <button
+                  onClick={() => navigate({ view: "notifications" })}
+                  className="pointer-events-auto relative grid place-items-center w-11 h-11 rounded-full glass bg-card/85 shadow-lift active:scale-90 transition-transform"
+                  aria-label="اعلان‌ها"
+                >
+                  <Bell className="w-5 h-5" />
+                  {unread > 0 && (
+                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 grid place-items-center rounded-full bg-rose text-white text-[9px] font-bold">
+                      {unread > 9 ? "۹" : unread}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => navigate({ view: "my-profile" })}
+                  className="pointer-events-auto active:scale-90 transition-transform"
+                  aria-label="پروفایل"
+                >
+                  <UserAvatar
+                    name={user.name}
+                    avatarUrl={user.profile?.avatarUrl}
+                    verified={user.isVerifiedBadge}
+                    size="md"
+                    className="shadow-lift"
+                  />
+                </button>
+              </>
+            ) : (
+              !loading && (
+                <button
+                  onClick={() => navigate({ view: "auth" })}
+                  className="pointer-events-auto h-11 px-5 rounded-full glass bg-primary text-primary-foreground shadow-lift font-bold text-sm active:scale-95 transition-transform"
+                >
+                  ورود
+                </button>
+              )
+            )}
+          </div>
         </div>
-      </header>
+      </div>
 
       {/* ═══ Main Content ═══ */}
-      <main className="flex-1 mx-auto w-full max-w-6xl px-4 md:px-6 py-4 md:py-6 pb-28 md:pb-10">
+      <main className="flex-1 mx-auto w-full max-w-6xl px-4 md:px-6 pt-16 md:pt-6 pb-28 md:pb-10">
         <AnimatePresence mode="wait">
           <motion.div
             key={route.view + (route.view === "job" ? route.id : "") + (route.view === "profile" ? route.id : "") + (route.view === "ticket" ? route.id : "") + (route.view === "chat" ? route.conversationId || "" : "")}
@@ -268,14 +316,6 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
           </motion.div>
         </AnimatePresence>
       </main>
-
-      {/* ═══ Footer ═══ */}
-      <footer className="hidden md:block mt-auto border-t border-border bg-card/40">
-        <div className="mx-auto max-w-6xl px-6 py-5 flex items-center justify-between gap-3 text-sm text-muted-foreground">
-          <p>© ۱۴۰۳ همتیم — شبکه تخصصی مشاغل و تیم‌سازی</p>
-          <p className="text-xs">ساخته‌شده با ❤️ برای جامعه‌ی حرفه‌ای فارسی</p>
-        </div>
-      </footer>
 
       {/* ═══ Mobile Bottom Navigation (iOS-style) ═══ */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 pb-safe">
@@ -292,7 +332,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
                 >
                   <div className={cn(
                     "grid place-items-center w-9 h-7 rounded-full transition-all",
-                    active ? "text-primary" : "text-muted-foreground"
+                    active ? "text-primary scale-110" : "text-muted-foreground"
                   )}>
                     <Icon className="w-[22px] h-[22px]" strokeWidth={active ? 2.5 : 2} />
                   </div>
@@ -312,7 +352,6 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
                 </button>
               );
             })}
-            {/* More button (•••) */}
             <button
               onClick={() => setMoreOpen(true)}
               className="flex flex-col items-center justify-center gap-0.5 text-muted-foreground"
@@ -326,7 +365,26 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
         </div>
       </nav>
 
-      {/* ═══ More Sheet (slides up from bottom) ═══ */}
+      {/* ═══ Floating Chat FAB (logged-in users) ═══ */}
+      {user && activeView !== "chat" && (
+        <motion.button
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 500, damping: 25 }}
+          onClick={() => navigate({ view: "chat" })}
+          className="md:hidden fixed bottom-20 left-4 z-30 grid place-items-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-float active:scale-90 transition-transform"
+          aria-label="چت"
+        >
+          <MessageCircle className="w-6 h-6" />
+          <motion.span
+            className="absolute inset-0 rounded-full bg-primary"
+            animate={{ scale: [1, 1.4], opacity: [0.5, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+        </motion.button>
+      )}
+
+      {/* ═══ More Sheet ═══ */}
       <AnimatePresence>
         {moreOpen && (
           <>
@@ -345,18 +403,15 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
               className="md:hidden fixed bottom-0 inset-x-0 z-50 pb-safe"
             >
               <div className="bg-card rounded-t-3xl border-t border-border shadow-float overflow-hidden">
-                {/* Drag handle */}
                 <div className="pt-3 pb-1 grid place-items-center">
                   <div className="w-10 h-1 rounded-full bg-border" />
                 </div>
-                {/* Header */}
                 <div className="px-5 pt-2 pb-3 flex items-center justify-between">
                   <h3 className="font-bold text-base">منوی بیشتر</h3>
                   <button onClick={() => setMoreOpen(false)} className="grid place-items-center w-8 h-8 rounded-full bg-muted text-muted-foreground">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-                {/* User card (if logged in) */}
                 {user && (
                   <button
                     onClick={() => { navigate({ view: "my-profile" }); setMoreOpen(false); }}
@@ -370,14 +425,12 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
                     <UserIcon className="w-4 h-4 text-muted-foreground" />
                   </button>
                 )}
-                {/* Action grid */}
                 <div className="px-4 pb-5 grid grid-cols-4 gap-2">
-                  <MoreItem icon={MessageCircle} label="چت" onClick={() => { navigate({ view: "chat" }); setMoreOpen(false); }} />
-                  <MoreItem icon={Bell} label="اعلان‌ها" badge={unread} onClick={() => { navigate({ view: "notifications" }); setMoreOpen(false); }} />
                   <MoreItem icon={UserPlus} label="ارتباطات" onClick={() => { navigate({ view: "connections" }); setMoreOpen(false); }} />
                   <MoreItem icon={Briefcase} label="نیازمندی‌های من" onClick={() => { navigate({ view: "my-jobs" }); setMoreOpen(false); }} />
                   <MoreItem icon={Settings} label="ویرایش پروفایل" onClick={() => { navigate({ view: "edit-profile" }); setMoreOpen(false); }} />
                   <MoreItem icon={Ticket} label="تیکت‌ها" onClick={() => { navigate({ view: "tickets" }); setMoreOpen(false); }} />
+                  <MoreItem icon={Settings} label="تنظیمات" onClick={() => { navigate({ view: "settings" }); setMoreOpen(false); }} />
                   {user?.role === "admin" && (
                     <MoreItem icon={Shield} label="مدیریت" gold onClick={() => { navigate({ view: "admin" }); setMoreOpen(false); }} />
                   )}
@@ -404,14 +457,12 @@ function MoreItem({
   icon: Icon,
   label,
   onClick,
-  badge,
   danger,
   gold,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   onClick: () => void;
-  badge?: number;
   danger?: boolean;
   gold?: boolean;
 }) {
@@ -421,15 +472,10 @@ function MoreItem({
       className="flex flex-col items-center gap-1.5 p-3 rounded-2xl hover:bg-muted transition-colors active:scale-95"
     >
       <div className={cn(
-        "relative grid place-items-center w-12 h-12 rounded-2xl",
+        "grid place-items-center w-12 h-12 rounded-2xl",
         danger ? "bg-rose/10 text-rose" : gold ? "bg-gold/10 text-gold" : "bg-primary/10 text-primary"
       )}>
         <Icon className="w-5 h-5" />
-        {badge ? (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-bold">
-            {badge > 9 ? "۹+" : badge}
-          </span>
-        ) : null}
       </div>
       <span className={cn("text-[11px] font-medium text-center leading-tight", danger && "text-rose")}>{label}</span>
     </button>
