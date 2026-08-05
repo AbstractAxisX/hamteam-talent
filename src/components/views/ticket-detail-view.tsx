@@ -43,6 +43,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -220,7 +221,7 @@ export function TicketDetailView({ id }: { id: string }) {
     return (
       <div className="max-w-3xl mx-auto space-y-4">
         <BackButton />
-        <Card className="p-0 rounded-2xl border-border/60 shadow-card overflow-hidden">
+        <Card className="p-0 rounded-2xl border-border/60 overflow-hidden">
           <EmptyState
             kind="tickets"
             title="تیکت یافت نشد"
@@ -229,7 +230,7 @@ export function TicketDetailView({ id }: { id: string }) {
               <Button
                 variant="outline"
                 onClick={() => navigate({ view: "tickets" })}
-                className="gap-1.5 rounded-xl"
+                className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5"
               >
                 <ArrowRight className="w-4 h-4" />
                 بازگشت به تیکت‌ها
@@ -259,15 +260,16 @@ export function TicketDetailView({ id }: { id: string }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           >
-            <Card className="p-5 rounded-2xl border-border/60 shadow-card">
+            <Card className="p-5 rounded-2xl border-border/60 shadow-sm">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div
-                    className={`grid place-items-center w-11 h-11 rounded-2xl shrink-0 ${
+                    className={cn(
+                      "grid place-items-center w-11 h-11 rounded-2xl shrink-0",
                       isOpen
-                        ? "bg-success/12 text-success"
+                        ? "bg-lime/20 text-forest"
                         : "bg-muted text-muted-foreground"
-                    }`}
+                    )}
                   >
                     <TicketIcon className="w-5 h-5" />
                   </div>
@@ -290,15 +292,18 @@ export function TicketDetailView({ id }: { id: string }) {
           </motion.div>
 
           {/* ── Replies thread ── */}
-          <Card className="p-0 overflow-hidden rounded-2xl border-border/60 shadow-card">
-            <div className="px-5 py-3.5 border-b border-border/60 bg-muted/30 flex items-center justify-between">
-              <h2 className="text-sm font-bold">
+          <Card className="p-0 overflow-hidden rounded-2xl border-border/60 shadow-sm">
+            <div className="px-5 py-3.5 border-b border-border/60 bg-forest text-lime flex items-center justify-between">
+              <h2 className="text-sm font-bold flex items-center gap-2">
+                <span className="grid place-items-center w-6 h-6 rounded-lg bg-white/10">
+                  <TicketIcon className="w-3.5 h-3.5" />
+                </span>
                 گفتگو ({toFa(ticket.replies.length)} پاسخ)
               </h2>
             </div>
             <div
               ref={scrollRef}
-              className="max-h-[460px] overflow-y-auto slim-scroll p-4 space-y-3 bg-muted/20"
+              className="max-h-[460px] overflow-y-auto slim-scroll p-4 space-y-3 bg-cream-gradient"
             >
               {ticket.replies.length === 0 ? (
                 <div className="text-center py-10 text-sm text-muted-foreground">
@@ -309,7 +314,7 @@ export function TicketDetailView({ id }: { id: string }) {
                   {ticket.replies.map((r) => {
                     const replyIsAdmin = r.user.role === "admin";
                     const isCreator = r.user.id === ticket.userId;
-                    // Per spec: creator = right, admin = left
+                    // Per spec: creator = right (forest), admin = left (lime accent)
                     const onRight = isCreator && !replyIsAdmin;
                     return (
                       <motion.div
@@ -318,9 +323,11 @@ export function TicketDetailView({ id }: { id: string }) {
                         initial={{ opacity: 0, y: 10, scale: 0.97 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                        className={`flex gap-3 ${
+                        className={cn(
+                          "flex gap-3",
+                          // onRight (creator) → bubble on RIGHT in RTL → use flex-row-reverse
                           onRight ? "flex-row-reverse" : ""
-                        }`}
+                        )}
                       >
                         <div className="shrink-0">
                           <UserAvatar
@@ -331,46 +338,54 @@ export function TicketDetailView({ id }: { id: string }) {
                           />
                         </div>
                         <div
-                          className={`min-w-0 max-w-[80%] flex flex-col ${
+                          className={cn(
+                            "min-w-0 max-w-[80%] flex flex-col",
                             onRight ? "items-end" : "items-start"
-                          }`}
+                          )}
                         >
                           <div
-                            className={`inline-block px-3.5 py-2.5 shadow-soft ${
+                            className={cn(
+                              "inline-block px-3.5 py-2.5 shadow-sm",
                               replyIsAdmin
-                                ? "bg-gold/10 border border-gold/40 rounded-2xl rounded-tr-md"
+                                ? // Admin → LEFT, lime accent
+                                  "bg-lime/15 border border-lime/40 rounded-2xl rounded-tr-md"
                                 : onRight
-                                  ? "bg-primary text-primary-foreground rounded-2xl rounded-tl-md"
-                                  : "bg-card border border-border/60 rounded-2xl rounded-tr-md"
-                            }`}
+                                  ? // Creator → RIGHT, forest
+                                    "bg-forest text-white rounded-2xl rounded-tl-md"
+                                  : // Other (non-admin, non-creator) → LEFT, card
+                                    "bg-card border border-border/60 rounded-2xl rounded-tr-md"
+                            )}
                           >
                             <div
-                              className={`flex items-center gap-1.5 mb-1 ${
+                              className={cn(
+                                "flex items-center gap-1.5 mb-1",
                                 onRight ? "justify-end" : ""
-                              }`}
+                              )}
                             >
                               <span
-                                className={`text-xs font-bold ${
+                                className={cn(
+                                  "text-xs font-bold",
                                   replyIsAdmin
-                                    ? "text-gold"
+                                    ? "text-forest"
                                     : onRight
-                                      ? "text-primary-foreground"
+                                      ? "text-white"
                                       : "text-foreground"
-                                }`}
+                                )}
                               >
                                 {r.user.name}
                               </span>
                               {replyIsAdmin && (
-                                <Badge className="bg-gold/15 text-gold border-gold/40 hover:bg-gold/15 text-[10px] py-0 px-1.5 gap-0.5">
+                                <Badge className="bg-forest text-lime border-forest hover:bg-forest text-[10px] py-0 px-1.5 gap-0.5">
                                   <Shield className="w-3 h-3" />
                                   مدیر
                                 </Badge>
                               )}
                             </div>
                             <p
-                              className={`text-sm whitespace-pre-wrap leading-7 text-right ${
-                                onRight ? "text-primary-foreground" : "text-foreground"
-                              }`}
+                              className={cn(
+                                "text-sm whitespace-pre-wrap leading-7 text-right",
+                                onRight ? "text-white" : "text-foreground"
+                              )}
                             >
                               {r.content}
                             </p>
@@ -389,7 +404,7 @@ export function TicketDetailView({ id }: { id: string }) {
 
           {/* ── Reply box ── */}
           {isOpen ? (
-            <Card className="p-4 rounded-2xl border-border/60 shadow-card">
+            <Card className="p-4 rounded-2xl border-border/60 shadow-sm">
               <Textarea
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}
@@ -397,7 +412,7 @@ export function TicketDetailView({ id }: { id: string }) {
                 rows={3}
                 maxLength={5000}
                 disabled={submitting}
-                className="rounded-xl resize-none"
+                className="rounded-xl resize-none focus-visible:ring-lime/50"
               />
               <div className="flex items-center justify-between mt-3 gap-2">
                 <span className="text-xs text-muted-foreground">
@@ -410,7 +425,7 @@ export function TicketDetailView({ id }: { id: string }) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="gap-1.5 rounded-xl"
+                          className="gap-1.5 rounded-2xl border-rose/40 text-rose hover:bg-rose/5"
                           disabled={closing}
                         >
                           <Lock className="w-4 h-4" />
@@ -429,7 +444,7 @@ export function TicketDetailView({ id }: { id: string }) {
                           <AlertDialogCancel className="rounded-xl">انصراف</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={handleClose}
-                            className="bg-destructive hover:bg-destructive/90 rounded-xl"
+                            className="bg-rose hover:bg-rose/90 rounded-2xl"
                           >
                             بستن تیکت
                           </AlertDialogAction>
@@ -440,7 +455,7 @@ export function TicketDetailView({ id }: { id: string }) {
                   <Button
                     onClick={handleReply}
                     size="sm"
-                    className="gap-1.5 rounded-xl shadow-card hover:shadow-lift transition-shadow"
+                    className="gap-1.5 rounded-2xl bg-lime text-forest font-bold hover:bg-lime/90 shadow-md"
                     disabled={submitting || reply.trim().length === 0}
                   >
                     {submitting ? (
@@ -459,7 +474,7 @@ export function TicketDetailView({ id }: { id: string }) {
               </div>
             </Card>
           ) : (
-            <Card className="p-4 rounded-2xl border-border/60 shadow-card">
+            <Card className="p-4 rounded-2xl border-border/60 shadow-sm">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Lock className="w-4 h-4" />
                 این تیکت بسته شده است. در صورت نیاز، تیکت جدیدی ایجاد کنید.
@@ -471,9 +486,9 @@ export function TicketDetailView({ id }: { id: string }) {
         {/* ═══ Admin sidebar ═══ */}
         {isAdmin && (
           <aside className="space-y-4">
-            <Card className="p-4 rounded-2xl border-border/60 shadow-card">
+            <Card className="p-4 rounded-2xl border-border/60 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
-                <div className="grid place-items-center w-7 h-7 rounded-lg bg-gold/15 text-gold">
+                <div className="grid place-items-center w-7 h-7 rounded-lg bg-forest/10 text-forest">
                   <Shield className="w-4 h-4" />
                 </div>
                 <h3 className="text-sm font-bold">اطلاعات کاربر</h3>
@@ -488,7 +503,7 @@ export function TicketDetailView({ id }: { id: string }) {
                 />
                 <button
                   onClick={() => navigate({ view: "profile", id: ticket.user.id })}
-                  className="font-bold mt-2.5 hover:text-primary transition-colors"
+                  className="font-bold mt-2.5 hover:text-forest transition-colors"
                 >
                   {ticket.user.name}
                 </button>
@@ -538,7 +553,7 @@ export function TicketDetailView({ id }: { id: string }) {
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full mt-3.5 gap-1.5 rounded-xl"
+                className="w-full mt-3.5 gap-1.5 rounded-xl border-forest/30 text-forest hover:bg-forest/5"
                 onClick={() => navigate({ view: "profile", id: ticket.user.id })}
               >
                 <UserIcon className="w-4 h-4" />
@@ -578,7 +593,7 @@ export function TicketDetailView({ id }: { id: string }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full gap-1.5 rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        className="w-full gap-1.5 rounded-xl border-rose/40 text-rose hover:bg-rose/5 hover:text-rose"
                         disabled={ticket.user.id === user.id}
                       >
                         <Ban className="w-4 h-4" />
@@ -596,7 +611,7 @@ export function TicketDetailView({ id }: { id: string }) {
                         <AlertDialogCancel className="rounded-xl">انصراف</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => handleAdminAction("ban")}
-                          className="bg-destructive hover:bg-destructive/90 rounded-xl"
+                          className="bg-rose hover:bg-rose/90 rounded-2xl"
                         >
                           مسدود کردن
                         </AlertDialogAction>
@@ -632,7 +647,7 @@ function BackButton() {
         variant="ghost"
         size="sm"
         onClick={() => navigate({ view: "tickets" })}
-        className="gap-1.5 -mr-2 rounded-xl"
+        className="gap-1.5 -mr-2 rounded-2xl hover:bg-forest/5 hover:text-forest"
       >
         <ArrowRight className="w-4 h-4" />
         تیکت‌ها
@@ -643,12 +658,13 @@ function BackButton() {
 
 function StatusBadge({ isOpen }: { isOpen: boolean }) {
   return isOpen ? (
-    <Badge className="bg-success/12 text-success border-success/25 hover:bg-success/15">
+    <Badge className="bg-lime/20 text-forest border-lime/40 hover:bg-lime/25">
       <CheckCircle2 className="w-3 h-3 ml-0.5" />
       باز
     </Badge>
   ) : (
-    <Badge variant="secondary" className="bg-muted text-muted-foreground">
+    <Badge variant="secondary" className="bg-muted text-muted-foreground gap-0.5">
+      <Lock className="w-3 h-3" />
       بسته‌شده
     </Badge>
   );

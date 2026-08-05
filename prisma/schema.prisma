@@ -1,4 +1,5 @@
-// Prisma schema — شبکه اجتماعی تخصصی مشاغل و تیم‌سازی
+// Prisma schema — همتیم: پلتفرم استعدادیابی
+// Talent discovery platform (arts, sports, cooking, creative skills)
 // SQLite backend. Enums modeled as String with app-level validation.
 
 generator client {
@@ -10,13 +11,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Users & Auth ───────────────────────────────────────────────
+// ─── Users (talent members) ─────────────────────────────────────
 model User {
   id              String    @id @default(cuid())
   phone           String    @unique
-  nationalId      String    @unique
   name            String
-  role            String    @default("user") // "user" | "admin"
   isVerifiedBadge Boolean   @default(false)
   isBanned        Boolean   @default(false)
   createdAt       DateTime  @default(now())
@@ -30,13 +29,19 @@ model User {
   conversationsA  Conversation[] @relation("ConvUserA")
   conversationsB  Conversation[] @relation("ConvUserB")
   messages        Message[]
-  jobPosts        JobPost[]
-  applications    JobApplication[]
   notifications   Notification[]
   tickets         Ticket[]
-  ticketReplies   TicketReply[]
   userCategories  UserCategory[]
   userSkills      UserSkill[]
+}
+
+// ─── Admin (separate auth, username+password) ──────────────────
+model AdminUser {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String   // hashed
+  name      String
+  createdAt DateTime @default(now())
 }
 
 model Profile {
@@ -56,16 +61,16 @@ model Profile {
   resume        Resume?
 }
 
-// ─── Category & Skill (admin-managed) ───────────────────────────
+// ─── Category & Skill (admin-managed, with icons) ──────────────
 model Category {
   id        String   @id @default(cuid())
   name      String   @unique
-  iconUrl   String?
+  iconUrl   String?  // emoji or image URL — admin sets
+  order     Int      @default(0)
   createdAt DateTime @default(now())
 
   skills    Skill[]
   posts     Post[]
-  jobPosts  JobPost[]
   userCats  UserCategory[]
 }
 
@@ -77,13 +82,12 @@ model Skill {
   createdAt  DateTime @default(now())
 
   posts      Post[]
-  jobPostSkills JobPostSkill[]
   userSkills UserSkill[]
 
   @@unique([categoryId, name])
 }
 
-// ─── User's selected categories & skills ───────────────────────
+// ─── User's selected categories & skills (their talents) ───────
 model UserCategory {
   id         String   @id @default(cuid())
   userId     String
@@ -105,7 +109,7 @@ model UserSkill {
   @@unique([userId, skillId])
 }
 
-// ─── Resume ────────────────────────────────────────────────────
+// ─── Resume (portfolio/CV) ─────────────────────────────────────
 model Resume {
   id        String   @id @default(cuid())
   profileId String   @unique
@@ -142,7 +146,7 @@ model ResumeEducation {
   createdAt   DateTime @default(now())
 }
 
-// ─── Posts ──────────────────────────────────────────────────────
+// ─── Posts (talent showcase) ────────────────────────────────────
 model Post {
   id         String   @id @default(cuid())
   userId     String
@@ -182,7 +186,7 @@ model PostLike {
   @@unique([postId, userId])
 }
 
-// ─── Connections (bidirectional, request/accept) ───────────────
+// ─── Connections (follow/request) ──────────────────────────────
 model Connection {
   id          String   @id @default(cuid())
   requesterId String
@@ -223,62 +227,16 @@ model Message {
   @@index([conversationId, createdAt])
 }
 
-// ─── Job Posts ─────────────────────────────────────────────────
-model JobPost {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String
-  description String
-  categoryId  String?
-  category    Category? @relation(fields: [categoryId], references: [id])
-  province    String?
-  city        String?
-  status      String   @default("open") // "open" | "closed"
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  skills      JobPostSkill[]
-  applications JobApplication[]
-
-  @@index([userId])
-  @@index([createdAt])
-  @@index([categoryId])
-}
-
-model JobPostSkill {
-  id        String  @id @default(cuid())
-  jobPostId String
-  jobPost   JobPost @relation(fields: [jobPostId], references: [id], onDelete: Cascade)
-  skillId   String
-  skill     Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
-  @@unique([jobPostId, skillId])
-}
-
-model JobApplication {
-  id          String   @id @default(cuid())
-  jobPostId   String
-  jobPost     JobPost  @relation(fields: [jobPostId], references: [id], onDelete: Cascade)
-  applicantId String
-  applicant   User     @relation(fields: [applicantId], references: [id], onDelete: Cascade)
-  message     String   @default("")
-  createdAt   DateTime @default(now())
-
-  @@unique([jobPostId, applicantId])
-  @@index([applicantId])
-}
-
 // ─── Notifications ─────────────────────────────────────────────
 model Notification {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String   // "job_match" | "connection_request" | "connection_accepted" | "connection_rejected" | "broadcast" | "chat"
+  type      String   // "connection_request" | "connection_accepted" | "broadcast" | "chat"
   title     String
   body      String   @default("")
   link      String?
-  data      String?  // JSON string
+  data      String?
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -293,7 +251,7 @@ model Ticket {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   subject   String
   body      String
-  status    String   @default("open") // "open" | "closed"
+  status    String   @default("open")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -304,8 +262,8 @@ model TicketReply {
   id        String   @id @default(cuid())
   ticketId  String
   ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   // could be user or admin
+  isAdmin   Boolean  @default(false)
   content   String
   createdAt DateTime @default(now())
 }

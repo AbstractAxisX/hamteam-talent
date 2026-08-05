@@ -32,7 +32,9 @@ import {
   CheckCircle2,
   Loader2,
   Send,
+  Lock,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -119,20 +121,33 @@ export function TicketsView() {
     );
   }
 
+  const openCount = tickets.filter((t) => t.status === "open").length;
+
   return (
     <div className="max-w-3xl mx-auto space-y-4">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between gap-3">
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between gap-3"
+      >
         <div className="flex items-center gap-3">
-          <div className="grid place-items-center w-11 h-11 rounded-2xl bg-brand-gradient text-white shadow-card">
+          <div className="grid place-items-center w-11 h-11 rounded-2xl bg-forest text-lime shadow-md">
             <TicketIcon className="w-5 h-5" />
           </div>
           <div>
             <h1 className="text-xl font-extrabold leading-tight tracking-tight">
               تیکت‌های پشتیبانی
             </h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              سوالات، گزارش‌ها و درخواست‌های پشتیبانی
+            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+              {tickets.length > 0 ? (
+                <>
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-lime" />
+                  {toFa(openCount)} تیکت باز · {toFa(tickets.length)} کل
+                </>
+              ) : (
+                "سوالات، گزارش‌ها و درخواست‌های پشتیبانی"
+              )}
             </p>
           </div>
         </div>
@@ -143,21 +158,21 @@ export function TicketsView() {
             onClick={load}
             aria-label="بارگذاری مجدد"
             disabled={loading}
-            className="rounded-xl hover:bg-muted"
+            className="rounded-2xl hover:bg-muted"
           >
             <RefreshCcw className={loading ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
           </Button>
           <Button
             onClick={() => setCreateOpen(true)}
             size="sm"
-            className="gap-1.5 rounded-xl shadow-card hover:shadow-lift transition-shadow"
+            className="gap-1.5 rounded-2xl bg-lime text-forest font-bold hover:bg-lime/90 shadow-md"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">تیکت جدید</span>
             <span className="sm:hidden">جدید</span>
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       {/* ── List ── */}
       {loading ? (
@@ -167,7 +182,7 @@ export function TicketsView() {
           ))}
         </div>
       ) : tickets.length === 0 ? (
-        <Card className="p-0 rounded-2xl border-border/60 shadow-card overflow-hidden">
+        <Card className="p-0 rounded-2xl border-border/60 overflow-hidden">
           <EmptyState
             kind="tickets"
             title="هنوز تیکتی ثبت نکرده‌اید"
@@ -175,7 +190,7 @@ export function TicketsView() {
             action={
               <Button
                 onClick={() => setCreateOpen(true)}
-                className="gap-1.5 rounded-xl shadow-card hover:shadow-lift transition-shadow"
+                className="gap-1.5 rounded-2xl bg-lime text-forest font-bold hover:bg-lime/90 shadow-md"
               >
                 <Plus className="w-4 h-4" />
                 ایجاد اولین تیکت
@@ -208,22 +223,23 @@ export function TicketsView() {
                       navigate({ view: "ticket", id: t.id });
                     }
                   }}
-                  className="p-4 cursor-pointer hover:shadow-lift hover:border-primary/30 transition-all group rounded-2xl border-border/60 shadow-card"
+                  className="p-4 cursor-pointer hover:shadow-md hover:border-forest/20 transition-all group rounded-2xl border-border/60 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0 flex-1">
                       <div
-                        className={`grid place-items-center w-11 h-11 rounded-2xl shrink-0 transition-colors ${
+                        className={cn(
+                          "grid place-items-center w-11 h-11 rounded-2xl shrink-0 transition-colors",
                           isOpen
-                            ? "bg-success/12 text-success"
+                            ? "bg-lime/20 text-forest"
                             : "bg-muted text-muted-foreground"
-                        }`}
+                        )}
                       >
                         <TicketIcon className="w-5 h-5" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-sm truncate group-hover:text-primary transition-colors">
+                          <h3 className="font-bold text-sm truncate group-hover:text-forest transition-colors">
                             {t.subject}
                           </h3>
                           <StatusBadge isOpen={isOpen} />
@@ -238,7 +254,7 @@ export function TicketsView() {
                         </div>
                       </div>
                     </div>
-                    <ChevronLeft className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:-translate-x-0.5 transition-all shrink-0" />
+                    <ChevronLeft className="w-5 h-5 text-muted-foreground group-hover:text-forest group-hover:-translate-x-0.5 transition-all shrink-0" />
                   </div>
                 </Card>
               </motion.div>
@@ -251,7 +267,12 @@ export function TicketsView() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>تیکت جدید</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="grid place-items-center w-7 h-7 rounded-lg bg-lime/20 text-forest">
+                <Plus className="w-4 h-4" />
+              </span>
+              تیکت جدید
+            </DialogTitle>
             <DialogDescription>
               تیم پشتیبانی در اسرع وقت پاسخ تیکت شما را خواهد داد.
             </DialogDescription>
@@ -299,7 +320,7 @@ export function TicketsView() {
             <Button
               onClick={handleCreate}
               disabled={submitting}
-              className="gap-1.5 rounded-xl"
+              className="gap-1.5 rounded-xl bg-lime text-forest font-bold hover:bg-lime/90"
             >
               {submitting ? (
                 <>
@@ -324,12 +345,13 @@ export function TicketsView() {
 
 function StatusBadge({ isOpen }: { isOpen: boolean }) {
   return isOpen ? (
-    <Badge className="bg-success/12 text-success border-success/25 hover:bg-success/15">
+    <Badge className="bg-lime/20 text-forest border-lime/40 hover:bg-lime/25">
       <CheckCircle2 className="w-3 h-3 ml-0.5" />
       باز
     </Badge>
   ) : (
-    <Badge variant="secondary" className="bg-muted text-muted-foreground">
+    <Badge variant="secondary" className="bg-muted text-muted-foreground gap-0.5">
+      <Lock className="w-3 h-3" />
       بسته‌شده
     </Badge>
   );

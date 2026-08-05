@@ -1,0 +1,803 @@
+     1→"use client";
+     2→
+     3→import { useEffect, useState, useCallback } from "react";
+     4→import { motion } from "framer-motion";
+     5→import { api, apiPost } from "@/lib/api-client";
+     6→import { useUser } from "@/lib/use-user";
+     7→import { navigate } from "@/lib/nav";
+     8→import type { ProfileDetail, PostWithRelations } from "@/lib/types";
+     9→import { Card } from "@/components/ui/card";
+    10→import { Button } from "@/components/ui/button";
+    11→import { Badge } from "@/components/ui/badge";
+    12→import { Skeleton } from "@/components/ui/skeleton";
+    13→import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+    14→import { Separator } from "@/components/ui/separator";
+    15→import { UserAvatar } from "@/components/shared/user-avatar";
+    16→import { EmptyState } from "@/components/shared/empty-state";
+    17→import { PostCard } from "@/components/shared/post-card";
+    18→import { CategoryIcon } from "@/components/shared/illustrations";
+    19→import { toast } from "@/hooks/use-toast";
+    20→import { toFa, formatCount, formatFaDate } from "@/lib/format";
+    21→import { getProvinceName } from "@/lib/geo";
+    22→import {
+    23→  MapPin,
+    24→  Pencil,
+    25→  UserPlus,
+    26→  UserCheck,
+    27→  Clock,
+    28→  MessageCircle,
+    29→  FileText,
+    30→  Users,
+    31→  FileSignature,
+    32→  GraduationCap,
+    33→  Briefcase,
+    34→  Sparkles,
+    35→  Hash,
+    36→  Phone,
+    37→  CalendarDays,
+    38→  Loader2,
+    39→  Download,
+    40→  AlertTriangle,
+    41→} from "lucide-react";
+    42→
+    43→/* Petrol + Saffron banner gradients (NO blue/indigo) */
+    44→const BANNER_GRADIENTS = [
+    45→  "linear-gradient(135deg, oklch(0.42 0.06 215) 0%, oklch(0.38 0.07 230) 100%)",
+    46→  "linear-gradient(135deg, oklch(0.72 0.16 75) 0%, oklch(0.62 0.17 55) 100%)",
+    47→  "linear-gradient(135deg, oklch(0.42 0.06 215) 0%, oklch(0.65 0.15 75) 100%)",
+    48→  "linear-gradient(135deg, oklch(0.62 0.2 15) 0%, oklch(0.72 0.16 75) 100%)",
+    49→  "linear-gradient(135deg, oklch(0.38 0.07 230) 0%, oklch(0.55 0.18 15) 100%)",
+    50→  "linear-gradient(135deg, oklch(0.55 0.1 195) 0%, oklch(0.42 0.06 215) 100%)",
+    51→];
+    52→
+    53→function hashIdToIndex(id: string, mod: number): number {
+    54→  let h = 0;
+    55→  for (let i = 0; i < id.length; i++) {
+    56→    h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    57→  }
+    58→  return h % mod;
+    59→}
+    60→
+    61→export function ProfileView({ id }: { id: string }) {
+    62→  const { user: me } = useUser();
+    63→  const [profile, setProfile] = useState<ProfileDetail | null>(null);
+    64→  const [loading, setLoading] = useState(true);
+    65→  const [notFound, setNotFound] = useState(false);
+    66→
+    67→  const load = useCallback(async () => {
+    68→    setLoading(true);
+    69→    setNotFound(false);
+    70→    try {
+    71→      const data = await api<ProfileDetail>(`/api/profile/${id}`);
+    72→      setProfile(data);
+    73→    } catch (e) {
+    74→      const msg = (e as Error).message;
+    75→      if (msg.includes("پیدا نشد") || msg.includes("404")) {
+    76→        setNotFound(true);
+    77→      } else {
+    78→        toast({ title: "خطا", description: msg, variant: "destructive" });
+    79→      }
+    80→    } finally {
+    81→      setLoading(false);
+    82→    }
+    83→  }, [id]);
+    84→
+    85→  useEffect(() => {
+    86→    load();
+    87→  }, [load]);
+    88→
+    89→  if (loading) return <ProfileSkeleton />;
+    90→
+    91→  if (notFound || !profile) {
+    92→    return (
+    93→      <EmptyState
+    94→        kind="people"
+    95→        title="کاربر پیدا نشد"
+    96→        description="این پروفایل ممکن است حذف شده باشد یا آدرس اشتباه باشد."
+    97→        action={
+    98→          <Button onClick={() => navigate({ view: "feed" })} className="rounded-xl">
+    99→            بازگشت به خانه
+   100→          </Button>
+   101→        }
+   102→      />
+   103→    );
+   104→  }
+   105→
+   106→  const isSelf = me?.id === profile.userId;
+   107→
+   108→  return (
+   109→    <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
+   110→      <div className="space-y-4 min-w-0">
+   111→        <ProfileHeader profile={profile} isSelf={isSelf} onUpdated={load} />
+   112→        <ProfileTabs profile={profile} isSelf={isSelf} />
+   113→      </div>
+   114→
+   115→      {/* Sidebar (desktop only, appears on the left in RTL = end side) */}
+   116→      <aside className="hidden lg:block lg:sticky lg:top-20 space-y-4">
+   117→        <QuickStatsCard profile={profile} />
+   118→
+   119→        {profile.categories.length > 0 && (
+   120→          <motion.div
+   121→            initial={{ opacity: 0, y: 12 }}
+   122→            animate={{ opacity: 1, y: 0 }}
+   123→            transition={{ duration: 0.35, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+   124→          >
+   125→            <Card className="p-4 border-border/60 shadow-card">
+   126→              <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
+   127→                <Hash className="w-4 h-4 text-primary" /> تخصص‌ها
+   128→              </h3>
+   129→              <div className="space-y-3">
+   130→                {profile.categories.map((c) => (
+   131→                  <div key={c.id}>
+   132→                    <p className="text-xs font-semibold text-foreground mb-1.5">{c.name}</p>
+   133→                    {c.skills.length > 0 ? (
+   134→                      <div className="flex flex-wrap gap-1">
+   135→                        {c.skills.map((s) => (
+   136→                          <Badge
+   137→                            key={s.id}
+   138→                            variant="secondary"
+   139→                            className="text-[10px] h-5 rounded-md font-medium"
+   140→                          >
+   141→                            {s.name}
+   142→                          </Badge>
+   143→                        ))}
+   144→                      </div>
+   145→                    ) : (
+   146→                      <p className="text-xs text-muted-foreground">مهارتی ثبت نشده</p>
+   147→                    )}
+   148→                  </div>
+   149→                ))}
+   150→              </div>
+   151→            </Card>
+   152→          </motion.div>
+   153→        )}
+   154→
+   155→        <motion.div
+   156→          initial={{ opacity: 0, y: 12 }}
+   157→          animate={{ opacity: 1, y: 0 }}
+   158→          transition={{ duration: 0.35, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+   159→        >
+   160→          <Card className="p-4 border-border/60 shadow-card space-y-2">
+   161→            <h3 className="text-sm font-bold mb-2">دسترسی سریع</h3>
+   162→            {isSelf ? (
+   163→              <Button
+   164→                variant="default"
+   165→                size="sm"
+   166→                className="w-full justify-start gap-2 rounded-xl font-semibold"
+   167→                onClick={() => navigate({ view: "edit-profile" })}
+   168→              >
+   169→                <Pencil className="w-4 h-4" /> ویرایش پروفایل
+   170→              </Button>
+   171→            ) : (
+   172→              <>
+   173→                <Button
+   174→                  variant="outline"
+   175→                  size="sm"
+   176→                  className="w-full justify-start gap-2 rounded-xl font-semibold"
+   177→                  onClick={() => navigate({ view: "chat" })}
+   178→                >
+   179→                  <MessageCircle className="w-4 h-4" /> شروع گفتگو
+   180→                </Button>
+   181→                <Button
+   182→                  variant="ghost"
+   183→                  size="sm"
+   184→                  className="w-full justify-start gap-2 rounded-xl font-semibold text-muted-foreground"
+   185→                  onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
+   186→                >
+   187→                  <Download className="w-4 h-4" /> دانلود رزومه PDF
+   188→                </Button>
+   189→              </>
+   190→            )}
+   191→          </Card>
+   192→        </motion.div>
+   193→      </aside>
+   194→    </div>
+   195→  );
+   196→}
+   197→
+   198→function ProfileHeader({
+   199→  profile,
+   200→  isSelf,
+   201→  onUpdated,
+   202→}: {
+   203→  profile: ProfileDetail;
+   204→  isSelf: boolean;
+   205→  onUpdated: () => void;
+   206→}) {
+   207→  const provinceName = getProvinceName(profile.province);
+   208→  const isDefaultBanner = !profile.bannerUrl || profile.bannerUrl.startsWith("default");
+   209→  const defaultIdx = isDefaultBanner
+   210→    ? profile.bannerUrl
+   211→      ? Math.max(0, Number(profile.bannerUrl.replace("default-", "")) - 1)
+   212→      : hashIdToIndex(profile.userId, BANNER_GRADIENTS.length)
+   213→    : 0;
+   214→
+   215→  return (
+   216→    <motion.div
+   217→      initial={{ opacity: 0, y: 12 }}
+   218→      animate={{ opacity: 1, y: 0 }}
+   219→      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+   220→    >
+   221→      <Card className="p-0 border-border/60 shadow-card overflow-visible">
+   222→        {/* Banner */}
+   223→        <div className="relative h-36 md:h-52 w-full rounded-t-2xl overflow-hidden">
+   224→          {isDefaultBanner ? (
+   225→            <div
+   226→              className="absolute inset-0"
+   227→              style={{ background: BANNER_GRADIENTS[defaultIdx] }}
+   228→            >
+   229→              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_20%,white_0%,transparent_45%)]" />
+   230→              <div
+   231→                className="absolute inset-0 opacity-10"
+   232→                style={{
+   233→                  backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
+   234→                  backgroundSize: "24px 24px",
+   235→                }}
+   236→              />
+   237→            </div>
+   238→          ) : (
+   239→            <img
+   240→              src={profile.bannerUrl!}
+   241→              alt=""
+   242→              className="absolute inset-0 w-full h-full object-cover"
+   243→            />
+   244→          )}
+   245→          {profile.isBanned && (
+   246→            <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-rose/90 text-white text-xs font-bold flex items-center gap-1">
+   247→              <AlertTriangle className="w-3.5 h-3.5" /> حساب مسدود
+   248→            </div>
+   249→          )}
+   250→        </div>
+   251→
+   252→        {/* Identity row */}
+   253→        <div className="px-4 md:px-6 pb-5">
+   254→          <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-14 md:-mt-16">
+   255→            {/* Avatar (overlaps banner; in RTL appears at start = right) */}
+   256→            <UserAvatar
+   257→              name={profile.name}
+   258→              avatarUrl={profile.avatarUrl}
+   259→              verified={profile.isVerifiedBadge}
+   260→              size="2xl"
+   261→              className="ring-4 ring-card rounded-3xl"
+   262→            />
+   263→
+   264→            {/* Name + meta */}
+   265→            <div className="flex-1 min-w-0 md:pb-2">
+   266→              <div className="flex items-center gap-2 flex-wrap">
+   267→                <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">
+   268→                  {profile.name}
+   269→                </h1>
+   270→                {profile.role === "admin" && (
+   271→                  <Badge className="bg-gold/15 text-gold border border-gold/30 rounded-md gap-1">
+   272→                    <Sparkles className="w-3 h-3" /> مدیر
+   273→                  </Badge>
+   274→                )}
+   275→              </div>
+   276→              {profile.bioShort && (
+   277→                <p className="text-sm text-muted-foreground mt-1 line-clamp-2 leading-6">
+   278→                  {profile.bioShort}
+   279→                </p>
+   280→              )}
+   281→              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+   282→                {(provinceName || profile.city) && (
+   283→                  <span className="inline-flex items-center gap-1">
+   284→                    <MapPin className="w-3.5 h-3.5" />
+   285→                    {[provinceName, profile.city].filter(Boolean).join("، ")}
+   286→                  </span>
+   287→                )}
+   288→                <span className="inline-flex items-center gap-1">
+   289→                  <CalendarDays className="w-3.5 h-3.5" />
+   290→                  عضو از {formatFaDate(profile.createdAt)}
+   291→                </span>
+   292→                {profile.phoneVisible && profile.phone && (
+   293→                  <span className="inline-flex items-center gap-1" dir="ltr">
+   294→                    <Phone className="w-3.5 h-3.5" />
+   295→                    {toFa(profile.phone)}
+   296→                  </span>
+   297→                )}
+   298→              </div>
+   299→            </div>
+   300→
+   301→            {/* Actions */}
+   302→            <div className="flex flex-wrap items-center gap-2 md:pb-2">
+   303→              {isSelf ? (
+   304→                <Button
+   305→                  variant="outline"
+   306→                  onClick={() => navigate({ view: "edit-profile" })}
+   307→                  className="gap-1.5 rounded-xl font-semibold"
+   308→                >
+   309→                  <Pencil className="w-4 h-4" /> ویرایش پروفایل
+   310→                </Button>
+   311→              ) : (
+   312→                <>
+   313→                  <ConnectionButton profile={profile} onUpdated={onUpdated} />
+   314→                  <Button
+   315→                    variant="outline"
+   316→                    onClick={() => navigate({ view: "chat" })}
+   317→                    className="gap-1.5 rounded-xl font-semibold"
+   318→                  >
+   319→                    <MessageCircle className="w-4 h-4" /> چت
+   320→                  </Button>
+   321→                  <Button
+   322→                    variant="ghost"
+   323→                    onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
+   324→                    className="gap-1.5 rounded-xl font-semibold text-muted-foreground"
+   325→                  >
+   326→                    <Download className="w-4 h-4" /> رزومه
+   327→                  </Button>
+   328→                </>
+   329→              )}
+   330→            </div>
+   331→          </div>
+   332→
+   333→          {/* Counts row */}
+   334→          <div className="flex items-center gap-5 mt-5 pt-4 border-t border-border/60 text-sm">
+   335→            <button
+   336→              className="hover:opacity-80 transition-opacity text-right"
+   337→              onClick={() => navigate({ view: "connections" })}
+   338→            >
+   339→              <span className="font-bold text-foreground nums-fa">
+   340→                {formatCount(profile.followingCount)}
+   341→              </span>
+   342→              <span className="text-muted-foreground mr-1">دنبال‌شده</span>
+   343→            </button>
+   344→            <button
+   345→              className="hover:opacity-80 transition-opacity text-right"
+   346→              onClick={() => navigate({ view: "connections" })}
+   347→            >
+   348→              <span className="font-bold text-foreground nums-fa">
+   349→                {formatCount(profile.followersCount)}
+   350→              </span>
+   351→              <span className="text-muted-foreground mr-1">دنبال‌کننده</span>
+   352→            </button>
+   353→            <span className="text-muted-foreground">
+   354→              <span className="font-bold text-foreground nums-fa">
+   355→                {formatCount(profile.postCount)}
+   356→              </span>
+   357→              <span className="mr-1">پست</span>
+   358→            </span>
+   359→          </div>
+   360→        </div>
+   361→      </Card>
+   362→    </motion.div>
+   363→  );
+   364→}
+   365→
+   366→function ConnectionButton({
+   367→  profile,
+   368→  onUpdated,
+   369→}: {
+   370→  profile: ProfileDetail;
+   371→  onUpdated: () => void;
+   372→}) {
+   373→  const [busy, setBusy] = useState(false);
+   374→  const status = profile.connectionStatus;
+   375→
+   376→  async function handle() {
+   377→    if (status === "accepted") {
+   378→      toast({ title: "شما قبلاً متصل شده‌اید" });
+   379→      return;
+   380→    }
+   381→    setBusy(true);
+   382→    try {
+   383→      const res = await apiPost<{ status: string }>("/api/connections", {
+   384→        receiverId: profile.userId,
+   385→      });
+   386→      if (res.status === "accepted") {
+   387→        toast({ title: "ارتباط برقرار شد ✅" });
+   388→      } else if (res.status === "pending-sent") {
+   389→        toast({ title: "درخواست ارتباط ارسال شد 📨" });
+   390→      }
+   391→      onUpdated();
+   392→    } catch (e) {
+   393→      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+   394→    } finally {
+   395→      setBusy(false);
+   396→    }
+   397→  }
+   398→
+   399→  if (status === "accepted") {
+   400→    return (
+   401→      <Button variant="outline" onClick={handle} disabled className="gap-1.5 rounded-xl font-semibold">
+   402→        <UserCheck className="w-4 h-4 text-primary" /> متصل
+   403→      </Button>
+   404→    );
+   405→  }
+   406→  if (status === "pending-sent") {
+   407→    return (
+   408→      <Button variant="outline" onClick={handle} disabled className="gap-1.5 rounded-xl font-semibold">
+   409→        <Clock className="w-4 h-4" /> در انتظار
+   410→      </Button>
+   411→    );
+   412→  }
+   413→  if (status === "pending-received") {
+   414→    return (
+   415→      <Button onClick={handle} disabled={busy} className="gap-1.5 rounded-xl font-semibold">
+   416→        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+   417→        پذیرش درخواست
+   418→      </Button>
+   419→    );
+   420→  }
+   421→  return (
+   422→    <Button onClick={handle} disabled={busy} className="gap-1.5 rounded-xl font-semibold">
+   423→      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+   424→      دنبال کردن
+   425→    </Button>
+   426→  );
+   427→}
+   428→
+   429→function ProfileTabs({
+   430→  profile,
+   431→  isSelf,
+   432→}: {
+   433→  profile: ProfileDetail;
+   434→  isSelf: boolean;
+   435→}) {
+   436→  return (
+   437→    <Tabs defaultValue="about" className="w-full">
+   438→      <TabsList className="w-full grid grid-cols-3 h-10 rounded-xl">
+   439→        <TabsTrigger value="about" className="rounded-lg font-semibold">درباره</TabsTrigger>
+   440→        <TabsTrigger value="resume" className="rounded-lg font-semibold">رزومه</TabsTrigger>
+   441→        <TabsTrigger value="posts" className="rounded-lg font-semibold">پست‌ها</TabsTrigger>
+   442→      </TabsList>
+   443→
+   444→      <TabsContent value="about" className="mt-4 space-y-4">
+   445→        <AboutTab profile={profile} />
+   446→      </TabsContent>
+   447→      <TabsContent value="resume" className="mt-4 space-y-4">
+   448→        <ResumeTab profile={profile} />
+   449→      </TabsContent>
+   450→      <TabsContent value="posts" className="mt-4 space-y-4">
+   451→        <PostsTab userId={profile.userId} isSelf={isSelf} />
+   452→      </TabsContent>
+   453→    </Tabs>
+   454→  );
+   455→}
+   456→
+   457→function AboutTab({ profile }: { profile: ProfileDetail }) {
+   458→  const hasBio = profile.bioLong.trim().length > 0;
+   459→  const hasCategories = profile.categories.length > 0;
+   460→
+   461→  if (!hasBio && !hasCategories) {
+   462→    return (
+   463→      <Card className="p-4 border-border/60 shadow-card">
+   464→        <EmptyState
+   465→          kind="generic"
+   466→          title="هنوز توضیحاتی ثبت نشده"
+   467→          description="درباره‌ی تخصص، تجربه و علاقه‌مندی‌های خود بنویسید."
+   468→        />
+   469→      </Card>
+   470→    );
+   471→  }
+   472→
+   473→  return (
+   474→    <>
+   475→      {hasBio && (
+   476→        <motion.div
+   477→          initial={{ opacity: 0, y: 12 }}
+   478→          animate={{ opacity: 1, y: 0 }}
+   479→          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+   480→        >
+   481→          <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
+   482→            <h2 className="text-sm font-bold mb-3 flex items-center gap-1.5">
+   483→              <FileSignature className="w-4 h-4 text-primary" /> درباره
+   484→            </h2>
+   485→            <p className="text-sm leading-8 whitespace-pre-wrap break-words text-foreground/90">
+   486→              {profile.bioLong}
+   487→            </p>
+   488→          </Card>
+   489→        </motion.div>
+   490→      )}
+   491→
+   492→      {hasCategories && (
+   493→        <motion.div
+   494→          initial={{ opacity: 0, y: 12 }}
+   495→          animate={{ opacity: 1, y: 0 }}
+   496→          transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+   497→        >
+   498→          <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
+   499→            <h2 className="text-sm font-bold mb-4 flex items-center gap-1.5">
+   500→              <Hash className="w-4 h-4 text-primary" /> تخصص‌ها و مهارت‌ها
+   501→            </h2>
+   502→            <div className="space-y-5">
+   503→              {profile.categories.map((c, i) => (
+   504→                <motion.div
+   505→                  key={c.id}
+   506→                  initial={{ opacity: 0, y: 8 }}
+   507→                  animate={{ opacity: 1, y: 0 }}
+   508→                  transition={{ duration: 0.3, delay: i * 0.05 }}
+   509→                >
+   510→                  <div className="flex items-center gap-2 mb-2.5">
+   511→                    <CategoryIcon className="w-7 h-7 text-base" />
+   512→                    <span className="font-bold text-sm">{c.name}</span>
+   513→                    <Separator className="flex-1" />
+   514→                  </div>
+   515→                  {c.skills.length > 0 ? (
+   516→                    <div className="flex flex-wrap gap-1.5 pr-9">
+   517→                      {c.skills.map((s) => (
+   518→                        <Badge
+   519→                          key={s.id}
+   520→                          variant="outline"
+   521→                          className="border-primary/30 text-primary text-xs rounded-md font-medium"
+   522→                        >
+   523→                          {s.name}
+   524→                        </Badge>
+   525→                      ))}
+   526→                    </div>
+   527→                  ) : (
+   528→                    <p className="text-xs text-muted-foreground pr-9">مهارتی ثبت نشده</p>
+   529→                  )}
+   530→                </motion.div>
+   531→              ))}
+   532→            </div>
+   533→          </Card>
+   534→        </motion.div>
+   535→      )}
+   536→    </>
+   537→  );
+   538→}
+   539→
+   540→function ResumeTab({ profile }: { profile: ProfileDetail }) {
+   541→  const hasExp = profile.experiences.length > 0;
+   542→  const hasEdu = profile.educations.length > 0;
+   543→
+   544→  if (!hasExp && !hasEdu) {
+   545→    return (
+   546→      <Card className="p-4 border-border/60 shadow-card">
+   547→        <EmptyState
+   548→          kind="generic"
+   549→          title="رزومه‌ای ثبت نشده"
+   550→          description="سوابق کاری و تحصیلی هنوز اضافه نشده‌اند."
+   551→        />
+   552→      </Card>
+   553→    );
+   554→  }
+   555→
+   556→  return (
+   557→    <>
+   558→      {hasExp && (
+   559→        <motion.div
+   560→          initial={{ opacity: 0, y: 12 }}
+   561→          animate={{ opacity: 1, y: 0 }}
+   562→          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+   563→        >
+   564→          <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
+   565→            <h2 className="text-sm font-bold mb-4 flex items-center gap-1.5">
+   566→              <Briefcase className="w-4 h-4 text-primary" /> سوابق کاری
+   567→            </h2>
+   568→            <div className="space-y-3">
+   569→              {profile.experiences.map((e, i) => (
+   570→                <motion.div
+   571→                  key={e.id}
+   572→                  initial={{ opacity: 0, y: 8 }}
+   573→                  animate={{ opacity: 1, y: 0 }}
+   574→                  transition={{ duration: 0.3, delay: i * 0.05 }}
+   575→                  className="relative pr-4 border-r-2 border-border last:border-transparent pb-3 last:pb-0"
+   576→                >
+   577→                  <div className="absolute -right-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-card" />
+   578→                  <div className="flex items-baseline justify-between gap-2 flex-wrap">
+   579→                    <h3 className="font-bold text-sm">
+   580→                      {e.jobTitle}{" "}
+   581→                      <span className="text-muted-foreground font-normal">@ {e.organization}</span>
+   582→                    </h3>
+   583→                    {(e.startDate || e.endDate) && (
+   584→                      <span className="text-[11px] text-muted-foreground nums-fa" dir="ltr">
+   585→                        {[e.startDate, e.endDate || "تاکنون"].filter(Boolean).join(" — ")}
+   586→                      </span>
+   587→                    )}
+   588→                  </div>
+   589→                  {e.description && (
+   590→                    <p className="text-xs leading-6 mt-2 text-muted-foreground whitespace-pre-wrap">
+   591→                      {e.description}
+   592→                    </p>
+   593→                  )}
+   594→                  {(e.categoryName || e.skillName) && (
+   595→                    <div className="flex items-center gap-1 mt-2 flex-wrap">
+   596→                      {e.categoryName && (
+   597→                        <Badge variant="secondary" className="text-[10px] h-5 rounded-md">
+   598→                          {e.categoryName}
+   599→                        </Badge>
+   600→                      )}
+   601→                      {e.skillName && (
+   602→                        <Badge
+   603→                          variant="outline"
+   604→                          className="text-[10px] h-5 rounded-md border-primary/30 text-primary font-medium"
+   605→                        >
+   606→                          {e.skillName}
+   607→                        </Badge>
+   608→                      )}
+   609→                    </div>
+   610→                  )}
+   611→                </motion.div>
+   612→              ))}
+   613→            </div>
+   614→          </Card>
+   615→        </motion.div>
+   616→      )}
+   617→
+   618→      {hasEdu && (
+   619→        <motion.div
+   620→          initial={{ opacity: 0, y: 12 }}
+   621→          animate={{ opacity: 1, y: 0 }}
+   622→          transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+   623→        >
+   624→          <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
+   625→            <h2 className="text-sm font-bold mb-4 flex items-center gap-1.5">
+   626→              <GraduationCap className="w-4 h-4 text-primary" /> تحصیلات
+   627→            </h2>
+   628→            <div className="space-y-3">
+   629→              {profile.educations.map((e, i) => (
+   630→                <motion.div
+   631→                  key={e.id}
+   632→                  initial={{ opacity: 0, y: 8 }}
+   633→                  animate={{ opacity: 1, y: 0 }}
+   634→                  transition={{ duration: 0.3, delay: i * 0.05 }}
+   635→                  className="relative pr-4 border-r-2 border-border last:border-transparent pb-3 last:pb-0"
+   636→                >
+   637→                  <div className="absolute -right-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-gold ring-4 ring-card" />
+   638→                  <div className="flex items-baseline justify-between gap-2 flex-wrap">
+   639→                    <h3 className="font-bold text-sm">{e.degree}</h3>
+   640→                    {e.year && (
+   641→                      <span className="text-[11px] text-muted-foreground nums-fa" dir="ltr">
+   642→                        {toFa(e.year)}
+   643→                      </span>
+   644→                    )}
+   645→                  </div>
+   646→                  <p className="text-xs text-muted-foreground mt-0.5">{e.institution}</p>
+   647→                  {e.description && (
+   648→                    <p className="text-xs leading-6 mt-1 text-muted-foreground whitespace-pre-wrap">
+   649→                      {e.description}
+   650→                    </p>
+   651→                  )}
+   652→                </motion.div>
+   653→              ))}
+   654→            </div>
+   655→          </Card>
+   656→        </motion.div>
+   657→      )}
+   658→    </>
+   659→  );
+   660→}
+   661→
+   662→function PostsTab({ userId, isSelf }: { userId: string; isSelf: boolean }) {
+   663→  const [posts, setPosts] = useState<PostWithRelations[] | null>(null);
+   664→  const [loading, setLoading] = useState(true);
+   665→
+   666→  const load = useCallback(async () => {
+   667→    setLoading(true);
+   668→    try {
+   669→      const data = await api<{ posts: PostWithRelations[] }>(`/api/posts?userId=${userId}`);
+   670→      setPosts(data.posts);
+   671→    } catch (e) {
+   672→      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+   673→      setPosts([]);
+   674→    } finally {
+   675→      setLoading(false);
+   676→    }
+   677→  }, [userId]);
+   678→
+   679→  useEffect(() => {
+   680→    load();
+   681→  }, [load]);
+   682→
+   683→  if (loading) {
+   684→    return (
+   685→      <div className="space-y-3">
+   686→        {[...Array(2)].map((_, i) => (
+   687→          <Card key={i} className="p-4 space-y-3 border-border/60 shadow-card">
+   688→            <div className="flex items-center gap-3">
+   689→              <Skeleton className="w-11 h-11 rounded-full" />
+   690→              <div className="space-y-1.5 flex-1">
+   691→                <Skeleton className="h-3.5 w-32 rounded" />
+   692→                <Skeleton className="h-2.5 w-20 rounded" />
+   693→              </div>
+   694→            </div>
+   695→            <Skeleton className="h-4 w-full rounded" />
+   696→            <Skeleton className="h-4 w-3/4 rounded" />
+   697→          </Card>
+   698→        ))}
+   699→      </div>
+   700→    );
+   701→  }
+   702→
+   703→  if (!posts || posts.length === 0) {
+   704→    return (
+   705→      <Card className="p-4 border-border/60 shadow-card">
+   706→        <EmptyState
+   707→          kind="posts"
+   708→          title="پستی منتشر نشده"
+   709→          description={
+   710→            isSelf
+   711→              ? "پست‌های شما اینجا نمایش داده می‌شوند."
+   712→              : "این کاربر هنوز پستی منتشر نکرده است."
+   713→          }
+   714→          action={
+   715→            isSelf ? (
+   716→              <Button
+   717→                size="sm"
+   718→                variant="outline"
+   719→                onClick={() => navigate({ view: "feed" })}
+   720→                className="rounded-xl gap-1.5"
+   721→              >
+   722→                <FileText className="w-4 h-4" /> رفتن به فید
+   723→              </Button>
+   724→            ) : undefined
+   725→          }
+   726→        />
+   727→      </Card>
+   728→    );
+   729→  }
+   730→
+   731→  return (
+   732→    <div className="space-y-4">
+   733→      {posts.map((p, i) => (
+   734→        <PostCard key={p.id} post={p} index={i} />
+   735→      ))}
+   736→    </div>
+   737→  );
+   738→}
+   739→
+   740→function QuickStatsCard({ profile }: { profile: ProfileDetail }) {
+   741→  const stats = [
+   742→    { label: "پست", value: profile.postCount, icon: FileText },
+   743→    { label: "دنبال‌کننده", value: profile.followersCount, icon: Users },
+   744→    { label: "دنبال‌شده", value: profile.followingCount, icon: UserCheck },
+   745→    { label: "تخصص", value: profile.categories.length, icon: Hash },
+   746→  ];
+   747→  return (
+   748→    <motion.div
+   749→      initial={{ opacity: 0, y: 12 }}
+   750→      animate={{ opacity: 1, y: 0 }}
+   751→      transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+   752→    >
+   753→      <Card className="p-4 border-border/60 shadow-card">
+   754→        <h3 className="text-sm font-bold mb-3">آمار سریع</h3>
+   755→        <div className="grid grid-cols-2 gap-2">
+   756→          {stats.map((s) => {
+   757→            const Icon = s.icon;
+   758→            return (
+   759→              <div
+   760→                key={s.label}
+   761→                className="rounded-xl bg-muted/50 p-3 flex flex-col items-center text-center hover:bg-muted transition-colors"
+   762→              >
+   763→                <Icon className="w-4 h-4 text-primary mb-1" />
+   764→                <span className="text-lg font-extrabold nums-fa">{formatCount(s.value)}</span>
+   765→                <span className="text-[11px] text-muted-foreground">{s.label}</span>
+   766→              </div>
+   767→            );
+   768→          })}
+   769→        </div>
+   770→      </Card>
+   771→    </motion.div>
+   772→  );
+   773→}
+   774→
+   775→function ProfileSkeleton() {
+   776→  return (
+   777→    <div className="space-y-4">
+   778→      <Card className="overflow-hidden p-0 border-border/60 shadow-card">
+   779→        <Skeleton className="h-36 md:h-52 w-full rounded-none" />
+   780→        <div className="px-6 pb-6 -mt-14 md:-mt-16">
+   781→          <div className="flex items-end gap-4">
+   782→            <Skeleton className="w-28 h-28 rounded-3xl ring-4 ring-card" />
+   783→            <div className="flex-1 space-y-2">
+   784→              <Skeleton className="h-5 w-40 rounded" />
+   785→              <Skeleton className="h-3 w-56 rounded" />
+   786→              <Skeleton className="h-3 w-32 rounded" />
+   787→            </div>
+   788→          </div>
+   789→          <div className="flex gap-4 mt-5 pt-4 border-t border-border/60">
+   790→            <Skeleton className="h-4 w-20 rounded" />
+   791→            <Skeleton className="h-4 w-20 rounded" />
+   792→            <Skeleton className="h-4 w-16 rounded" />
+   793→          </div>
+   794→        </div>
+   795→      </Card>
+   796→      <Card className="p-4 border-border/60 shadow-card">
+   797→        <Skeleton className="h-10 w-full mb-3 rounded-xl" />
+   798→        <Skeleton className="h-32 w-full rounded" />
+   799→      </Card>
+   800→    </div>
+   801→  );
+   802→}
+   803→

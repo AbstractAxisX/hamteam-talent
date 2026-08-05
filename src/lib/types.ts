@@ -1,4 +1,4 @@
-// Shared types for frontend/backend
+// Shared types for talent discovery platform
 import type { Category, Skill } from "@prisma/client";
 
 export type SafeUser = {
@@ -42,25 +42,16 @@ export type PostWithRelations = {
   media: { id: string; url: string; type: string }[];
 };
 
-export type JobPostWithRelations = {
+export type TalentListItem = {
   id: string;
-  title: string;
-  description: string;
-  city: string | null;
+  name: string;
+  isVerifiedBadge: boolean;
+  bioShort: string;
+  avatarUrl: string | null;
   province: string | null;
-  status: string;
-  createdAt: string;
-  categoryId: string | null;
-  categoryName: string | null;
-  skills: { id: string; name: string }[];
-  user: {
-    id: string;
-    name: string;
-    isVerifiedBadge: boolean;
-    avatarUrl: string | null;
-  };
-  applicationCount: number;
-  appliedByMe: boolean;
+  city: string | null;
+  categories: { id: string; name: string; iconUrl: string | null }[];
+  followersCount: number;
 };
 
 export type ProfileDetail = {
@@ -68,7 +59,6 @@ export type ProfileDetail = {
   userId: string;
   name: string;
   isVerifiedBadge: boolean;
-  role: string;
   bioShort: string;
   bioLong: string;
   avatarUrl: string | null;
@@ -78,7 +68,7 @@ export type ProfileDetail = {
   phoneVisible: boolean;
   phone: string | null;
   createdAt: string;
-  categories: { id: string; name: string; skills: { id: string; name: string }[] }[];
+  categories: { id: string; name: string; iconUrl: string | null; skills: { id: string; name: string }[] }[];
   experiences: {
     id: string;
     jobTitle: string;

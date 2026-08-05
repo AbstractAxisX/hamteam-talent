@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { destroyUserSession } from "@/lib/auth";
+import { destroyAdminSession } from "@/lib/auth";
 
 export async function POST() {
-  await destroyUserSession();
+  await destroyAdminSession();
   return NextResponse.json({ ok: true });
 }

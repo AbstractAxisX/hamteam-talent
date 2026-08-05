@@ -4,12 +4,9 @@ import { create } from "zustand";
 
 export type Route =
   | { view: "feed" }
-  | { view: "explore" }
-  | { view: "people" }
-  | { view: "jobs" }
-  | { view: "job"; id: string }
-  | { view: "create-job" }
-  | { view: "my-jobs" }
+  | { view: "discover" }
+  | { view: "talents" }
+  | { view: "category"; id: string }
   | { view: "profile"; id: string }
   | { view: "my-profile" }
   | { view: "edit-profile" }
@@ -18,8 +15,8 @@ export type Route =
   | { view: "notifications" }
   | { view: "tickets" }
   | { view: "ticket"; id: string }
-  | { view: "admin" }
   | { view: "settings" }
+  | { view: "admin" }
   | { view: "auth" };
 
 function parseHash(): Route {
@@ -27,55 +24,30 @@ function parseHash(): Route {
   const hash = window.location.hash.replace(/^#\/?/, "");
   const [path, ...rest] = hash.split("/");
   switch (path) {
-    case "explore":
-      return { view: "explore" };
-    case "people":
-      return { view: "people" };
-    case "jobs":
-      return { view: "jobs" };
-    case "job":
-      return { view: "job", id: rest[0] || "" };
-    case "create-job":
-      return { view: "create-job" };
-    case "my-jobs":
-      return { view: "my-jobs" };
-    case "profile":
-      return { view: "profile", id: rest[0] || "" };
-    case "edit-profile":
-      return { view: "edit-profile" };
-    case "connections":
-      return { view: "connections" };
-    case "chat":
-      return { view: "chat", conversationId: rest[0] };
-    case "notifications":
-      return { view: "notifications" };
-    case "tickets":
-      return { view: "tickets" };
-    case "ticket":
-      return { view: "ticket", id: rest[0] || "" };
-    case "admin":
-      return { view: "admin" };
-    case "settings":
-      return { view: "settings" };
-    case "auth":
-      return { view: "auth" };
-    default:
-      return { view: "feed" };
+    case "discover": return { view: "discover" };
+    case "talents": return { view: "talents" };
+    case "category": return { view: "category", id: rest[0] || "" };
+    case "profile": return { view: "profile", id: rest[0] || "" };
+    case "edit-profile": return { view: "edit-profile" };
+    case "connections": return { view: "connections" };
+    case "chat": return { view: "chat", conversationId: rest[0] };
+    case "notifications": return { view: "notifications" };
+    case "tickets": return { view: "tickets" };
+    case "ticket": return { view: "ticket", id: rest[0] || "" };
+    case "settings": return { view: "settings" };
+    case "admin": return { view: "admin" };
+    case "auth": return { view: "auth" };
+    default: return { view: "feed" };
   }
 }
 
 function routeToHash(r: Route): string {
   switch (r.view) {
-    case "job":
-      return `#/job/${r.id}`;
-    case "profile":
-      return `#/profile/${r.id}`;
-    case "chat":
-      return r.conversationId ? `#/chat/${r.conversationId}` : "#/chat";
-    case "ticket":
-      return `#/ticket/${r.id}`;
-    default:
-      return `#/${r.view}`;
+    case "profile": return `#/profile/${r.id}`;
+    case "category": return `#/category/${r.id}`;
+    case "chat": return r.conversationId ? `#/chat/${r.conversationId}` : "#/chat";
+    case "ticket": return `#/ticket/${r.id}`;
+    default: return `#/${r.view}`;
   }
 }
 

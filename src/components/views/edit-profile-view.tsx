@@ -54,14 +54,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/* Petrol + Saffron banner gradients (NO blue/indigo) */
+/* Lime + Forest banner gradients (NO blue/indigo) */
 const BANNER_GRADIENTS = [
-  "linear-gradient(135deg, oklch(0.42 0.06 215) 0%, oklch(0.38 0.07 230) 100%)",
-  "linear-gradient(135deg, oklch(0.72 0.16 75) 0%, oklch(0.62 0.17 55) 100%)",
-  "linear-gradient(135deg, oklch(0.42 0.06 215) 0%, oklch(0.65 0.15 75) 100%)",
-  "linear-gradient(135deg, oklch(0.62 0.2 15) 0%, oklch(0.72 0.16 75) 100%)",
-  "linear-gradient(135deg, oklch(0.38 0.07 230) 0%, oklch(0.55 0.18 15) 100%)",
-  "linear-gradient(135deg, oklch(0.55 0.1 195) 0%, oklch(0.42 0.06 215) 100%)",
+  "linear-gradient(135deg, oklch(0.32 0.05 165) 0%, oklch(0.22 0.04 180) 100%)",
+  "linear-gradient(135deg, oklch(0.32 0.05 165) 0%, oklch(0.55 0.15 140) 100%)",
+  "linear-gradient(135deg, oklch(0.4 0.1 160) 0%, oklch(0.7 0.18 125) 100%)",
+  "linear-gradient(135deg, oklch(0.32 0.05 165) 0%, oklch(0.6 0.13 158) 100%)",
+  "linear-gradient(135deg, oklch(0.32 0.05 165) 0%, oklch(0.65 0.15 75) 100%)",
+  "linear-gradient(135deg, oklch(0.4 0.1 160) 0%, oklch(0.55 0.18 15) 100%)",
 ];
 
 function hashIdToIndex(id: string, mod: number): number {
@@ -116,17 +116,17 @@ export function EditProfileView() {
   if (!user) {
     return (
       <div className="max-w-3xl mx-auto">
-        <Card className="p-8 text-center space-y-3 border-border/60 shadow-card">
-          <div className="grid place-items-center w-12 h-12 rounded-2xl bg-primary/10 text-primary mx-auto">
+        <Card className="p-8 text-center space-y-3 border-border/60 shadow-card rounded-2xl">
+          <div className="grid place-items-center w-14 h-14 rounded-2xl bg-forest/10 text-forest mx-auto">
             <Lock className="w-6 h-6" />
           </div>
           <h2 className="font-bold text-lg">برای ویرایش پروفایل وارد شوید</h2>
-          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-6">
             برای مدیریت پروفایل، مهارت‌ها و سوابق خود ابتدا وارد حساب کاربری خود شوید.
           </p>
           <Button
             onClick={() => navigate({ view: "auth" })}
-            className="rounded-xl gap-1.5 mx-auto"
+            className="rounded-2xl bg-lime text-forest hover:bg-lime/90 gap-1.5 mx-auto font-bold"
           >
             ورود / ثبت‌نام
           </Button>
@@ -142,7 +142,14 @@ export function EditProfileView() {
           kind="generic"
           title="پروفایل بارگذاری نشد"
           description="لطفاً دوباره تلاش کنید."
-          action={<Button onClick={load} className="rounded-xl">تلاش مجدد</Button>}
+          action={
+            <Button
+              onClick={load}
+              className="rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold"
+            >
+              تلاش مجدد
+            </Button>
+          }
         />
       </div>
     );
@@ -167,7 +174,7 @@ export function EditProfileView() {
           variant="ghost"
           size="sm"
           onClick={() => navigate({ view: "my-profile" })}
-          className="rounded-xl gap-1.5 font-semibold"
+          className="rounded-2xl gap-1.5 font-semibold"
         >
           مشاهده پروفایل
           <ChevronLeft className="w-4 h-4" />
@@ -184,7 +191,7 @@ export function EditProfileView() {
               e.preventDefault();
               document.getElementById(`section-${s.key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
-            className="text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors font-medium"
+            className="text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-lime/20 hover:text-forest transition-colors font-medium"
           >
             {s.label}
           </a>
@@ -278,7 +285,7 @@ function PhotosBioSection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-5 border-border/60 shadow-card">
+    <Card className="p-5 md:p-6 space-y-5 border-border/60 shadow-card rounded-2xl">
       <SectionTitle icon={ImageIcon} title="عکس‌ها و بیو" />
 
       {/* Banner preview */}
@@ -290,7 +297,8 @@ function PhotosBioSection({
               className="absolute inset-0"
               style={{ background: BANNER_GRADIENTS[defaultIdx] }}
             >
-              <div className="absolute inset-0 opacity-15 bg-[radial-gradient(circle_at_30%_20%,white_0%,transparent_45%)]" />
+              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_20%,white_0%,transparent_45%)]" />
+              <div className="absolute -bottom-8 -left-6 w-32 h-32 rounded-full bg-lime/20 blur-2xl" />
             </div>
           ) : (
             <img src={bannerUrl} alt="بنر" className="absolute inset-0 w-full h-full object-cover" />
@@ -317,7 +325,9 @@ function PhotosBioSection({
               <div
                 className={cn(
                   "h-10 w-full rounded-lg border-2",
-                  isDefaultBanner && defaultIdx === i ? "border-foreground" : "border-transparent"
+                  isDefaultBanner && defaultIdx === i
+                    ? "border-forest shadow-md scale-105"
+                    : "border-transparent"
                 )}
                 style={{ background: g }}
               />
@@ -329,7 +339,7 @@ function PhotosBioSection({
             <div
               className={cn(
                 "h-10 w-full rounded-lg border-2 grid place-items-center bg-muted",
-                !isDefaultBanner ? "border-foreground" : "border-transparent"
+                !isDefaultBanner ? "border-forest shadow-md scale-105" : "border-transparent"
               )}
             >
               <ImageIcon className="w-4 h-4 text-muted-foreground" />
@@ -343,7 +353,7 @@ function PhotosBioSection({
             value={bannerUrl}
             onChange={(e) => setBannerUrl(e.target.value)}
             dir="ltr"
-            className="rounded-xl"
+            className="rounded-2xl"
           />
         )}
       </div>
@@ -367,7 +377,7 @@ function PhotosBioSection({
             value={avatarUrl}
             onChange={(e) => setAvatarUrl(e.target.value)}
             dir="ltr"
-            className="rounded-xl"
+            className="rounded-2xl"
           />
           <p className="text-[11px] text-muted-foreground leading-5">
             برای بهترین نتیجه تصویر مربعی با ابعاد حداقل ۲۰۰×۲۰۰ پیکسل.
@@ -380,11 +390,11 @@ function PhotosBioSection({
         <Label htmlFor="bio-short">معرفی کوتاه</Label>
         <Input
           id="bio-short"
-          placeholder="مثلاً: توسعه‌دهنده فرانت‌اند و علاقه‌مند به طراحی محصول"
+          placeholder="مثلاً: هنرمند نقاش و علاقه‌مند به هنر مفهومی"
           value={bioShort}
           onChange={(e) => setBioShort(e.target.value.slice(0, 200))}
           maxLength={200}
-          className="rounded-xl"
+          className="rounded-2xl"
         />
         <p className="text-[11px] text-muted-foreground text-left nums-fa">
           {toFa(bioShort.length)}/{toFa(200)}
@@ -401,7 +411,7 @@ function PhotosBioSection({
           onChange={(e) => setBioLong(e.target.value.slice(0, 4000))}
           rows={6}
           maxLength={4000}
-          className="rounded-xl resize-none leading-7"
+          className="rounded-2xl resize-none leading-7"
         />
         <p className="text-[11px] text-muted-foreground text-left nums-fa">
           {toFa(bioLong.length)}/{toFa(4000)}
@@ -409,7 +419,11 @@ function PhotosBioSection({
       </div>
 
       <div className="flex justify-end pt-1">
-        <Button onClick={save} disabled={saving} className="gap-1.5 rounded-xl font-semibold">
+        <Button
+          onClick={save}
+          disabled={saving}
+          className="gap-1.5 rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold"
+        >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           ذخیره
         </Button>
@@ -458,7 +472,7 @@ function LocationSection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card">
+    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
       <SectionTitle icon={MapPin} title="موقعیت و تماس" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -471,7 +485,7 @@ function LocationSection({
               setCity("");
             }}
           >
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className="w-full rounded-2xl">
               <SelectValue placeholder="انتخاب استان" />
             </SelectTrigger>
             <SelectContent>
@@ -486,7 +500,7 @@ function LocationSection({
         <div className="space-y-2">
           <Label>شهر</Label>
           <Select value={city} onValueChange={setCity} disabled={!province}>
-            <SelectTrigger className="w-full rounded-xl">
+            <SelectTrigger className="w-full rounded-2xl">
               <SelectValue placeholder="انتخاب شهر" />
             </SelectTrigger>
             <SelectContent>
@@ -500,13 +514,13 @@ function LocationSection({
         </div>
       </div>
 
-      <div className="flex items-start justify-between gap-3 rounded-2xl bg-muted/40 p-4">
+      <div className="flex items-start justify-between gap-3 rounded-2xl bg-lime/10 p-4 border border-lime/20">
         <div className="flex items-start gap-2.5">
-          <div className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary shrink-0">
+          <div className="grid place-items-center w-8 h-8 rounded-xl bg-forest/10 text-forest shrink-0">
             <Phone className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold">نمایش شماره تلفن</p>
+            <p className="text-sm font-bold">نمایش شماره تلفن</p>
             <p className="text-xs text-muted-foreground leading-5 mt-0.5">
               {phoneVisible
                 ? `شماره ${toFa(profile.phone || "")} برای بازدیدکنندگان قابل مشاهده است.`
@@ -518,7 +532,11 @@ function LocationSection({
       </div>
 
       <div className="flex justify-end pt-1">
-        <Button onClick={save} disabled={saving} className="gap-1.5 rounded-xl font-semibold">
+        <Button
+          onClick={save}
+          disabled={saving}
+          className="gap-1.5 rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold"
+        >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           ذخیره
         </Button>
@@ -607,7 +625,7 @@ function CategoriesSection({
   );
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card">
+    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
       <div className="flex items-center justify-between gap-2">
         <SectionTitle icon={Hash} title="دسته‌بندی و مهارت‌ها" />
         <Dialog open={addCatOpen} onOpenChange={setAddCatOpen}>
@@ -615,7 +633,7 @@ function CategoriesSection({
             <Button
               size="sm"
               variant="outline"
-              className="gap-1.5 rounded-xl font-semibold"
+              className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
               disabled={availableCats.length === 0}
             >
               <Plus className="w-4 h-4" /> افزودن دسته‌بندی
@@ -634,13 +652,13 @@ function CategoriesSection({
                   key={c.id}
                   onClick={() => addCategory(c.id)}
                   disabled={busy}
-                  className="w-full text-right px-3 py-2 rounded-lg hover:bg-accent text-sm flex items-center justify-between transition-colors"
+                  className="w-full text-right px-3 py-2 rounded-xl hover:bg-lime/15 text-sm flex items-center justify-between transition-colors"
                 >
                   <span className="flex items-center gap-2">
-                    <CategoryIcon className="w-7 h-7 text-base" />
+                    <CategoryIcon emoji={c.iconUrl} className="w-7 h-7 text-base" />
                     {c.name}
                   </span>
-                  <Plus className="w-4 h-4 text-primary" />
+                  <Plus className="w-4 h-4 text-forest" />
                 </button>
               ))}
             </div>
@@ -663,17 +681,17 @@ function CategoriesSection({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: i * 0.05 }}
             >
-              <Card className="p-4 border-border/60 shadow-soft hover:shadow-lift transition-shadow">
+              <Card className="p-4 border-border/60 shadow-soft hover:shadow-lift transition-shadow rounded-2xl">
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <h4 className="font-bold text-sm flex items-center gap-2">
-                    <CategoryIcon className="w-7 h-7 text-base" />
+                    <CategoryIcon emoji={c.iconUrl} className="w-7 h-7 text-base" />
                     {c.name}
                   </h4>
                   <div className="flex items-center gap-1">
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 gap-1 text-xs rounded-lg font-semibold"
+                      className="h-8 gap-1 text-xs rounded-xl font-semibold text-forest hover:bg-lime/15"
                       onClick={() => setAddSkillCatId(c.id)}
                       disabled={busy}
                     >
@@ -682,7 +700,7 @@ function CategoriesSection({
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-8 w-8 text-muted-foreground hover:text-rose rounded-lg"
+                      className="h-8 w-8 text-muted-foreground hover:text-rose hover:bg-rose/10 rounded-xl"
                       onClick={() => removeCategory(c.id)}
                       disabled={busy}
                       aria-label="حذف دسته‌بندی"
@@ -696,14 +714,13 @@ function CategoriesSection({
                     {c.skills.map((s) => (
                       <Badge
                         key={s.id}
-                        variant="outline"
-                        className="border-primary/30 text-primary gap-1 pr-1 pl-2.5 py-1 rounded-md text-xs font-medium"
+                        className="bg-lime/15 text-forest border border-lime/30 gap-1 pr-1 pl-2.5 py-1 rounded-lg text-xs font-medium hover:bg-lime/25"
                       >
                         {s.name}
                         <button
                           onClick={() => removeSkill(s.id)}
                           disabled={busy}
-                          className="grid place-items-center w-4 h-4 rounded-full hover:bg-rose/15 hover:text-rose transition-colors"
+                          className="grid place-items-center w-4 h-4 rounded-full hover:bg-rose/20 hover:text-rose transition-colors"
                           aria-label={`حذف ${s.name}`}
                         >
                           <X className="w-3 h-3" />
@@ -740,10 +757,10 @@ function CategoriesSection({
                   key={s.id}
                   onClick={() => addSkill(s.id)}
                   disabled={busy}
-                  className="w-full text-right px-3 py-2 rounded-lg hover:bg-accent text-sm flex items-center justify-between transition-colors"
+                  className="w-full text-right px-3 py-2 rounded-xl hover:bg-lime/15 text-sm flex items-center justify-between transition-colors"
                 >
                   <span>{s.name}</span>
-                  <Plus className="w-4 h-4 text-primary" />
+                  <Plus className="w-4 h-4 text-forest" />
                 </button>
               ))}
             </div>
@@ -829,10 +846,15 @@ function ExperienceSection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card">
+    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
       <div className="flex items-center justify-between gap-2">
         <SectionTitle icon={Briefcase} title="سوابق کاری" />
-        <Button size="sm" variant="outline" className="gap-1.5 rounded-xl font-semibold" onClick={() => setOpen(true)}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
+          onClick={() => setOpen(true)}
+        >
           <Plus className="w-4 h-4" /> افزودن
         </Button>
       </div>
@@ -851,11 +873,11 @@ function ExperienceSection({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: i * 0.05 }}
-              className="rounded-xl border border-border/60 p-3.5 flex items-start justify-between gap-2 hover:shadow-soft transition-shadow bg-card"
+              className="rounded-2xl border border-border/60 p-3.5 flex items-start justify-between gap-2 hover:shadow-soft transition-shadow bg-card"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <div className="grid place-items-center w-8 h-8 rounded-lg bg-brand-gradient-soft text-primary shrink-0">
+                  <div className="grid place-items-center w-8 h-8 rounded-xl bg-forest/10 text-forest shrink-0">
                     <Briefcase className="w-4 h-4" />
                   </div>
                   <p className="font-bold text-sm">
@@ -879,10 +901,7 @@ function ExperienceSection({
                       </Badge>
                     )}
                     {e.skillName && (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] h-5 rounded-md border-primary/30 text-primary font-medium"
-                      >
+                      <Badge className="text-[10px] h-5 rounded-md bg-lime/15 text-forest border border-lime/30 font-medium">
                         {e.skillName}
                       </Badge>
                     )}
@@ -892,7 +911,7 @@ function ExperienceSection({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-rose rounded-lg"
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-rose hover:bg-rose/10 rounded-xl"
                 onClick={() => remove(e.id)}
                 disabled={busy}
                 aria-label="حذف"
@@ -916,19 +935,19 @@ function ExperienceSection({
             <div className="space-y-2">
               <Label>عنوان شغلی *</Label>
               <Input
-                placeholder="مثلاً: توسعه‌دهنده ارشد فرانت‌اند"
+                placeholder="مثلاً: طراح گرافیک ارشد"
                 value={jobTitle}
                 onChange={(e) => setJobTitle(e.target.value)}
-                className="rounded-xl"
+                className="rounded-2xl"
               />
             </div>
             <div className="space-y-2">
               <Label>نام سازمان *</Label>
               <Input
-                placeholder="مثلاً: شرکت همتیم"
+                placeholder="مثلاً: استودیو همتیم"
                 value={organization}
                 onChange={(e) => setOrganization(e.target.value)}
-                className="rounded-xl"
+                className="rounded-2xl"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -939,7 +958,7 @@ function ExperienceSection({
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   dir="ltr"
-                  className="rounded-xl"
+                  className="rounded-2xl"
                 />
               </div>
               <div className="space-y-2">
@@ -949,7 +968,7 @@ function ExperienceSection({
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   dir="ltr"
-                  className="rounded-xl"
+                  className="rounded-2xl"
                 />
               </div>
             </div>
@@ -960,7 +979,7 @@ function ExperienceSection({
                 placeholder="خلاصه‌ای از دستاوردها و مسئولیت‌ها..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="rounded-xl resize-none"
+                className="rounded-2xl resize-none"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -970,7 +989,7 @@ function ExperienceSection({
                   value={categoryId}
                   onValueChange={(v) => { setCategoryId(v); setSkillId(""); }}
                 >
-                  <SelectTrigger className="w-full rounded-xl">
+                  <SelectTrigger className="w-full rounded-2xl">
                     <SelectValue placeholder="انتخاب..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -983,7 +1002,7 @@ function ExperienceSection({
               <div className="space-y-2">
                 <Label>مهارت (اختیاری)</Label>
                 <Select value={skillId} onValueChange={setSkillId} disabled={!categoryId}>
-                  <SelectTrigger className="w-full rounded-xl">
+                  <SelectTrigger className="w-full rounded-2xl">
                     <SelectValue placeholder="انتخاب..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -996,8 +1015,12 @@ function ExperienceSection({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)} className="rounded-xl">انصراف</Button>
-            <Button onClick={submit} disabled={busy} className="gap-1.5 rounded-xl font-semibold">
+            <Button variant="ghost" onClick={() => setOpen(false)} className="rounded-2xl">انصراف</Button>
+            <Button
+              onClick={submit}
+              disabled={busy}
+              className="gap-1.5 rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold"
+            >
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
               افزودن
             </Button>
@@ -1069,10 +1092,15 @@ function EducationSection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card">
+    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
       <div className="flex items-center justify-between gap-2">
         <SectionTitle icon={GraduationCap} title="تحصیلات" />
-        <Button size="sm" variant="outline" className="gap-1.5 rounded-xl font-semibold" onClick={() => setOpen(true)}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
+          onClick={() => setOpen(true)}
+        >
           <Plus className="w-4 h-4" /> افزودن
         </Button>
       </div>
@@ -1091,11 +1119,11 @@ function EducationSection({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: i * 0.05 }}
-              className="rounded-xl border border-border/60 p-3.5 flex items-start justify-between gap-2 hover:shadow-soft transition-shadow bg-card"
+              className="rounded-2xl border border-border/60 p-3.5 flex items-start justify-between gap-2 hover:shadow-soft transition-shadow bg-card"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <div className="grid place-items-center w-8 h-8 rounded-lg bg-gold/15 text-gold shrink-0">
+                  <div className="grid place-items-center w-8 h-8 rounded-xl bg-gold/15 text-gold shrink-0">
                     <GraduationCap className="w-4 h-4" />
                   </div>
                   <p className="font-bold text-sm">{e.degree}</p>
@@ -1111,7 +1139,7 @@ function EducationSection({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-rose rounded-lg"
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-rose hover:bg-rose/10 rounded-xl"
                 onClick={() => remove(e.id)}
                 disabled={busy}
                 aria-label="حذف"
@@ -1133,10 +1161,10 @@ function EducationSection({
             <div className="space-y-2">
               <Label>مدرک تحصیلی *</Label>
               <Input
-                placeholder="مثلاً: کارشناسی ارشد مهندسی کامپیوتر"
+                placeholder="مثلاً: کارشناسی ارشد هنر"
                 value={degree}
                 onChange={(e) => setDegree(e.target.value)}
-                className="rounded-xl"
+                className="rounded-2xl"
               />
             </div>
             <div className="space-y-2">
@@ -1145,7 +1173,7 @@ function EducationSection({
                 placeholder="مثلاً: دانشگاه تهران"
                 value={institution}
                 onChange={(e) => setInstitution(e.target.value)}
-                className="rounded-xl"
+                className="rounded-2xl"
               />
             </div>
             <div className="space-y-2">
@@ -1155,7 +1183,7 @@ function EducationSection({
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
                 dir="ltr"
-                className="rounded-xl"
+                className="rounded-2xl"
               />
             </div>
             <div className="space-y-2">
@@ -1165,13 +1193,17 @@ function EducationSection({
                 placeholder="زمینه تخصص، معدل یا دستاوردها..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="rounded-xl resize-none"
+                className="rounded-2xl resize-none"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)} className="rounded-xl">انصراف</Button>
-            <Button onClick={submit} disabled={busy} className="gap-1.5 rounded-xl font-semibold">
+            <Button variant="ghost" onClick={() => setOpen(false)} className="rounded-2xl">انصراف</Button>
+            <Button
+              onClick={submit}
+              disabled={busy}
+              className="gap-1.5 rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold"
+            >
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
               افزودن
             </Button>
@@ -1192,7 +1224,7 @@ function SectionTitle({
 }) {
   return (
     <h2 className="text-sm font-bold flex items-center gap-2">
-      <span className="grid place-items-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
+      <span className="grid place-items-center w-7 h-7 rounded-xl bg-forest/10 text-forest">
         <Icon className="w-4 h-4" />
       </span>
       {title}
@@ -1207,22 +1239,22 @@ function EditSkeleton() {
         <Skeleton className="h-8 w-48 rounded" />
         <Skeleton className="h-8 w-32 rounded" />
       </div>
-      <Card className="p-6 space-y-4 border-border/60 shadow-card">
+      <Card className="p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
         <Skeleton className="h-32 w-full rounded-2xl" />
         <div className="flex items-center gap-4">
           <Skeleton className="w-20 h-20 rounded-full" />
           <div className="flex-1 space-y-2">
-            <Skeleton className="h-9 w-full rounded-xl" />
+            <Skeleton className="h-9 w-full rounded-2xl" />
             <Skeleton className="h-3 w-32 rounded" />
           </div>
         </div>
-        <Skeleton className="h-24 w-full rounded-xl" />
-        <Skeleton className="h-9 w-32 rounded-xl" />
+        <Skeleton className="h-24 w-full rounded-2xl" />
+        <Skeleton className="h-9 w-32 rounded-2xl" />
       </Card>
-      <Card className="p-6 space-y-3 border-border/60 shadow-card">
+      <Card className="p-6 space-y-3 border-border/60 shadow-card rounded-2xl">
         <Skeleton className="h-5 w-32 rounded" />
-        <Skeleton className="h-9 w-full rounded-xl" />
-        <Skeleton className="h-9 w-full rounded-xl" />
+        <Skeleton className="h-9 w-full rounded-2xl" />
+        <Skeleton className="h-9 w-full rounded-2xl" />
       </Card>
     </div>
   );

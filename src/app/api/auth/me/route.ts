@@ -9,7 +9,7 @@ export async function GET() {
     id: user.id,
     phone: user.phone,
     name: user.name,
-    role: user.role,
+    role: "user",
     isVerifiedBadge: user.isVerifiedBadge,
     isBanned: user.isBanned,
     createdAt: user.createdAt.toISOString(),

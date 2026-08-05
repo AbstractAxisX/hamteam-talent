@@ -81,8 +81,8 @@ export function ConnectionsView() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
         >
-          <Card className="p-8 text-center space-y-3 border-border/60 shadow-card">
-            <div className="grid place-items-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mx-auto">
+          <Card className="p-8 text-center space-y-3 border-border/60 shadow-card rounded-2xl">
+            <div className="grid place-items-center w-14 h-14 rounded-2xl bg-forest/10 text-forest mx-auto">
               <Lock className="w-6 h-6" />
             </div>
             <h2 className="font-bold text-lg">برای مشاهده ارتباطات خود وارد شوید</h2>
@@ -91,7 +91,7 @@ export function ConnectionsView() {
             </p>
             <Button
               onClick={() => navigate({ view: "auth" })}
-              className="gap-1.5 rounded-xl font-semibold mx-auto"
+              className="gap-1.5 rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold mx-auto"
             >
               ورود / ثبت‌نام
             </Button>
@@ -140,39 +140,39 @@ export function ConnectionsView() {
       <Header />
 
       <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="w-full h-11 rounded-xl p-1">
-          <TabsTrigger value="pending" className="gap-1.5 flex-1 rounded-lg font-semibold text-xs sm:text-sm">
+        <TabsList className="w-full h-12 rounded-2xl bg-muted/60 p-1">
+          <TabsTrigger
+            value="pending"
+            className="gap-1.5 flex-1 rounded-xl font-bold text-xs sm:text-sm data-[state=active]:bg-lime data-[state=active]:text-forest"
+          >
             <UserPlus className="w-4 h-4" />
             دریافتی
             {counts.pending > 0 && (
-              <Badge
-                variant="secondary"
-                className="ml-1 h-5 px-1.5 text-[10px] bg-gold/15 text-gold border-0"
-              >
+              <Badge className="ml-1 h-5 px-1.5 text-[10px] bg-gold/15 text-gold border border-gold/30">
                 {toFa(counts.pending)}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="accepted" className="gap-1.5 flex-1 rounded-lg font-semibold text-xs sm:text-sm">
+          <TabsTrigger
+            value="accepted"
+            className="gap-1.5 flex-1 rounded-xl font-bold text-xs sm:text-sm data-[state=active]:bg-lime data-[state=active]:text-forest"
+          >
             <UserCheck className="w-4 h-4" />
             ارتباطات
             {counts.accepted > 0 && (
-              <Badge
-                variant="secondary"
-                className="ml-1 h-5 px-1.5 text-[10px] bg-primary/10 text-primary border-0"
-              >
+              <Badge className="ml-1 h-5 px-1.5 text-[10px] bg-forest/10 text-forest border border-forest/20">
                 {toFa(counts.accepted)}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="sent" className="gap-1.5 flex-1 rounded-lg font-semibold text-xs sm:text-sm">
+          <TabsTrigger
+            value="sent"
+            className="gap-1.5 flex-1 rounded-xl font-bold text-xs sm:text-sm data-[state=active]:bg-lime data-[state=active]:text-forest"
+          >
             <Inbox className="w-4 h-4" />
             ارسالی
             {counts.sent > 0 && (
-              <Badge
-                variant="secondary"
-                className="ml-1 h-5 px-1.5 text-[10px] bg-muted text-muted-foreground border-0"
-              >
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
                 {toFa(counts.sent)}
               </Badge>
             )}
@@ -191,11 +191,11 @@ export function ConnectionsView() {
               action={
                 <Button
                   variant="outline"
-                  onClick={() => navigate({ view: "people" })}
-                  className="gap-1.5 rounded-xl font-semibold"
+                  onClick={() => navigate({ view: "discover" })}
+                  className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
                 >
                   <Users className="w-4 h-4" />
-                  پیدا کردن همکار
+                  کشف استعدادها
                 </Button>
               }
             />
@@ -227,11 +227,11 @@ export function ConnectionsView() {
               action={
                 <Button
                   variant="outline"
-                  onClick={() => navigate({ view: "people" })}
-                  className="gap-1.5 rounded-xl font-semibold"
+                  onClick={() => navigate({ view: "discover" })}
+                  className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
                 >
                   <Users className="w-4 h-4" />
-                  پیدا کردن همکار
+                  کشف استعدادها
                 </Button>
               }
             />
@@ -256,11 +256,11 @@ export function ConnectionsView() {
               action={
                 <Button
                   variant="outline"
-                  onClick={() => navigate({ view: "people" })}
-                  className="gap-1.5 rounded-xl font-semibold"
+                  onClick={() => navigate({ view: "discover" })}
+                  className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
                 >
                   <Users className="w-4 h-4" />
-                  پیدا کردن همکار
+                  کشف استعدادها
                 </Button>
               }
             />
@@ -285,7 +285,7 @@ function Header() {
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className="flex items-center gap-3"
     >
-      <div className="grid place-items-center w-11 h-11 rounded-2xl bg-brand-gradient text-white shadow-soft">
+      <div className="grid place-items-center w-11 h-11 rounded-2xl bg-forest text-lime shadow-md">
         <Users className="w-5 h-5" />
       </div>
       <div>
@@ -313,7 +313,7 @@ function PersonRow({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3), ease: [0.16, 1, 0.3, 1] }}
     >
-      <Card className="p-4 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
+      <Card className="p-4 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300 rounded-2xl">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate({ view: "profile", id: item.otherUser.id })}
@@ -330,7 +330,7 @@ function PersonRow({
           <div className="flex-1 min-w-0">
             <button
               onClick={() => navigate({ view: "profile", id: item.otherUser.id })}
-              className="font-bold text-sm hover:text-primary transition-colors truncate block text-right"
+              className="font-bold text-sm hover:text-forest transition-colors truncate block text-right"
             >
               {item.otherUser.name}
             </button>
@@ -373,7 +373,7 @@ function PendingCard({
         <>
           <Button
             size="sm"
-            className="gap-1.5 h-8 rounded-lg font-semibold"
+            className="gap-1.5 h-8 rounded-xl bg-lime text-forest hover:bg-lime/90 font-bold"
             disabled={acting}
             onClick={() => onAccept(item.id)}
           >
@@ -383,7 +383,7 @@ function PendingCard({
           <Button
             size="sm"
             variant="outline"
-            className="gap-1.5 h-8 rounded-lg font-semibold text-rose hover:text-rose border-rose/30 hover:border-rose/50"
+            className="gap-1.5 h-8 rounded-xl font-semibold text-rose hover:text-rose border-rose/30 hover:border-rose/50 hover:bg-rose/5"
             disabled={acting}
             onClick={() => onReject(item.id)}
           >
@@ -421,7 +421,7 @@ function AcceptedCard({ item, index }: { item: ConnItem; index: number }) {
         <Button
           size="sm"
           variant="outline"
-          className="gap-1.5 h-8 rounded-lg font-semibold"
+          className="gap-1.5 h-8 rounded-xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
           onClick={startChat}
           disabled={starting}
         >
@@ -439,10 +439,7 @@ function SentCard({ item, index }: { item: ConnItem; index: number }) {
       item={item}
       index={index}
       actions={
-        <Badge
-          variant="outline"
-          className="gap-1 border-gold/30 text-gold h-8 px-2.5 rounded-lg font-medium"
-        >
+        <Badge className="gap-1 border border-gold/30 bg-gold/15 text-gold h-8 px-2.5 rounded-xl font-medium">
           <Clock className="w-3 h-3" />
           در انتظار پاسخ
         </Badge>
@@ -451,13 +448,11 @@ function SentCard({ item, index }: { item: ConnItem; index: number }) {
   );
 }
 
-// Loader2 imported above for the spinners in PendingCard and AcceptedCard
-
 function ListSkeleton() {
   return (
     <div className="space-y-3">
       {[...Array(4)].map((_, i) => (
-        <Card key={i} className="p-4 border-border/60 shadow-card">
+        <Card key={i} className="p-4 border-border/60 shadow-card rounded-2xl">
           <div className="flex items-center gap-3">
             <Skeleton className="w-14 h-14 rounded-full" />
             <div className="flex-1 space-y-2">
@@ -466,8 +461,8 @@ function ListSkeleton() {
               <Skeleton className="h-2.5 w-16 rounded" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Skeleton className="h-8 w-20 rounded-lg" />
-              <Skeleton className="h-8 w-20 rounded-lg" />
+              <Skeleton className="h-8 w-20 rounded-xl" />
+              <Skeleton className="h-8 w-20 rounded-xl" />
             </div>
           </div>
         </Card>

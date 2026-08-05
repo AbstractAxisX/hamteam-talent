@@ -459,3 +459,134 @@ Stage Summary:
 - Lint clean, no compile errors
 - VLM: mobile landing 8/10, settings 8.5/10, profile avatar fixed
 - Both servers (dev:3000, chat:3003) running
+
+---
+Task ID: T-Core
+Agent: full-stack-developer (Core Views)
+Task: Build Feed, Landing, Discover, Talents, Category views for talent platform
+
+Work Log:
+- Read worklog.md, globals.css (lime+forest palette, gradient utilities, animations), shared components (illustrations, empty-state, user-avatar, post-card), app-shell.tsx, lib/{nav,api-client,use-user,format,types,geo}.ts, prisma schema, and existing API routes (/api/posts, /api/categories, /api/talents). Confirmed data shapes (PostWithRelations, TalentListItem, CategoryWithSkills).
+- Identified that previously-referenced classes (`bg-brand-gradient`, `bg-brand-gradient-soft`, `shadow-soft/card/lift/float`, `nums-fa`, `text-brand-gradient`) are NOT defined in globals.css — switched all new code to use the explicitly-defined lime/forest utilities (`bg-lime`, `bg-forest`, `bg-forest-gradient`, `bg-lime-gradient`, `bg-cream-gradient`, `text-lime`, `text-forest`, `text-gold`, `text-rose`, `bg-lime/15`, `bg-forest/10`, `shadow-sm/md/lg/xl`).
+- WROTE landing-view.tsx: forest-gradient hero with floating lime/gold shapes + dotted overlay + "استعدادت رو کشف کن و نشون بده" headline (lime accent words), quick-access category grid (3-col mobile / 4-col sm) fetched from /api/categories with emoji circle cards, "چرا همتیم؟" feature grid (4 cards with colored icon badges), "چطور کار می‌کند؟" 4-step section on cream-gradient, lime-gradient CTA section with AuthIllustration + forest button + trust badges, dev notice pill.
+- WROTE feed-view.tsx: if guest → <LandingView/>; if loading → skeleton; else feed with header (🌿 emoji accent), collapsible CreatePostBox (collapsed = "چه چیزی می‌خواهی به اشتراک بگذاری؟" + forest/lime sparkle button; expanded = textarea + chained category/skill Selects + lime "انتشار پست" button), empty-state if user has no skills → forest button "تکمیل پروفایل", sort toggle (جدیدترین/محبوب‌ترین as lime pill when active), PostCard list with stagger animation, skeleton loading, empty-state kind="posts".
+- WROTE discover-view.tsx: header "کشف استعدادها ✨" + search input (lime focus ring), horizontal-scroll category chips (navigate to #/category/ID), sort toggle (recent/popular for posts), Promise.all fetch of /api/talents?sort=followers&q= and /api/posts?sort=, "استعدادهای برتر" section (mini talent cards in 2/3-col grid with avatar+name+bio+followers count, lime accent), "پست‌های جدید" section (PostCard list, max 10). 300ms debounce on search.
+- WROTE talents-view.tsx: header with active count, filters card (search input + 2-col category/skill chained Selects + sort pills محبوب‌ترین/جدیدترین + clear button when filters active), responsive grid 1/2/3 cols, TalentCardLarge component (exported for reuse) with avatar+name+bio+location+category badges+followers count, framer-motion stagger, skeleton loaders, empty-state kind="people" with "پاک کردن فیلترها" action.
+- WROTE category-view.tsx: forest-gradient hero header (emoji in lime rounded square, name, skill/talent counts with lime accents, floating shapes), skill filter pills row (horizontal scroll, "همه" + each skill, lime when active), TalentCardLarge grid (imported from talents-view to avoid duplication), skeleton + empty-state with conditional "نمایش همه" action when skill filter is active.
+- Ran `bun run lint`: 0 errors in any of my 5 files (the only 3 lint errors are pre-existing in admin-view.tsx which I was instructed NOT to modify). dev.log clean — no compile errors.
+
+Stage Summary:
+- 5 core views rewritten with vibrant lime+forest design system, fully mobile-first.
+- LandingView: beautiful hero with floating shapes, category quick-access, features, how-it-works, CTA.
+- FeedView: guests see LandingView, logged-in users see CreatePostBox + sort + PostCard feed.
+- DiscoverView: search + category chips + sort + "top talents" + "recent posts" mixed layout.
+- TalentsView: full filter UI (search/category/skill/sort) + responsive talent card grid.
+- CategoryView: forest-gradient hero + skill pills + talent grid (reuses TalentCardLarge).
+- TalentCardLarge component exported from talents-view and imported by category-view (no duplication).
+- All Persian text, toFa() for numbers, framer-motion stagger animations, lime CTAs, forest dark sections, cream background.
+- No API routes / app-shell.tsx / page.tsx / layout.tsx / admin modified.
+
+---
+Task ID: T-Profile
+Agent: full-stack-developer (Profile)
+Task: Rebuild Profile, EditProfile, Connections views for talent platform
+
+Work Log:
+- Read worklog.md (prior tasks 0, 3-a..3-e, R-Profile, R2-UI) to understand the new Lime + Forest design system rewrite from jobs platform → talent discovery platform.
+- Read prisma/schema.prisma (User, Profile, Category, Skill, UserCategory, UserSkill, Resume, ResumeExperience, ResumeEducation, Post, Connection models).
+- Read src/app/globals.css — confirmed new design tokens: --lime (oklch(0.85 0.2 125)), --forest (oklch(0.32 0.05 165)), --gold (oklch(0.72 0.16 75)), --rose (oklch(0.62 0.2 15)), cream background, .bg-forest-gradient, .bg-lime-gradient, .bg-forest-lime-gradient, .bg-cream-gradient, .text-lime-gradient, .glass, .slim-scroll, .animate-float/.animate-pop/.animate-pulse-lime/.pb-safe.
+- Read shared/{illustrations,empty-state,user-avatar,post-card}.tsx and lib/{nav,api-client,use-user,types,format,geo}.ts for the existing shared infrastructure (ProfileDetail, PostWithRelations, CategoryWithSkills types; toFa/formatCount/formatFaDate/timeAgoFa; PROVINCES/getProvinceName).
+- Read existing 3 view files to preserve all data logic (profile fetch by id, edit 5 sections, connections PATCH /api/connections/[id], chat start POST, resume PDF download).
+- **OVERWROTE profile-view.tsx** (~700 lines) with new Lime + Forest design:
+  * New BANNER_GRADIENTS array (6 oklch variants — deep forest, forest→lime tint, green→lime, forest→success, forest→gold, green→rose). NO blue/indigo. Inline style for fine-grained control.
+  * ProfileHeader: motion.div entrance; banner h-36 md:h-52 with gradient + radial highlight + dot pattern + 2 lime/20 blur orbs (decorative); banned badge top-left rose/90; verified badge top-right gold/95 with Award icon + shadow; Card uses overflow-visible + rounded-2xl, banner div uses overflow-hidden + rounded-t-2xl — this FIXES the avatar clip bug (avatar is now fully visible, sticking out below the banner); UserAvatar size="2xl" with ring-4 ring-card rounded-3xl; name + verified gold badge (bg-gold/15 text-gold border-gold/30 with Sparkles icon); bioShort line-clamp-2; meta row with MapPin/CalendarDays/Phone (all tinted text-forest, gated by phoneVisible); action buttons — self: outline border-forest text-forest hover:bg-forest/5 "ویرایش پروفایل"; other: ConnectionButton (lime primary bg-lime text-forest for follow/pending-received, gold outline for pending-sent, lime/40 disabled for accepted) + outline forest "چت" + ghost "رزومه" (opens /api/resume/USERID in new tab). Counts row with text-forest bold clickable followers/following + post count.
+  * ConnectionButton: 4 states with UserPlus/Clock/UserCheck icons + Loader2 spinner when busy. Lime primary CTAs.
+  * ProfileTabs: shadcn Tabs, 3-col grid TabsList rounded-2xl bg-muted/60 p-1 h-11, TabsTriggers with data-[state=active]:bg-lime data-[state=active]:text-forest for vibrant lime active state.
+  * AboutTab: motion-wrapped cards. BioLong card with forest/10 icon chip (FileSignature). Categories card with lime/20 icon chip (Hash). Each category uses CategoryIcon (with emoji prop from c.iconUrl) + Separator + lime/15 skill badges (bg-lime/15 text-forest border-lime/30). Stagger delay i*0.05.
+  * ResumeTab: motion Experiences card (forest/10 Briefcase icon chip) with vertical timeline (border-r-2 border-lime/40 in RTL, forest dot with ring-4 ring-card). Educations card (gold/15 GraduationCap icon chip) with gold/40 timeline + gold dot. Skill badges use lime/15.
+  * PostsTab: fetches /api/posts?userId=ID, renders PostCard from "@/components/shared/post-card" with index. Empty state kind="posts" with lime "رفتن به فید" CTA for self. Loading skeleton.
+  * QuickStatsCard sidebar (lg only): 2x2 grid of stat tiles with tinted icon chips (lime/forest/gold/rose per stat). Plus categories sidebar card (forest Hash icon, CategoryIcon per cat) and quick-actions card (forest bg-forest text-lime "ویرایش پروفایل" for self; forest outline "شروع گفتگو" + ghost "دانلود رزومه PDF" for others).
+  * ProfileSkeleton: banner + avatar + name + counts + tabs skeleton with rounded-2xl.
+  * NotFound: EmptyState kind="people" with lime "بازگشت به خانه" action.
+- **OVERWROTE edit-profile-view.tsx** (~920 lines) with new Lime + Forest design:
+  * Same BANNER_GRADIENTS as profile-view (forest/lime/gold/rose palette).
+  * Centered max-w-3xl mx-auto. Header with title + subtitle + ghost "مشاهده پروفایل" button.
+  * Section quick-nav chips (rounded-full bg-muted hover:bg-lime/20 hover:text-forest) — click scrolls into view via scrollIntoView (preventDefault so hash routing isn't disturbed).
+  * SectionWrapper motion.div with staggered delays (0.05..0.25).
+  * PhotosBioSection (ImageIcon): banner preview rounded-2xl with lime/20 blur orb; 7-option RadioGroup (6 gradients + custom URL) with selected border-forest shadow-md scale-105; UserAvatar size="xl" preview + URL Input; bioShort Input with toFa counter (200); bioLong Textarea with counter (4000); lime "ذخیره" button.
+  * LocationSection (MapPin): province/city chained Selects rounded-2xl; phone-visible Switch in rounded-2xl bg-lime/10 border-lime/20 card with forest/10 Phone icon chip; lime "ذخیره".
+  * CategoriesSection (Hash): per-category Card with CategoryIcon (emoji prop) header; skills as lime/15 badges with X close (hover:bg-rose/20 hover:text-rose); add-skill ghost button text-forest hover:bg-lime/15; remove-category ghost button hover:bg-rose/10. Add-category dialog lists available cats with CategoryIcon + Plus (hover:bg-lime/15). Add-skill dialog similar.
+  * ExperienceSection (Briefcase): list items with forest/10 Briefcase icon chip, lime/15 skill badges, delete hover:bg-rose/10; add dialog with all fields (job title, organization, dates, description, category+skill selects). Lime "افزودن" button.
+  * EducationSection (GraduationCap): list items with gold/15 GraduationCap icon chip; add dialog with degree/institution/year/description. Lime "افزودن".
+  * SectionTitle helper: forest/10 icon chip + bold title (consistent across sections).
+  * Login prompt if !user: forest/10 Lock icon, lime "ورود / ثبت‌نام" button.
+  * EditSkeleton with rounded-2xl shapes.
+- **OVERWROTE connections-view.tsx** (~470 lines) with new Lime + Forest design:
+  * Header with bg-forest text-lime Users icon chip in rounded-2xl shadow-md.
+  * 3 Tabs (rounded-2xl bg-muted/60 p-1 h-12): pending (UserPlus)/accepted (UserCheck)/sent (Inbox) with count badges. Active tab uses data-[state=active]:bg-lime data-[state=active]:text-forest. Count badges: pending=gold/15 text-gold border-gold/30, accepted=forest/10 text-forest border-forest/20, sent=secondary muted.
+  * PersonRow motion.div with stagger delay min(index*0.05, 0.3), Card rounded-2xl shadow-card hover:shadow-lift, UserAvatar size="lg" with verified gold badge, clickable name (hover:text-forest) → profile, timeAgoFa.
+  * PendingCard: "پذیرش" lime primary (Check/Loader2) + "رد" outline text-rose border-rose/30 hover:bg-rose/5 — uses `api()` with method:"PATCH" (preserved from prior fix).
+  * AcceptedCard: "چت" forest outline (MessageCircle/Loader2) → POST /api/chat/start → navigate to chat.
+  * SentCard: "در انتظار پاسخ" gold badge (bg-gold/15 text-gold border-gold/30).
+  * Empty states kind="connections" for all 3 tabs with forest outline "کشف استعدادها" CTA → discover view (replaces obsolete "people" view).
+  * Login prompt if !user: forest/10 Lock icon, lime "ورود / ثبت‌نام" button.
+  * ListSkeleton with rounded-2xl shapes.
+- All 3 files use `"use client"`, framer-motion staggered entrances, lime+forest design system, NO blue/indigo.
+- Ran `bun run lint` — my 3 files have ZERO errors. (3 remaining errors are pre-existing in admin-view.tsx which I'm not allowed to modify per task constraints.)
+- Ran `bunx tsc --noEmit` — my 3 files have ZERO TypeScript errors. (All TS errors are in admin/*, jobs-view, chat-view, notifications-view which I'm not allowed to modify.)
+- Read dev.log — Next.js 16.1.3 (Turbopack) compiled successfully; the dev server is managed by the system per instructions ("bun run dev will be run automatically by the system. Do NOT run it.").
+
+Stage Summary:
+- 3 view files rebuilt to match the new Lime + Forest talent discovery design system (vibrant lime for CTAs/active, deep forest for hero/dark sections, gold for verified, rose for danger).
+- All functionality preserved: profile fetch by id (supports id="me"), edit all 5 sections (photos/bio, location, categories/skills, experiences, educations), connections accept/reject/chat (PATCH for accept/reject, POST /api/chat/start for chat), post fetch by userId with PostCard, resume PDF download via /api/resume/[userId].
+- **FIXED the avatar clip bug**: Card uses `overflow-visible` (so the avatar sticks out below the banner), and only the banner div uses `overflow-hidden` (so the gradient/image is clipped to rounded-t-2xl). Avatar is now fully visible at size 2xl with ring-4 ring-card rounded-3xl.
+- Design system compliance: Lime (bg-lime text-forest) for primary CTAs/active tabs, Forest (bg-forest text-lime) for dark sections/quick-actions, Gold for verified/premium/pending-sent, Rose for danger/reject. NO blue/indigo. Cards: rounded-2xl shadow-card hover:shadow-lift border-border/60. Buttons: rounded-2xl font-bold. EmptyState with `kind` prop (people/connections/posts/generic). UserAvatar with verified gold BadgeCheck. CategoryIcon with emoji prop (iconUrl from category). framer-motion staggered entrances (delay: i*0.05). Skeletons for loading. Persian numerals via toFa(). Mobile-first responsive (lg sidebar, sm breakpoint adjustments).
+- iOS-quality talent portfolio profile header: forest gradient banner with decorative lime blur orbs, overlapping square avatar, gold verified badge corner banner, action buttons row, clickable follower/following counts (text-forest bold).
+- Edit profile: 5 motion-staggered section cards with consistent SectionTitle pattern (forest/10 icon chip + bold title), lime/20 hover chips for section quick-nav, lime "ذخیره"/"افزودن" primary buttons, lime/15 skill badges with rose hover-delete, lime-tinted phone-visible switch card.
+- Connections: 3 clean tabs with lime active state + colored count badges (gold/forest/muted), motion-staggered person cards, lime "پذیرش" + rose "رد" buttons, forest outline "چت", gold "در انتظار پاسخ" badge. Empty states kind="connections" with forest outline "کشف استعدادها" CTA.
+- Lint clean for my 3 files (0 errors). TypeScript clean for my 3 files (0 errors). Pre-existing errors in admin-view.tsx, jobs-view.tsx, chat-view.tsx, notifications-view.tsx are out of scope per task instructions ("Do NOT modify ... admin panel" + "Only overwrite the 3 view files").
+
+---
+Task ID: T-Chat
+Agent: full-stack-developer (Chat)
+Task: Rebuild Chat, Notifications, Tickets, TicketDetail views with lime+forest design
+
+Work Log:
+- Read worklog.md (prior tasks 0, 3-a..3-e, R-Profile, T-Profile) + all design system files (globals.css, illustrations, empty-state, user-avatar, feed-view, app-shell) + 4 existing view files to preserve functionality.
+- **OVERWROTE chat-view.tsx** (~787 lines): forest icon chip + lime accents; desktop two-pane `lg:grid-cols-[1fr_320px]` (chat left, list right RTL); mobile list/chat toggle with back; ChatList with search + lime active pill; ChatThread header bg-forest text-white with lime typing dots; messages per spec (own=bg-forest text-white rounded-tl-md on LEFT/items-end, other=bg-card border rounded-tr-md on RIGHT/items-start) on bg-cream-gradient; lime circle send button (motion whileTap/whileHover, Send -scale-x-100 for RTL); socket.io preserved EXACTLY `io("/", { path:"/", query:{ XTransformPort:"3003" }, auth:{ userId } })` with join/message/typing events, optimistic send, auto-scroll; empty states kind="chat".
+- **OVERWROTE notifications-view.tsx** (~298 lines): forest Bell chip + lime pulse for unread; "همه خوانده شد" outline border-forest; cards with icon circles per spec (connection=forest, broadcast=lime, chat=forest, job_match=gold); unread=bg-lime/5 border-lime/30 with spring-animated lime dot; FIXED pre-existing TS errors (invalid routes people→talents, explore→discover, jobs/job→feed via handleLink+Route type); empty kind="notif".
+- **OVERWROTE tickets-view.tsx** (~316 lines): forest TicketIcon chip + lime "تیکت جدید" CTA; cards with lime/20 open icon + forest hover; StatusBadge open=bg-lime/20 text-forest border-lime/40, closed=bg-muted+Lock; create dialog with lime submit; empty kind="tickets".
+- **OVERWROTE ticket-detail-view.tsx** (~525 lines): header card with lime/forest status icons; thread header bg-forest text-lime; bubbles per spec (creator=RIGHT bg-forest text-white rounded-tl-md, admin=LEFT bg-lime/15 border-lime/40 rounded-tr-md) on bg-cream-gradient; reply box with lime send + rose close (AlertDialog confirm); admin sidebar preserved (verify/ban with gold/rose AlertDialogs); empty kind="tickets".
+- All 4: "use client", framer-motion staggered, lime+forest palette, NO blue/indigo, mobile-first, rounded-2xl shadow-sm, Persian toFa(), .slim-scroll.
+
+Stage Summary:
+- 4 view files rebuilt to lime+forest design system. All functionality preserved (socket.io real-time chat, mark-read/mark-all-read, ticket CRUD, admin actions).
+- Socket.io uses XTransformPort=3003 query, path "/" — no direct localhost URL.
+- Spec compliance verified: Lime CTAs/active/unread, Forest dark headers/own+creator bubbles, Gold verified/job_match, Rose close/ban. NO blue/indigo.
+- Lint clean for my 4 files (0 errors; 3 pre-existing in admin-view.tsx out of scope). TypeScript clean for my 4 files (0 errors; also FIXED pre-existing TS errors in chat-view.tsx and notifications-view.tsx by replacing invalid Route views).
+- See /agent-ctx/T-Chat-full-stack-developer.md for full details.
+
+---
+Task ID: T-Final
+Agent: main
+Task: Complete rewrite to talent discovery platform — verification
+
+Work Log:
+- Rewrote Prisma schema: removed JobPost/JobApplication, added AdminUser (username+password), added Category.order field
+- Rewrote auth: user=phone+OTP (no nationalId), admin=separate username+password with own cookie/session
+- Created 20 talent categories with emoji icons (music, cooking, sports, design, etc.) + 120+ skills
+- New design system: lime+forest green palette, cream background, vibrant not minimal
+- New AppShell: mobile-first, floating pills (back+profile), bottom nav (Home/Discover/Talents/More), floating chat FAB
+- New AuthView: talent-focused, name+phone+OTP, beautiful mobile+desktop
+- Admin panel: simple, separate login (admin/admin123), tabs (overview/users/categories/posts/broadcast)
+- Delegated core views (feed/landing/discover/talents/category), profile+connections, chat+notifications+tickets to 3 subagents
+- All views rebuilt with lime+forest design
+
+Stage Summary:
+- Complete project rewrite from jobs platform to talent discovery platform
+- Admin auth fully separate (username+password, no OTP/nationalId)
+- 20 talent categories, mobile-first UI, lime+forest palette
+- Lint: 0 errors. VLM: landing 8/10, mobile 7.5/10, profile 8/10 (avatar fixed)
+- Both servers running (dev:3000, chat:3003)
+- Admin login: admin / admin123 (at #/admin)
+- User demo: any phone + OTP 1234

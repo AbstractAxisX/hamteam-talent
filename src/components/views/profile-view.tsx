@@ -38,16 +38,19 @@ import {
   Loader2,
   Download,
   AlertTriangle,
+  Heart,
+  Award,
+  Star,
 } from "lucide-react";
 
-/* Petrol + Saffron banner gradients (NO blue/indigo) */
+/* Lime + Forest banner gradients (NO blue/indigo) */
 const BANNER_GRADIENTS = [
-  "linear-gradient(135deg, oklch(0.42 0.06 215) 0%, oklch(0.38 0.07 230) 100%)",
-  "linear-gradient(135deg, oklch(0.72 0.16 75) 0%, oklch(0.62 0.17 55) 100%)",
-  "linear-gradient(135deg, oklch(0.42 0.06 215) 0%, oklch(0.65 0.15 75) 100%)",
-  "linear-gradient(135deg, oklch(0.62 0.2 15) 0%, oklch(0.72 0.16 75) 100%)",
-  "linear-gradient(135deg, oklch(0.38 0.07 230) 0%, oklch(0.55 0.18 15) 100%)",
-  "linear-gradient(135deg, oklch(0.55 0.1 195) 0%, oklch(0.42 0.06 215) 100%)",
+  "linear-gradient(135deg, oklch(0.32 0.05 165) 0%, oklch(0.22 0.04 180) 100%)",
+  "linear-gradient(135deg, oklch(0.32 0.05 165) 0%, oklch(0.55 0.15 140) 100%)",
+  "linear-gradient(135deg, oklch(0.4 0.1 160) 0%, oklch(0.7 0.18 125) 100%)",
+  "linear-gradient(135deg, oklch(0.32 0.05 165) 0%, oklch(0.6 0.13 158) 100%)",
+  "linear-gradient(135deg, oklch(0.32 0.05 165) 0%, oklch(0.65 0.15 75) 100%)",
+  "linear-gradient(135deg, oklch(0.4 0.1 160) 0%, oklch(0.55 0.18 15) 100%)",
 ];
 
 function hashIdToIndex(id: string, mod: number): number {
@@ -95,7 +98,10 @@ export function ProfileView({ id }: { id: string }) {
         title="کاربر پیدا نشد"
         description="این پروفایل ممکن است حذف شده باشد یا آدرس اشتباه باشد."
         action={
-          <Button onClick={() => navigate({ view: "feed" })} className="rounded-xl">
+          <Button
+            onClick={() => navigate({ view: "feed" })}
+            className="rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold"
+          >
             بازگشت به خانه
           </Button>
         }
@@ -122,16 +128,19 @@ export function ProfileView({ id }: { id: string }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
           >
-            <Card className="p-4 border-border/60 shadow-card">
+            <Card className="p-5 border-border/60 shadow-card">
               <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
-                <Hash className="w-4 h-4 text-primary" /> تخصص‌ها
+                <Hash className="w-4 h-4 text-forest" /> تخصص‌ها
               </h3>
               <div className="space-y-3">
                 {profile.categories.map((c) => (
                   <div key={c.id}>
-                    <p className="text-xs font-semibold text-foreground mb-1.5">{c.name}</p>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <CategoryIcon emoji={c.iconUrl} className="w-6 h-6 text-sm" />
+                      <p className="text-xs font-bold text-foreground">{c.name}</p>
+                    </div>
                     {c.skills.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1 pr-8">
                         {c.skills.map((s) => (
                           <Badge
                             key={s.id}
@@ -143,7 +152,7 @@ export function ProfileView({ id }: { id: string }) {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground">مهارتی ثبت نشده</p>
+                      <p className="text-xs text-muted-foreground pr-8">مهارتی ثبت نشده</p>
                     )}
                   </div>
                 ))}
@@ -157,13 +166,12 @@ export function ProfileView({ id }: { id: string }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
         >
-          <Card className="p-4 border-border/60 shadow-card space-y-2">
+          <Card className="p-5 border-border/60 shadow-card space-y-2">
             <h3 className="text-sm font-bold mb-2">دسترسی سریع</h3>
             {isSelf ? (
               <Button
-                variant="default"
                 size="sm"
-                className="w-full justify-start gap-2 rounded-xl font-semibold"
+                className="w-full justify-start gap-2 rounded-2xl bg-forest text-lime hover:bg-forest/90 font-bold"
                 onClick={() => navigate({ view: "edit-profile" })}
               >
                 <Pencil className="w-4 h-4" /> ویرایش پروفایل
@@ -173,7 +181,7 @@ export function ProfileView({ id }: { id: string }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full justify-start gap-2 rounded-xl font-semibold"
+                  className="w-full justify-start gap-2 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
                   onClick={() => navigate({ view: "chat" })}
                 >
                   <MessageCircle className="w-4 h-4" /> شروع گفتگو
@@ -181,7 +189,7 @@ export function ProfileView({ id }: { id: string }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-start gap-2 rounded-xl font-semibold text-muted-foreground"
+                  className="w-full justify-start gap-2 rounded-2xl font-semibold text-muted-foreground"
                   onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
                 >
                   <Download className="w-4 h-4" /> دانلود رزومه PDF
@@ -218,15 +226,15 @@ function ProfileHeader({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
     >
-      <Card className="p-0 border-border/60 shadow-card overflow-visible">
-        {/* Banner */}
+      <Card className="p-0 border-border/60 shadow-card overflow-visible rounded-2xl">
+        {/* Banner — overflow-hidden ONLY on this div so avatar is fully visible */}
         <div className="relative h-36 md:h-52 w-full rounded-t-2xl overflow-hidden">
           {isDefaultBanner ? (
             <div
               className="absolute inset-0"
               style={{ background: BANNER_GRADIENTS[defaultIdx] }}
             >
-              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_20%,white_0%,transparent_45%)]" />
+              <div className="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_30%_20%,white_0%,transparent_45%)]" />
               <div
                 className="absolute inset-0 opacity-10"
                 style={{
@@ -234,6 +242,9 @@ function ProfileHeader({
                   backgroundSize: "24px 24px",
                 }}
               />
+              {/* Decorative lime orb */}
+              <div className="absolute -bottom-12 -left-8 w-40 h-40 rounded-full bg-lime/20 blur-2xl" />
+              <div className="absolute top-4 right-6 w-20 h-20 rounded-full bg-lime/10 blur-xl" />
             </div>
           ) : (
             <img
@@ -247,12 +258,17 @@ function ProfileHeader({
               <AlertTriangle className="w-3.5 h-3.5" /> حساب مسدود
             </div>
           )}
+          {profile.isVerifiedBadge && (
+            <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-gold/95 text-white text-[11px] font-bold flex items-center gap-1 shadow-md">
+              <Award className="w-3.5 h-3.5" /> تأیید شده
+            </div>
+          )}
         </div>
 
         {/* Identity row */}
         <div className="px-4 md:px-6 pb-5">
           <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-14 md:-mt-16">
-            {/* Avatar (overlaps banner; in RTL appears at start = right) */}
+            {/* Avatar (overlaps banner — fully visible due to overflow-visible on card) */}
             <UserAvatar
               name={profile.name}
               avatarUrl={profile.avatarUrl}
@@ -267,9 +283,9 @@ function ProfileHeader({
                 <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">
                   {profile.name}
                 </h1>
-                {profile.role === "admin" && (
+                {profile.isVerifiedBadge && (
                   <Badge className="bg-gold/15 text-gold border border-gold/30 rounded-md gap-1">
-                    <Sparkles className="w-3 h-3" /> مدیر
+                    <Sparkles className="w-3 h-3" /> تأیید شده
                   </Badge>
                 )}
               </div>
@@ -281,17 +297,17 @@ function ProfileHeader({
               <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
                 {(provinceName || profile.city) && (
                   <span className="inline-flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5" />
+                    <MapPin className="w-3.5 h-3.5 text-forest" />
                     {[provinceName, profile.city].filter(Boolean).join("، ")}
                   </span>
                 )}
                 <span className="inline-flex items-center gap-1">
-                  <CalendarDays className="w-3.5 h-3.5" />
+                  <CalendarDays className="w-3.5 h-3.5 text-forest" />
                   عضو از {formatFaDate(profile.createdAt)}
                 </span>
                 {profile.phoneVisible && profile.phone && (
                   <span className="inline-flex items-center gap-1" dir="ltr">
-                    <Phone className="w-3.5 h-3.5" />
+                    <Phone className="w-3.5 h-3.5 text-forest" />
                     {toFa(profile.phone)}
                   </span>
                 )}
@@ -304,7 +320,7 @@ function ProfileHeader({
                 <Button
                   variant="outline"
                   onClick={() => navigate({ view: "edit-profile" })}
-                  className="gap-1.5 rounded-xl font-semibold"
+                  className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-bold"
                 >
                   <Pencil className="w-4 h-4" /> ویرایش پروفایل
                 </Button>
@@ -314,14 +330,14 @@ function ProfileHeader({
                   <Button
                     variant="outline"
                     onClick={() => navigate({ view: "chat" })}
-                    className="gap-1.5 rounded-xl font-semibold"
+                    className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-bold"
                   >
                     <MessageCircle className="w-4 h-4" /> چت
                   </Button>
                   <Button
                     variant="ghost"
                     onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
-                    className="gap-1.5 rounded-xl font-semibold text-muted-foreground"
+                    className="gap-1.5 rounded-2xl font-semibold text-muted-foreground"
                   >
                     <Download className="w-4 h-4" /> رزومه
                   </Button>
@@ -336,7 +352,7 @@ function ProfileHeader({
               className="hover:opacity-80 transition-opacity text-right"
               onClick={() => navigate({ view: "connections" })}
             >
-              <span className="font-bold text-foreground nums-fa">
+              <span className="font-extrabold text-forest nums-fa">
                 {formatCount(profile.followingCount)}
               </span>
               <span className="text-muted-foreground mr-1">دنبال‌شده</span>
@@ -345,13 +361,13 @@ function ProfileHeader({
               className="hover:opacity-80 transition-opacity text-right"
               onClick={() => navigate({ view: "connections" })}
             >
-              <span className="font-bold text-foreground nums-fa">
+              <span className="font-extrabold text-forest nums-fa">
                 {formatCount(profile.followersCount)}
               </span>
               <span className="text-muted-foreground mr-1">دنبال‌کننده</span>
             </button>
             <span className="text-muted-foreground">
-              <span className="font-bold text-foreground nums-fa">
+              <span className="font-extrabold text-forest nums-fa">
                 {formatCount(profile.postCount)}
               </span>
               <span className="mr-1">پست</span>
@@ -398,28 +414,45 @@ function ConnectionButton({
 
   if (status === "accepted") {
     return (
-      <Button variant="outline" onClick={handle} disabled className="gap-1.5 rounded-xl font-semibold">
-        <UserCheck className="w-4 h-4 text-primary" /> متصل
+      <Button
+        onClick={handle}
+        disabled
+        className="gap-1.5 rounded-2xl bg-lime/40 text-forest border border-lime/60 font-bold"
+      >
+        <UserCheck className="w-4 h-4" /> متصل
       </Button>
     );
   }
   if (status === "pending-sent") {
     return (
-      <Button variant="outline" onClick={handle} disabled className="gap-1.5 rounded-xl font-semibold">
+      <Button
+        variant="outline"
+        onClick={handle}
+        disabled
+        className="gap-1.5 rounded-2xl border-gold/40 text-gold font-bold"
+      >
         <Clock className="w-4 h-4" /> در انتظار
       </Button>
     );
   }
   if (status === "pending-received") {
     return (
-      <Button onClick={handle} disabled={busy} className="gap-1.5 rounded-xl font-semibold">
+      <Button
+        onClick={handle}
+        disabled={busy}
+        className="gap-1.5 rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold"
+      >
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
         پذیرش درخواست
       </Button>
     );
   }
   return (
-    <Button onClick={handle} disabled={busy} className="gap-1.5 rounded-xl font-semibold">
+    <Button
+      onClick={handle}
+      disabled={busy}
+      className="gap-1.5 rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold shadow-sm"
+    >
       {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
       دنبال کردن
     </Button>
@@ -435,10 +468,25 @@ function ProfileTabs({
 }) {
   return (
     <Tabs defaultValue="about" className="w-full">
-      <TabsList className="w-full grid grid-cols-3 h-10 rounded-xl">
-        <TabsTrigger value="about" className="rounded-lg font-semibold">درباره</TabsTrigger>
-        <TabsTrigger value="resume" className="rounded-lg font-semibold">رزومه</TabsTrigger>
-        <TabsTrigger value="posts" className="rounded-lg font-semibold">پست‌ها</TabsTrigger>
+      <TabsList className="w-full grid grid-cols-3 h-11 rounded-2xl bg-muted/60 p-1">
+        <TabsTrigger
+          value="about"
+          className="rounded-xl font-bold data-[state=active]:bg-lime data-[state=active]:text-forest"
+        >
+          درباره
+        </TabsTrigger>
+        <TabsTrigger
+          value="resume"
+          className="rounded-xl font-bold data-[state=active]:bg-lime data-[state=active]:text-forest"
+        >
+          رزومه
+        </TabsTrigger>
+        <TabsTrigger
+          value="posts"
+          className="rounded-xl font-bold data-[state=active]:bg-lime data-[state=active]:text-forest"
+        >
+          پست‌ها
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="about" className="mt-4 space-y-4">
@@ -460,7 +508,7 @@ function AboutTab({ profile }: { profile: ProfileDetail }) {
 
   if (!hasBio && !hasCategories) {
     return (
-      <Card className="p-4 border-border/60 shadow-card">
+      <Card className="p-5 border-border/60 shadow-card">
         <EmptyState
           kind="generic"
           title="هنوز توضیحاتی ثبت نشده"
@@ -480,7 +528,10 @@ function AboutTab({ profile }: { profile: ProfileDetail }) {
         >
           <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
             <h2 className="text-sm font-bold mb-3 flex items-center gap-1.5">
-              <FileSignature className="w-4 h-4 text-primary" /> درباره
+              <span className="grid place-items-center w-7 h-7 rounded-lg bg-forest/10 text-forest">
+                <FileSignature className="w-4 h-4" />
+              </span>
+              درباره
             </h2>
             <p className="text-sm leading-8 whitespace-pre-wrap break-words text-foreground/90">
               {profile.bioLong}
@@ -497,7 +548,10 @@ function AboutTab({ profile }: { profile: ProfileDetail }) {
         >
           <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
             <h2 className="text-sm font-bold mb-4 flex items-center gap-1.5">
-              <Hash className="w-4 h-4 text-primary" /> تخصص‌ها و مهارت‌ها
+              <span className="grid place-items-center w-7 h-7 rounded-lg bg-lime/20 text-forest">
+                <Hash className="w-4 h-4" />
+              </span>
+              تخصص‌ها و مهارت‌ها
             </h2>
             <div className="space-y-5">
               {profile.categories.map((c, i) => (
@@ -508,24 +562,23 @@ function AboutTab({ profile }: { profile: ProfileDetail }) {
                   transition={{ duration: 0.3, delay: i * 0.05 }}
                 >
                   <div className="flex items-center gap-2 mb-2.5">
-                    <CategoryIcon className="w-7 h-7 text-base" />
+                    <CategoryIcon emoji={c.iconUrl} className="w-8 h-8 text-base" />
                     <span className="font-bold text-sm">{c.name}</span>
                     <Separator className="flex-1" />
                   </div>
                   {c.skills.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5 pr-9">
+                    <div className="flex flex-wrap gap-1.5 pr-10">
                       {c.skills.map((s) => (
                         <Badge
                           key={s.id}
-                          variant="outline"
-                          className="border-primary/30 text-primary text-xs rounded-md font-medium"
+                          className="bg-lime/15 text-forest border border-lime/30 text-xs rounded-md font-medium hover:bg-lime/25"
                         >
                           {s.name}
                         </Badge>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground pr-9">مهارتی ثبت نشده</p>
+                    <p className="text-xs text-muted-foreground pr-10">مهارتی ثبت نشده</p>
                   )}
                 </motion.div>
               ))}
@@ -543,7 +596,7 @@ function ResumeTab({ profile }: { profile: ProfileDetail }) {
 
   if (!hasExp && !hasEdu) {
     return (
-      <Card className="p-4 border-border/60 shadow-card">
+      <Card className="p-5 border-border/60 shadow-card">
         <EmptyState
           kind="generic"
           title="رزومه‌ای ثبت نشده"
@@ -563,7 +616,10 @@ function ResumeTab({ profile }: { profile: ProfileDetail }) {
         >
           <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
             <h2 className="text-sm font-bold mb-4 flex items-center gap-1.5">
-              <Briefcase className="w-4 h-4 text-primary" /> سوابق کاری
+              <span className="grid place-items-center w-7 h-7 rounded-lg bg-forest/10 text-forest">
+                <Briefcase className="w-4 h-4" />
+              </span>
+              سوابق کاری
             </h2>
             <div className="space-y-3">
               {profile.experiences.map((e, i) => (
@@ -572,9 +628,9 @@ function ResumeTab({ profile }: { profile: ProfileDetail }) {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: i * 0.05 }}
-                  className="relative pr-4 border-r-2 border-border last:border-transparent pb-3 last:pb-0"
+                  className="relative pr-4 border-r-2 border-lime/40 last:border-transparent pb-3 last:pb-0"
                 >
-                  <div className="absolute -right-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-card" />
+                  <div className="absolute -right-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-forest ring-4 ring-card" />
                   <div className="flex items-baseline justify-between gap-2 flex-wrap">
                     <h3 className="font-bold text-sm">
                       {e.jobTitle}{" "}
@@ -599,10 +655,7 @@ function ResumeTab({ profile }: { profile: ProfileDetail }) {
                         </Badge>
                       )}
                       {e.skillName && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] h-5 rounded-md border-primary/30 text-primary font-medium"
-                        >
+                        <Badge className="text-[10px] h-5 rounded-md bg-lime/15 text-forest border border-lime/30 font-medium">
                           {e.skillName}
                         </Badge>
                       )}
@@ -623,7 +676,10 @@ function ResumeTab({ profile }: { profile: ProfileDetail }) {
         >
           <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
             <h2 className="text-sm font-bold mb-4 flex items-center gap-1.5">
-              <GraduationCap className="w-4 h-4 text-primary" /> تحصیلات
+              <span className="grid place-items-center w-7 h-7 rounded-lg bg-gold/15 text-gold">
+                <GraduationCap className="w-4 h-4" />
+              </span>
+              تحصیلات
             </h2>
             <div className="space-y-3">
               {profile.educations.map((e, i) => (
@@ -632,7 +688,7 @@ function ResumeTab({ profile }: { profile: ProfileDetail }) {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: i * 0.05 }}
-                  className="relative pr-4 border-r-2 border-border last:border-transparent pb-3 last:pb-0"
+                  className="relative pr-4 border-r-2 border-gold/40 last:border-transparent pb-3 last:pb-0"
                 >
                   <div className="absolute -right-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-gold ring-4 ring-card" />
                   <div className="flex items-baseline justify-between gap-2 flex-wrap">
@@ -702,7 +758,7 @@ function PostsTab({ userId, isSelf }: { userId: string; isSelf: boolean }) {
 
   if (!posts || posts.length === 0) {
     return (
-      <Card className="p-4 border-border/60 shadow-card">
+      <Card className="p-5 border-border/60 shadow-card">
         <EmptyState
           kind="posts"
           title="پستی منتشر نشده"
@@ -715,9 +771,8 @@ function PostsTab({ userId, isSelf }: { userId: string; isSelf: boolean }) {
             isSelf ? (
               <Button
                 size="sm"
-                variant="outline"
                 onClick={() => navigate({ view: "feed" })}
-                className="rounded-xl gap-1.5"
+                className="rounded-2xl bg-lime text-forest hover:bg-lime/90 gap-1.5 font-bold"
               >
                 <FileText className="w-4 h-4" /> رفتن به فید
               </Button>
@@ -739,10 +794,10 @@ function PostsTab({ userId, isSelf }: { userId: string; isSelf: boolean }) {
 
 function QuickStatsCard({ profile }: { profile: ProfileDetail }) {
   const stats = [
-    { label: "پست", value: profile.postCount, icon: FileText },
-    { label: "دنبال‌کننده", value: profile.followersCount, icon: Users },
-    { label: "دنبال‌شده", value: profile.followingCount, icon: UserCheck },
-    { label: "تخصص", value: profile.categories.length, icon: Hash },
+    { label: "پست", value: profile.postCount, icon: FileText, tint: "bg-lime/15 text-forest" },
+    { label: "دنبال‌کننده", value: profile.followersCount, icon: Users, tint: "bg-forest/10 text-forest" },
+    { label: "دنبال‌شده", value: profile.followingCount, icon: UserCheck, tint: "bg-gold/15 text-gold" },
+    { label: "تخصص", value: profile.categories.length, icon: Star, tint: "bg-rose/15 text-rose" },
   ];
   return (
     <motion.div
@@ -750,17 +805,21 @@ function QuickStatsCard({ profile }: { profile: ProfileDetail }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
     >
-      <Card className="p-4 border-border/60 shadow-card">
-        <h3 className="text-sm font-bold mb-3">آمار سریع</h3>
+      <Card className="p-5 border-border/60 shadow-card">
+        <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
+          <Heart className="w-4 h-4 text-rose" /> آمار سریع
+        </h3>
         <div className="grid grid-cols-2 gap-2">
           {stats.map((s) => {
             const Icon = s.icon;
             return (
               <div
                 key={s.label}
-                className="rounded-xl bg-muted/50 p-3 flex flex-col items-center text-center hover:bg-muted transition-colors"
+                className="rounded-2xl bg-muted/40 p-3 flex flex-col items-center text-center hover:bg-muted transition-colors"
               >
-                <Icon className="w-4 h-4 text-primary mb-1" />
+                <div className={`grid place-items-center w-8 h-8 rounded-lg ${s.tint} mb-1.5`}>
+                  <Icon className="w-4 h-4" />
+                </div>
                 <span className="text-lg font-extrabold nums-fa">{formatCount(s.value)}</span>
                 <span className="text-[11px] text-muted-foreground">{s.label}</span>
               </div>
@@ -775,8 +834,8 @@ function QuickStatsCard({ profile }: { profile: ProfileDetail }) {
 function ProfileSkeleton() {
   return (
     <div className="space-y-4">
-      <Card className="overflow-hidden p-0 border-border/60 shadow-card">
-        <Skeleton className="h-36 md:h-52 w-full rounded-none" />
+      <Card className="overflow-visible p-0 border-border/60 shadow-card rounded-2xl">
+        <Skeleton className="h-36 md:h-52 w-full rounded-none rounded-t-2xl" />
         <div className="px-6 pb-6 -mt-14 md:-mt-16">
           <div className="flex items-end gap-4">
             <Skeleton className="w-28 h-28 rounded-3xl ring-4 ring-card" />
@@ -794,7 +853,7 @@ function ProfileSkeleton() {
         </div>
       </Card>
       <Card className="p-4 border-border/60 shadow-card">
-        <Skeleton className="h-10 w-full mb-3 rounded-xl" />
+        <Skeleton className="h-11 w-full mb-3 rounded-2xl" />
         <Skeleton className="h-32 w-full rounded" />
       </Card>
     </div>

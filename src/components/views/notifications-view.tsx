@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
-import { navigate } from "@/lib/nav";
+import { navigate, type Route } from "@/lib/nav";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,8 +20,10 @@ import {
   MessageCircle,
   CheckCheck,
   Lock,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -60,61 +62,66 @@ function iconFor(type: string): LucideIcon {
   }
 }
 
-// Per spec: job_match=primary, connection=gold, broadcast=rose, chat=primary
+// Per spec: connection=forest, broadcast=lime, chat=forest, job_match=gold.
 function colorFor(type: string): string {
   switch (type) {
     case "job_match":
-      return "bg-primary/12 text-primary";
+      return "bg-gold/15 text-gold";
     case "connection_request":
     case "connection_accepted":
-      return "bg-gold/15 text-gold";
+      return "bg-forest/12 text-forest";
     case "broadcast":
-      return "bg-rose/12 text-rose";
+      return "bg-lime/25 text-forest";
     case "chat":
     case "chat_message":
-      return "bg-primary/12 text-primary";
+      return "bg-forest/12 text-forest";
     default:
       return "bg-muted text-muted-foreground";
   }
 }
 
+// Translate legacy link strings into valid app routes.
+// Old links use obsolete views (explore/people/jobs/job); map to current routes.
 function handleLink(link: string | null) {
   if (!link) return;
   const hash = link.startsWith("#") ? link.slice(1) : link;
   const parts = hash.replace(/^\//, "").split("/");
   const view = parts[0];
   const id = parts[1];
+  let route: Route | null = null;
   switch (view) {
     case "explore":
-      navigate({ view: "explore" });
+    case "discover":
+      route = { view: "discover" };
       break;
     case "people":
-      navigate({ view: "people" });
+    case "talents":
+      route = { view: "talents" };
       break;
     case "jobs":
-      navigate({ view: "jobs" });
-      break;
     case "job":
-      if (id) navigate({ view: "job", id });
+      // No dedicated jobs view in this app — fall back to feed.
+      route = { view: "feed" };
       break;
     case "profile":
-      if (id) navigate({ view: "profile", id });
+      if (id) route = { view: "profile", id };
       break;
     case "chat":
-      navigate({ view: "chat", conversationId: id });
+      route = { view: "chat", conversationId: id };
       break;
     case "connections":
-      navigate({ view: "connections" });
+      route = { view: "connections" };
       break;
     case "notifications":
-      navigate({ view: "notifications" });
+      route = { view: "notifications" };
       break;
     case "feed":
-      navigate({ view: "feed" });
+      route = { view: "feed" };
       break;
     default:
       break;
   }
+  if (route) navigate(route);
 }
 
 /* ───────────────────────────── Main View ───────────────────────────── */
@@ -183,13 +190,16 @@ export function NotificationsView() {
     return (
       <div className="max-w-3xl mx-auto space-y-5">
         <PageHeader unreadCount={0} onMarkAllRead={markAllRead} markingAll={markingAll} />
-        <Card className="p-0 rounded-2xl border-border/60 shadow-card overflow-hidden">
+        <Card className="p-0 rounded-2xl border-border/60 overflow-hidden">
           <EmptyState
             kind="notif"
             title="برای مشاهده اعلان‌ها وارد شوید"
             description="اعلان‌های درخواست ارتباط، نیازمندی‌های جدید و پیام‌های شما در این صفحه نمایش داده می‌شود."
             action={
-              <Button onClick={() => navigate({ view: "auth" })} className="gap-1.5 rounded-xl">
+              <Button
+                onClick={() => navigate({ view: "auth" })}
+                className="gap-1.5 rounded-2xl bg-lime text-forest font-bold hover:bg-lime/90"
+              >
                 <Lock className="w-4 h-4" />
                 ورود / ثبت‌نام
               </Button>
@@ -214,7 +224,7 @@ export function NotificationsView() {
       {loading ? (
         <ListSkeleton />
       ) : notifications.length === 0 ? (
-        <Card className="p-0 rounded-2xl border-border/60 shadow-card overflow-hidden">
+        <Card className="p-0 rounded-2xl border-border/60 overflow-hidden">
           <EmptyState
             kind="notif"
             title="اعلانی ندارید"
@@ -222,8 +232,8 @@ export function NotificationsView() {
             action={
               <Button
                 variant="outline"
-                onClick={() => navigate({ view: "explore" })}
-                className="gap-1.5 rounded-xl"
+                onClick={() => navigate({ view: "discover" })}
+                className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5"
               >
                 کاوش کردن
               </Button>
@@ -260,13 +270,17 @@ export function NotificationsView() {
                       handleLink(n.link);
                     }
                   }}
-                  className={`p-4 cursor-pointer hover:shadow-lift hover:border-primary/30 transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-2xl border-border/60 shadow-card ${
-                    !n.read ? "bg-primary/[0.05] border-primary/25" : "bg-card"
-                  }`}
+                  className={cn(
+                    "p-4 cursor-pointer hover:shadow-md hover:border-forest/20 transition-all outline-none focus-visible:ring-2 focus-visible:ring-lime/60 rounded-2xl border-border/60 shadow-sm",
+                    !n.read ? "bg-lime/5 border-lime/30" : "bg-card"
+                  )}
                 >
                   <div className="flex items-start gap-3.5">
                     <div
-                      className={`grid place-items-center w-11 h-11 rounded-2xl shrink-0 ${color}`}
+                      className={cn(
+                        "grid place-items-center w-11 h-11 rounded-2xl shrink-0",
+                        color
+                      )}
                     >
                       <Icon className="w-5 h-5" />
                     </div>
@@ -276,8 +290,11 @@ export function NotificationsView() {
                           {n.title}
                         </h3>
                         {!n.read && (
-                          <span
-                            className="w-2.5 h-2.5 rounded-full bg-primary shrink-0 mt-1.5 ring-4 ring-primary/15"
+                          <motion.span
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                            className="w-2.5 h-2.5 rounded-full bg-lime shrink-0 mt-1.5 ring-4 ring-lime/20"
                             aria-label="خوانده‌نشده"
                           />
                         )}
@@ -315,19 +332,31 @@ function PageHeader({
   markingAll: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center justify-between gap-3"
+    >
       <div className="flex items-center gap-3">
-        <div className="grid place-items-center w-11 h-11 rounded-2xl bg-brand-gradient text-white shadow-card">
+        <div className="grid place-items-center w-11 h-11 rounded-2xl bg-forest text-lime shadow-md">
           <Bell className="w-5 h-5" />
         </div>
         <div>
           <h1 className="text-xl font-extrabold leading-tight tracking-tight">
             اعلان‌ها
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {unreadCount > 0
-              ? `${toFa(unreadCount)} اعلان خوانده‌نشده`
-              : "همه اعلان‌ها خوانده شده‌اند"}
+          <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+            {unreadCount > 0 ? (
+              <>
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-lime animate-pulse" />
+                {toFa(unreadCount)} اعلان خوانده‌نشده
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3 h-3 text-gold/70" />
+                همه اعلان‌ها خوانده شده‌اند
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -335,7 +364,7 @@ function PageHeader({
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 rounded-xl"
+          className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5"
           disabled={markingAll}
           onClick={onMarkAllRead}
         >
@@ -344,7 +373,7 @@ function PageHeader({
           <span className="sm:hidden">خواندن</span>
         </Button>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -354,7 +383,7 @@ function ListSkeleton() {
   return (
     <div className="space-y-2.5">
       {[...Array(5)].map((_, i) => (
-        <Card key={i} className="p-4 rounded-2xl border-border/60 shadow-card">
+        <Card key={i} className="p-4 rounded-2xl border-border/60 shadow-sm">
           <div className="flex items-start gap-3.5">
             <Skeleton className="w-11 h-11 rounded-2xl shrink-0" />
             <div className="flex-1 space-y-2">

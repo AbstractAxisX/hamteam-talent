@@ -1,29 +1,42 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { hashPassword } from "@/lib/auth";
 
-// Seed endpoint — creates categories, skills, admin, and demo content.
-// Call GET /api/seed to (re)initialize demo data. Idempotent-ish.
+// Seed: creates talent categories + skills + admin account + demo users.
 export async function GET() {
   const log: string[] = [];
 
-  // Categories & skills
+  // ── Talent categories (with emoji icons) ──
   const catDefs: { name: string; icon: string; skills: string[] }[] = [
-    { name: "موسیقی", icon: "🎵", skills: ["گیتار", "ویولن", "پیانو", "آواز", "تنبک", "سنتور", "کمانچه"] },
-    { name: "برنامه‌نویسی", icon: "💻", skills: ["فرانت‌اند", "بک‌اند", "موبایل", "هوش مصنوعی", "دواپس", "بازی‌سازی"] },
-    { name: "طراحی", icon: "🎨", skills: ["گرافیک", "UI/UX", "موشن گرافیک", "طراحی لوگو", "تصویرسازی"] },
-    { name: "ورزش", icon: "⚽", skills: ["فوتبال", "بسکتبال", "شمیرا", "کراس‌فیت", "یوگا", "بوکس"] },
-    { name: "عکاسی و فیلم", icon: "📷", skills: ["عکاسی پرتره", "عکاسی محصول", "ادیت ویدیو", "تیزر تبلیغاتی", "دراپلاین"] },
-    { name: "زبان", icon: "🗣️", skills: ["انگلیسی", "عربی", "ترکی", "آلمانی", "فرانسوی"] },
-    { name: "آشپزی", icon: "🍳", skills: ["آشپزی ایرانی", "شیرینی‌پزی", "کافه و بارتندینگ", "گیاهی"] },
-    { name: "نوشتن و محتوا", icon: "✍️", skills: ["تولید محتوا", "کپی‌رایتینگ", "ترجمه", "سناریونویسی"] },
+    { name: "موسیقی", icon: "🎵", skills: ["خوانندگی", "نوازندگی گیتار", "نوازندگی پیانو", "نوازندگی ویولن", "نوازندگی سنتور", "نوازندگی تنبک", "ترانه‌سرایی", "تنظیم موسیقی", "آواز سنتی", "آواز پاپ"] },
+    { name: "سخنوری و رسانه", icon: "🎙️", skills: ["پادکست", "دوبلاژ", "گویندگی", "ارباب حلقه", "میزبانی", "گزارشگری"] },
+    { name: "نویسندگی و محتوا", icon: "✍️", skills: ["نویسندگی داستان", "نویسندگی مقاله", "کپی‌رایتینگ", "سناریونویسی", "تولید محتوای دیجیتال", "وبلاگ‌نویسی"] },
+    { name: "آشپزی و شیرینی‌پزی", icon: "🍳", skills: ["آشپزی ایرانی", "آشپزی بین‌المللی", "شیرینی‌پزی", "کافه و باریستا", "شکلات‌سازی", "غذای گیاهی", "کنفکشنری"] },
+    { name: "مدلینگ", icon: "📸", skills: ["مدل عکاسی", "مدل کاتالوگ", "مدل لباس", "مدل تبلیغاتی", "فیشن مدل"] },
+    { name: "سرگرمی و تفریح", icon: "🎪", skills: ["کمدی و استندآپ", "شعبده‌بازی", "بازیگری", "شیمینوازی", "میم و نمایش"] },
+    { name: "فیلم و سینما", icon: "🎬", skills: ["کارگردانی", "تدوین ویدیو", "فیلمبرداری", "عکاسی سینمایی", "جلوه‌های ویژه", "آنیمیشن", "تیزر تبلیغاتی", "دراپلاین"] },
+    { name: "برنامه‌نویسی و توسعه", icon: "💻", skills: ["فرانت‌اند", "بک‌اند", "موبایل", "هوش مصنوعی", "دواپس", "وب‌دیزاین"] },
+    { name: "بازی‌سازی", icon: "🎮", skills: ["بازی‌سازی یونیتی", "بازی‌سازی آنریل", "گیم‌دیزاین", "توسعه موبایل گیم", "بازی انلاین"] },
+    { name: "آموزش و تدریس", icon: "📚", skills: ["تدریس خصوصی", "آموزش آنلاین", "تدریس زبان", "تدریس موسیقی", "تدریس هنر", "تدریس علوم", "کوچینگ تحصیلی"] },
+    { name: "بازاریابی و تبلیغات", icon: "📢", skills: ["بازاریابی دیجیتال", "سئو", "تبلیغات شبکه‌های اجتماعی", "برندینگ", "بازاریابی محتوا", "ایمیل مارکتینگ"] },
+    { name: "ترجمه و زبان", icon: "🌍", skills: ["ترجمه انگلیسی", "ترجمه عربی", "ترجمه ترکی", "ترجمه آلمانی", "ترجمه فرانسوی", "تدریس مکالمه"] },
+    { name: "علم و پژوهش", icon: "🔬", skills: ["پژوهش علمی", "تحلیل داده", "نوشتن مقاله علمی", "آمار", "هوش مصنوعی پژوهشی"] },
+    { name: "طراحی گرافیک و UI/UX", icon: "🎨", skills: ["طراحی لوگو", "طراحی پوستر", "UI/UX دیزاین", "موشن گرافیک", "تصویرسازی", "طراحی هویت بصری", "پروتوتایپ"] },
+    { name: "کارآفرینی و استارتاپ", icon: "🚀", skills: ["توسعه کسب‌وکار", "مدیریت محصول", "فروش و مذاکره", "پیچ‌دک", "مدیریت تیم", "منتورینگ"] },
+    { name: "مد و طراحی لباس", icon: "👗", skills: ["طراحی لباس", "خیاطی", "طراحی کیف و کفش", "استایلیست", "طراحی جواهر"] },
+    { name: "فنی و تعمیرات", icon: "🔧", skills: ["تعمیر موبایل", "تعمیر کامپیوتر", "برق و الکترونیک", "تعمیرات خودرو", "لوله‌کشی", "نجاری"] },
+    { name: "طراحی صنعتی", icon: "🏭", skills: ["طراحی محصول", "مدل‌سازی سه‌بعدی", "پرینت سه‌بعدی", "طراحی قطعه", "نمونه‌سازی"] },
+    { name: "طراحی ساختمان و داخلی", icon: "🏠", skills: ["طراحی داخلی", "معماری", "طراحی نما", "ديزین مبلمان", "نورپردازی", "رندر سه‌بعدی"] },
+    { name: "ورزش و مربی‌گری", icon: "⚽", skills: ["فوتبال", "بسکتبال", "شمیرا", "کراس‌فیت", "یوگا", "بوکس", "بدنسازی", "شنا", "مربی‌گری خصوصی", "ایروبیک"] },
   ];
 
   const catMap = new Map<string, string>();
-  for (const def of catDefs) {
+  for (let i = 0; i < catDefs.length; i++) {
+    const def = catDefs[i];
     const cat = await db.category.upsert({
       where: { name: def.name },
-      update: { iconUrl: def.icon },
-      create: { name: def.name, iconUrl: def.icon },
+      update: { iconUrl: def.icon, order: i },
+      create: { name: def.name, iconUrl: def.icon, order: i },
     });
     catMap.set(def.name, cat.id);
     for (const skillName of def.skills) {
@@ -34,9 +47,24 @@ export async function GET() {
       });
     }
   }
-  log.push(`${catDefs.length} دسته‌بندی و مهارت‌ها ایجاد شدند`);
+  log.push(`${catDefs.length} دسته‌بندی استعداد ایجاد شد`);
 
-  // Helper to get skill id
+  // ── Admin account (username + password) ──
+  const adminUsername = "admin";
+  const adminPassword = "admin123";
+  let admin = await db.adminUser.findUnique({ where: { username: adminUsername } });
+  if (!admin) {
+    admin = await db.adminUser.create({
+      data: {
+        username: adminUsername,
+        password: hashPassword(adminPassword),
+        name: "مدیر همتیم",
+      },
+    });
+    log.push(`اکانت ادمین ایجاد شد (نام کاربری: ${adminUsername} / رمز: ${adminPassword})`);
+  }
+
+  // ── Demo talent users ──
   const skillId = async (catName: string, skillName: string) => {
     const cat = await db.category.findUnique({ where: { name: catName } });
     if (!cat) return null;
@@ -46,45 +74,19 @@ export async function GET() {
     return s?.id ?? null;
   };
 
-  // Admin user (seeded directly, bypassing validation)
-  const adminPhone = "09120000000";
-  let admin = await db.user.findUnique({ where: { phone: adminPhone } });
-  if (!admin) {
-    admin = await db.user.create({
-      data: {
-        name: "مدیر سیستم",
-        phone: adminPhone,
-        nationalId: "1111111111",
-        role: "admin",
-        isVerifiedBadge: true,
-        profile: {
-          create: {
-            bioShort: "مدیر پلتفرم همتیم",
-            bioLong: "مدیریت و توسعه پلتفرم شبکه‌سازی حرفه‌ای همتیم.",
-            province: "tehran",
-            city: "تهران",
-            resume: { create: {} },
-          },
-        },
-      },
-    });
-    log.push("کاربر ادمین ایجاد شد (۰۹۱۲۰۰۰۰۰۰۰۰ / کد ملی ۱۱۱۱۱۱۱۱۱۱)");
-  } else if (admin.role !== "admin") {
-    admin = await db.user.update({ where: { id: admin.id }, data: { role: "admin", isVerifiedBadge: true } });
-  }
-
-  // Demo users
   const demoUsers = [
-    { name: "نیلوفر رضایی", phone: "09121110001", nationalId: "1234567891", cat: "موسیقی", skills: ["گیتار", "آواز"], bio: "خواننده و گیتاریست", province: "tehran", city: "تهران", verified: true },
-    { name: "آرش محمدی", phone: "09121110002", nationalId: "1234567892", cat: "برنامه‌نویسی", skills: ["فرانت‌اند", "بک‌اند"], bio: "توسعه‌دهنده فول‌استک", province: "tehran", city: "تهران", verified: true },
-    { name: "سحر کریمی", phone: "09121110003", nationalId: "1234567893", cat: "طراحی", skills: ["UI/UX", "گرافیک"], bio: "طراح محصول و گرافیک", province: "esfahan", city: "اصفهان", verified: false },
-    { name: "بهراد تبریزی", phone: "09121110004", nationalId: "1234567894", cat: "عکاسی و فیلم", skills: ["عکاسی پرتره", "ادیت ویدیو"], bio: "عکاس و تدوین‌گر", province: "azarbaijan-sharghi", city: "تبریز", verified: false },
-    { name: "مرجان احمدی", phone: "09121110005", nationalId: "1234567895", cat: "نوشتن و محتوا", skills: ["تولید محتوا", "کپی‌رایتینگ"], bio: "تولیدکننده محتوای دیجیتال", province: "fars", city: "شیراز", verified: true },
-    { name: "کیان جعفری", phone: "09121110006", nationalId: "1234567896", cat: "ورزش", skills: ["کراس‌فیت", "بوکس"], bio: "مربی بدنسازی و کراس‌فیت", province: "mazandaran", city: "ساری", verified: false },
-    { name: "دنیا صادقی", phone: "09121110007", nationalId: "1234567897", cat: "موسیقی", skills: ["پیانو", "آواز"], bio: "پیانیست کلاسیک", province: "tehran", city: "تهران", verified: false },
-    { name: "سینا نوری", phone: "09121110008", nationalId: "1234567898", cat: "برنامه‌نویسی", skills: ["موبایل", "هوش مصنوعی"], bio: "توسعه‌دهنده موبایل و AI", province: "khorasan-razavi", city: "مشهد", verified: true },
-    { name: "الهام قاسمی", phone: "09121110009", nationalId: "1234567899", cat: "زبان", skills: ["انگلیسی", "ترکی"], bio: "مدرس زبان انگلیسی", province: "gilan", city: "رشت", verified: false },
-    { name: "پارسا شریفی", phone: "09121110010", nationalId: "2234567891", cat: "آشپزی", skills: ["آشپزی ایرانی", "شیرینی‌پزی"], bio: "سرآشپز و شیرینی‌پز", province: "alborz", city: "کرج", verified: false },
+    { name: "نیلوفر رضایی", phone: "09121110001", cat: "موسیقی", skills: ["خوانندگی", "نوازندگی گیتار"], bio: "خواننده و گیتاریست", province: "tehran", city: "تهران", verified: true },
+    { name: "آرش محمدی", phone: "09121110002", cat: "برنامه‌نویسی و توسعه", skills: ["فرانت‌اند", "بک‌اند"], bio: "توسعه‌دهنده فول‌استک", province: "tehran", city: "تهران", verified: true },
+    { name: "سحر کریمی", phone: "09121110003", cat: "طراحی گرافیک و UI/UX", skills: ["UI/UX دیزاین", "طراحی لوگو"], bio: "طراح محصول و گرافیک", province: "esfahan", city: "اصفهان", verified: false },
+    { name: "بهراد تبریزی", phone: "09121110004", cat: "فیلم و سینما", skills: ["فیلمبرداری", "تدوین ویدیو"], bio: "فیلمبردار و تدوین‌گر", province: "azarbaijan-sharghi", city: "تبریز", verified: false },
+    { name: "مرجان احمدی", phone: "09121110005", cat: "نویسندگی و محتوا", skills: ["کپی‌رایتینگ", "تولید محتوای دیجیتال"], bio: "تولیدکننده محتوا", province: "fars", city: "شیراز", verified: true },
+    { name: "کیان جعفری", phone: "09121110006", cat: "ورزش و مربی‌گری", skills: ["کراس‌فیت", "بدنسازی"], bio: "مربی بدنسازی و کراس‌فیت", province: "mazandaran", city: "ساری", verified: false },
+    { name: "دنیا صادقی", phone: "09121110007", cat: "موسیقی", skills: ["نوازندگی پیانو", "خوانندگی"], bio: "پیانیست کلاسیک", province: "tehran", city: "تهران", verified: false },
+    { name: "سینا نوری", phone: "09121110008", cat: "بازی‌سازی", skills: ["بازی‌سازی یونیتی", "گیم‌دیزاین"], bio: "توسعه‌دهنده بازی موبایل", province: "khorasan-razavi", city: "مشهد", verified: true },
+    { name: "الهام قاسمی", phone: "09121110009", cat: "ترجمه و زبان", skills: ["ترجمه انگلیسی", "تدریس مکالمه"], bio: "مدرس و مترجم زبان انگلیسی", province: "gilan", city: "رشت", verified: false },
+    { name: "پارسا شریفی", phone: "09121110010", cat: "آشپزی و شیرینی‌پزی", skills: ["آشپزی ایرانی", "شیرینی‌پزی"], bio: "سرآشپز و شیرینی‌پز", province: "alborz", city: "کرج", verified: false },
+    { name: "تینا مرادی", phone: "09121110011", cat: "مد و طراحی لباس", skills: ["طراحی لباس", "خیاطی"], bio: "طراح مد و لباس", province: "tehran", city: "تهران", verified: true },
+    { name: "حسین رستمی", phone: "09121110012", cat: "سخنوری و رسانه", skills: ["پادکست", "گویندگی"], bio: "پادکستر و گوینده", province: "tehran", city: "تهران", verified: false },
   ];
 
   const createdUsers: { id: string; name: string }[] = [];
@@ -101,12 +103,11 @@ export async function GET() {
         data: {
           name: d.name,
           phone: d.phone,
-          nationalId: d.nationalId,
           isVerifiedBadge: d.verified,
           profile: {
             create: {
               bioShort: d.bio,
-              bioLong: `${d.bio} — فعال در حوزه‌ی ${d.cat}. علاقه‌مند به همکاری در پروژه‌های خلاقانه.`,
+              bioLong: `${d.bio} — فعال در حوزه‌ی ${d.cat}. علاقه‌مند به همکاری در پروژه‌های خلاقانه و نمایش استعداد.`,
               province: d.province,
               city: d.city,
               resume: {
@@ -115,7 +116,7 @@ export async function GET() {
                     create: [
                       {
                         jobTitle: d.bio,
-                        organization: "آژانس خلاقیت نوین",
+                        organization: "استودیو خلاقیت نوین",
                         startDate: "۱۴۰۰",
                         endDate: "۱۴۰۳",
                         description: "همکاری تخصصی در پروژه‌های مرتبط.",
@@ -140,20 +141,22 @@ export async function GET() {
     }
     createdUsers.push({ id: u.id, name: d.name });
   }
-  log.push(`${createdUsers.length} کاربر نمونه ایجاد شدند`);
+  log.push(`${createdUsers.length} کاربر استعداد نمونه ایجاد شد`);
 
-  // Demo posts
+  // ── Demo posts (talent showcases) ──
   const postContents = [
-    "پروژه‌ی جدید موسیقی رو شروع کردم 🎸 به دنبال یک نوازنده‌ی ویولن برای همکاری می‌گردم. کسی علاقه داره؟",
-    "یک کتابخانه‌ی جدید ری‌اکت اوپن‌سورس کردم 🚀 ممنون می‌شم تست کنید و بازخورد بدید.",
-    "طراحی لوگوی جدید برای یک برند کافه محلی. نظراتتون چیه؟",
-    "عکاسی از طبیعت شمال در پاییز 🍂 رنگ‌ها فوق‌العاده بودن.",
-    "دوره‌ی جدید تولید محتوای متنی رو منتشر کردم. مناسب بازاریاب‌ها و سازندگان محتوا.",
-    "تمرینات کراس‌فیت امروز واقعاً سنگین بود اما حال‌خوب 😅",
-    "ضبط پیانو برای آلبوم جدید دارم انجام می‌دم. روزهای طولانی و پر از الهام.",
-    "مدل جدید زبان فارسی رو آموزش دادم. نتایج جالبیه!",
-    "کلاس آنلاین مکالمه انگلیسی از هفته‌ی آینده شروع می‌شه. ظرفیت محدود.",
-    "دسر جدید برای منوی کافه طراحی کردم 🍰 بگو باشید اسمش چی باشه؟",
+    "یک قطعه‌ی جدید موسیقی ضبط کردم 🎸 نظرتون چیه؟ به دنبال همکار برای پروژه‌ی آلبوم هستم.",
+    "پروژه‌ی جدید طراحی UI رو تموم کردم 🎨 تجربه‌ی کاربری خیلی ناز شده.",
+    "عکاسی از طبیعت پاییزی شمال 🍂 رنگ‌ها فوق‌العاده بودن.",
+    "تدوین یک تیزر تبلیغاتی برای برند کافه محلی. نظراتتون؟",
+    "پادکست جدیدم منتشر شد 🎙️ موضوع: استعدادهای پنهان جامعه‌ی فارسی.",
+    "تمرینات کراس‌فیت امروز واقعاً سنگین بود 😅 اما عالی.",
+    "آموزش نوازندگی پیانو برای مبتدی‌ها — ویدیوی جدید روی کانالم.",
+    "مدل سه‌بعدی یک شخصیت برای بازی جدیدم 🎮",
+    "دسر جدید برای منوی کافه طراحی کردم 🍰 اسمش رو چی بذارم؟",
+    "طراحی لباس مجموعه‌ی پاییزم امسال 👗",
+    "ویدیوی جدید استندآپ کمدی من منتشر شد 😂",
+    "ترجمه‌ی یک مقاله‌ی علمی درباره‌ی هوش مصنوعی تمام شد 🤖",
   ];
 
   const existingPosts = await db.post.count();
@@ -163,7 +166,7 @@ export async function GET() {
       const content = postContents[i % postContents.length];
       const user = await db.user.findUnique({
         where: { id: u.id },
-        include: { profile: true, userSkills: { include: { skill: true } }, userCategories: true },
+        include: { userSkills: { include: { skill: true } } },
       });
       if (!user || user.userSkills.length === 0) continue;
       const firstSkill = user.userSkills[0].skill;
@@ -176,67 +179,29 @@ export async function GET() {
         },
       });
     }
-    log.push("پست‌های نمونه ایجاد شدند");
+    log.push("پست‌های نمونه (نمایش استعداد) ایجاد شد");
   }
 
-  // Demo likes (a few)
+  // ── Demo likes ──
   if ((await db.postLike.count()) < 3) {
-    const posts = await db.post.findMany({ take: 6 });
+    const posts = await db.post.findMany({ take: 8 });
     for (const p of posts) {
-      const otherUsers = createdUsers.filter((u) => u.id !== p.userId).slice(0, 3);
-      for (const ou of otherUsers) {
+      const others = createdUsers.filter((u) => u.id !== p.userId).slice(0, 4);
+      for (const ou of others) {
         try {
           await db.postLike.create({ data: { postId: p.id, userId: ou.id } });
-        } catch {
-          /* ignore dup */
-        }
+        } catch { /* ignore dup */ }
       }
     }
-    log.push("لایک‌های نمونه ایجاد شدند");
+    log.push("لایک‌های نمونه ایجاد شد");
   }
 
-  // Demo job posts
-  const jobDefs = [
-    { userIdx: 1, title: "نیاز به نوازنده گیتار برای کنسرت", desc: "برای یک کنسرت خصوصی به یک نوازنده گیتار حرفه‌ای نیاز دارم. دو ساعت تمرین و یک شب اجرا.", cat: "موسیقی", skills: ["گیتار"], city: "تهران", province: "tehran" },
-    { userIdx: 2, title: "تیم‌سازی استارتاپ فین‌تک", desc: "استارتاپ ما به یک توسعه‌دهنده بک‌اند با تجربه نیاز دارد. مدل فول‌تایم ریموت.", cat: "برنامه‌نویسی", skills: ["بک‌اند", "دواپس"], city: "تهران", province: "tehran" },
-    { userIdx: 4, title: "عکاس محصول برای فروشگاه آنلاین", desc: "برای کاتالوگ محصولات به عکاس محصول نیاز داریم. ۵۰ محصول.", cat: "عکاسی و فیلم", skills: ["عکاسی محصول"], city: "تبریز", province: "azarbaijan-sharghi" },
-    { userIdx: 6, title: "مربی کراس‌فیت برای باشگاه جدید", desc: "باشگاه ورزشی جدید به دو مربی کراس‌فیت نیاز دارد. صبح‌ها.", cat: "ورزش", skills: ["کراس‌فیت"], city: "ساری", province: "mazandaran" },
-    { userIdx: 5, title: "کپی‌رایتر برای کمپین تبلیغاتی", desc: "برای کمپین تبلیغاتی یک برند پوشاک به کپی‌رایتر خلاق نیاز داریم.", cat: "نوشتن و محتوا", skills: ["کپی‌رایتینگ", "تولید محتوا"], city: "شیراز", province: "fars" },
-    { userIdx: 8, title: "توسعه‌دهنده اپلیکیشن موبایل", desc: "پروژه اپلیکیشن آموزشی به یک توسعه‌دهنده موبایل نیازمند است.", cat: "برنامه‌نویسی", skills: ["موبایل"], city: "مشهد", province: "khorasan-razavi" },
-  ];
-
-  if ((await db.jobPost.count()) < 3) {
-    for (const j of jobDefs) {
-      const u = createdUsers[j.userIdx];
-      const catId = catMap.get(j.cat);
-      if (!catId || !u) continue;
-      const skillIds: string[] = [];
-      for (const sk of j.skills) {
-        const sid = await skillId(j.cat, sk);
-        if (sid) skillIds.push(sid);
-      }
-      await db.jobPost.create({
-        data: {
-          userId: u.id,
-          title: j.title,
-          description: j.desc,
-          categoryId: catId,
-          city: j.city,
-          province: j.province,
-          status: "open",
-          skills: { create: skillIds.map((sid) => ({ skillId: sid })) },
-        },
-      });
-    }
-    log.push("آگهی‌های نیازمندی نمونه ایجاد شدند");
-  }
-
-  // Connections: admin follows a couple
+  // ── Demo connections ──
   if ((await db.connection.count()) < 2) {
-    await db.connection.create({ data: { requesterId: admin.id, receiverId: createdUsers[0].id, status: "accepted" } });
-    await db.connection.create({ data: { requesterId: admin.id, receiverId: createdUsers[1].id, status: "accepted" } });
-    await db.connection.create({ data: { requesterId: createdUsers[2].id, receiverId: admin.id, status: "pending" } });
-    log.push("ارتباطات نمونه ایجاد شدند");
+    await db.connection.create({ data: { requesterId: createdUsers[0].id, receiverId: createdUsers[1].id, status: "accepted" } });
+    await db.connection.create({ data: { requesterId: createdUsers[2].id, receiverId: createdUsers[0].id, status: "accepted" } });
+    await db.connection.create({ data: { requesterId: createdUsers[3].id, receiverId: createdUsers[0].id, status: "pending" } });
+    log.push("ارتباطات نمونه ایجاد شد");
   }
 
   return NextResponse.json({ ok: true, log });
