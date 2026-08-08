@@ -5,23 +5,19 @@ import { BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Default avatar SVGs — male (teal) and female (coral), solid colors
-function DefaultAvatarSVG({ gender, name }: { gender?: string | null; name: string }) {
+function DefaultAvatarSVG({ gender }: { gender?: string | null; name: string }) {
   const isFemale = gender === "female";
   const bg = isFemale ? "oklch(0.6 0.12 25)" : "oklch(0.4 0.05 200)";
-  const initial = (name || "؟").charAt(0);
   return (
     <div
-      className={cn("w-full h-full rounded-full grid place-items-center")}
+      className="w-full h-full rounded-full grid place-items-center"
       style={{ backgroundColor: bg }}
     >
-      {/* Simple person silhouette */}
-      <svg viewBox="0 0 40 40" className="w-3/5 h-3/5 opacity-30" fill="white">
+      {/* Simple person silhouette — no letter */}
+      <svg viewBox="0 0 40 40" className="w-3/5 h-3/5 opacity-25" fill="white">
         <circle cx="20" cy="14" r="7" />
         <path d="M6 38c0-7.7 6.3-14 14-14s14 6.3 14 14" />
       </svg>
-      <span className="absolute font-bold text-white text-lg" style={{ fontSize: "1.25rem" }}>
-        {initial}
-      </span>
     </div>
   );
 }
