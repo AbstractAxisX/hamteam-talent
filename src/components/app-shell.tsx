@@ -170,7 +170,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
           ) : null}
 
           {/* Left pill (RTL end) = Profile/Login + Notifications */}
-          <div className="flex items-center gap-2 mr-auto">
+          <div className="flex items-center gap-2 mr-auto ">
             {user ? (
               <>
                 <button
@@ -196,7 +196,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
                     verified={user.isVerifiedBadge}
                     gender={user.profile?.gender}
                     size="md"
-                    className="shadow-sm"
+                    className="pt-2"
                   />
                 </button>
               </>
@@ -204,7 +204,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
               !loading && (
                 <button
                   onClick={() => navigate({ view: "auth" })}
-                  className="pointer-events-auto h-10 px-5 rounded-full glass shadow-sm font-bold text-sm active:scale-95 transition-transform"
+                  className="pointer-events-auto h-10 px-5 rounded-full glass shadow-sm font-bold text-sm active:scale-95 transition-transform mt-2"
                 >
                   ورود
                 </button>
