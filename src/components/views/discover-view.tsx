@@ -7,22 +7,16 @@ import { navigate } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PostCard } from "@/components/shared/post-card";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { SearchableSelect } from "@/components/shared/searchable-select";
 import type {
   CategoryWithSkills,
   TalentListItem,
   PostWithRelations,
 } from "@/lib/types";
-import { PROVINCES, getProvinceName } from "@/lib/geo";
+import { PROVINCES, getCitiesForProvince, getProvinceName } from "@/lib/geo";
 import {
   Search,
   Compass,
@@ -50,15 +44,15 @@ export function DiscoverView() {
   const [tab, setTab] = useState<Tab>("posts");
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters — "" means "all" (no filter)
   const [q, setQ] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [skillId, setSkillId] = useState("");
-  const [province, setProvince] = useState("all");
-  const [city, setCity] = useState("all");
+  const [province, setProvince] = useState("");
+  const [city, setCity] = useState("");
   const [postSort, setPostSort] = useState<PostSort>("recent");
   const [userSort, setUserSort] = useState<UserSort>("followers");
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
 
   useEffect(() => {
     api<{ categories: CategoryWithSkills[] }>("/api/categories")
@@ -70,18 +64,10 @@ export function DiscoverView() {
     () => cats.find((c) => c.id === categoryId),
     [cats, categoryId]
   );
-  const currentProvince = useMemo(
-    () => PROVINCES.find((p) => p.id === province),
-    [province]
-  );
 
-  const activeFiltersCount = [
-    q,
-    categoryId,
-    skillId,
-    province !== "all" ? province : "",
-    city !== "all" ? city : "",
-  ].filter(Boolean).length;
+  const activeFiltersCount = [q, categoryId, skillId, province, city].filter(
+    Boolean
+  ).length;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -92,7 +78,8 @@ export function DiscoverView() {
           `/api/posts?sort=${postSort}`
         );
         let filtered = data.posts;
-        if (categoryId) filtered = filtered.filter((p) => p.categoryId === categoryId);
+        if (categoryId)
+          filtered = filtered.filter((p) => p.categoryId === categoryId);
         if (skillId) filtered = filtered.filter((p) => p.skillId === skillId);
         if (q.trim()) {
           const needle = q.trim();
@@ -105,8 +92,8 @@ export function DiscoverView() {
         const params = new URLSearchParams();
         if (categoryId) params.set("categoryId", categoryId);
         if (skillId) params.set("skillId", skillId);
-        if (province !== "all") params.set("province", province);
-        if (city !== "all") params.set("city", city);
+        if (province) params.set("province", province);
+        if (city) params.set("city", city);
         if (q.trim()) params.set("q", q.trim());
         params.set("sort", userSort);
         const data = await api<{ talents: TalentListItem[] }>(
@@ -131,8 +118,8 @@ export function DiscoverView() {
     setQ("");
     setCategoryId("");
     setSkillId("");
-    setProvince("all");
-    setCity("all");
+    setProvince("");
+    setCity("");
   }
 
   return (
@@ -165,7 +152,9 @@ export function DiscoverView() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={
-              tab === "posts" ? "جستجوی پست یا نویسنده..." : "جستجوی نام یا مهارت..."
+              tab === "posts"
+                ? "جستجوی پست یا نویسنده..."
+                : "جستجوی نام یا مهارت..."
             }
             className="w-full h-11 pr-10 pl-4 rounded-xl bg-card border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all shadow-sm"
           />
@@ -226,103 +215,98 @@ export function DiscoverView() {
         </div>
       )}
 
-      {/* Filters card (collapsible) */}
+      {/* ═══ Filters card — 4 full-width stacked rows with labels ═══ */}
       <AnimatePresence initial={false}>
         {showFilters && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="overflow-hidden"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2 }}
+            className="p-4 rounded-2xl bg-card border border-border shadow-sm space-y-3"
           >
-            <div className="p-4 rounded-2xl bg-card border border-border space-y-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm flex items-center gap-2">
-                  <SlidersHorizontal className="w-4 h-4 text-primary" />
-                  فیلترهای دقیق
-                </h3>
-                {activeFiltersCount > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearAll}
-                    className="text-muted-foreground h-8 text-xs"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    پاک کردن همه
-                  </Button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <Select
-                  value={categoryId}
-                  onValueChange={(v) => {
-                    setCategoryId(v);
-                    setSkillId("");
-                  }}
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-primary" />
+                فیلترهای دقیق
+              </h3>
+              {activeFiltersCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAll}
+                  className="text-muted-foreground h-8 text-xs"
                 >
-                  <SelectTrigger className="rounded-xl h-10">
-                    <SelectValue placeholder="دسته‌بندی" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cats.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.iconUrl || "✨"} {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={skillId} onValueChange={setSkillId} disabled={!categoryId}>
-                  <SelectTrigger className="rounded-xl h-10">
-                    <SelectValue placeholder="مهارت" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currentCat?.skills.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <Select value={province} onValueChange={(v) => { setProvince(v); setCity("all"); }}>
-                  <SelectTrigger className="rounded-xl h-10">
-                    <SelectValue placeholder="استان" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">همه</SelectItem>
-                    {PROVINCES.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={city} onValueChange={setCity} disabled={province === "all"}>
-                  <SelectTrigger className="rounded-xl h-10">
-                    <SelectValue placeholder="شهر" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">همه</SelectItem>
-                    {currentProvince?.cities.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {tab === "users" && (
-                <p className="text-[11px] text-muted-foreground leading-5">
-                  فیلتر استان/شهر فقط برای تب کاربران فعال است.
-                </p>
+                  <X className="w-3.5 h-3.5" />
+                  پاک کردن همه
+                </Button>
               )}
             </div>
+
+            {/* Row 1: Category — full width */}
+            <SearchableSelect
+              label="دسته‌بندی"
+              options={cats.map((c) => ({
+                value: c.id,
+                label: `${c.iconUrl || "✨"} ${c.name}`,
+              }))}
+              value={categoryId}
+              onChange={(v) => {
+                setCategoryId(v === "all" ? "" : v);
+                setSkillId("");
+              }}
+              allLabel="همه"
+              placeholder="انتخاب دسته‌بندی"
+            />
+
+            {/* Row 2: Skill — full width (chained to category) */}
+            <SearchableSelect
+              label="مهارت"
+              options={(currentCat?.skills || []).map((s) => ({
+                value: s.id,
+                label: s.name,
+              }))}
+              value={skillId}
+              onChange={(v) => setSkillId(v === "all" ? "" : v)}
+              allLabel={categoryId ? "همه" : undefined}
+              placeholder={
+                categoryId ? "انتخاب مهارت" : "ابتدا دسته‌بندی را انتخاب کنید"
+              }
+              disabled={!categoryId}
+            />
+
+            {/* Row 3: Province — full width */}
+            <SearchableSelect
+              label="استان"
+              options={PROVINCES.map((p) => ({ value: p.id, label: p.name }))}
+              value={province}
+              onChange={(v) => {
+                setProvince(v === "all" ? "" : v);
+                setCity("");
+              }}
+              allLabel="همه"
+              placeholder="انتخاب استان"
+            />
+
+            {/* Row 4: City — full width (chained to province) */}
+            <SearchableSelect
+              label="شهر"
+              options={getCitiesForProvince(province).map((c) => ({
+                value: c,
+                label: c,
+              }))}
+              value={city}
+              onChange={(v) => setCity(v === "all" ? "" : v)}
+              allLabel="همه"
+              placeholder="انتخاب شهر"
+              disabled={!province}
+            />
+
+            {tab === "users" && (
+              <p className="text-[11px] text-muted-foreground leading-5">
+                فیلتر استان/شهر فقط برای تب کاربران فعال است.
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -347,18 +331,22 @@ export function DiscoverView() {
               onRemove={() => setSkillId("")}
             />
           )}
-          {province !== "all" && (
+          {province && (
             <FilterChip
               label={getProvinceName(province) || "استان"}
               icon={MapPin}
               onRemove={() => {
-                setProvince("all");
-                setCity("all");
+                setProvince("");
+                setCity("");
               }}
             />
           )}
-          {city !== "all" && (
-            <FilterChip label={city} icon={MapPin} onRemove={() => setCity("all")} />
+          {city && (
+            <FilterChip
+              label={city}
+              icon={MapPin}
+              onRemove={() => setCity("")}
+            />
           )}
           {q.trim() && (
             <FilterChip label={`«${q.trim()}»`} onRemove={() => setQ("")} />

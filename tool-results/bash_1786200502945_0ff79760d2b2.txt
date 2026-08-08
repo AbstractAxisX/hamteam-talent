@@ -1,0 +1,200 @@
+Work Log:
+- Read worklog.md, prisma/schema.prisma (Profile.gender, Conversation.status + initiatorId), globals.css (NEW calm petrol-teal palette: --primary oklch(0.4 0.05 200), warm off-white bg, --gold/--rose/--success/--warning/--teal tokens, NO gradients/neon utilities, .glass/.glass-strong/.slim-scroll/.animate-*).
+- Read shared infrastructure: user-avatar.tsx (UserAvatar accepts gender prop; sizes xs→2xl where 2xl = w-28 h-28; rounded-full + ring-2 ring-background; renders male=teal or female=coral default avatar), illustrations.tsx (CategoryIcon with emoji prop, EmptyIllustration kinds), empty-state.tsx (EmptyState with kind prop, motion fade-in-up), post-card.tsx, app-shell.tsx (floating pills + bottom dock + chat FAB; passes gender={user.profile?.gender} to UserAvatar).
+- Read API routes to confirm shapes: /api/profile/[id] (ProfileDetail now includes gender), /api/profile/me (PUT accepts gender: "male"|"female"|null), /api/upload (multipart file + type "avatar"|"banner", returns {ok,url}, updates profile), /api/chat/conversations (returns {conversations:[active+my own pending as myRequestPending], requests:[their pending_request for me], unreadCount}), /api/chat/start ({userId,initialMessage?} → {conversationId, status:"active"|"pending_request"}), /api/chat/conversations/[id]/respond ({action:"accept"|"reject"}), /api/chat/conversations/[id]/messages (returns {conversation:{otherUser}, messages}), /api/chat/conversations/[id]/read (POST marks as read).
+- Read existing profile-view.tsx + edit-profile-view.tsx + chat-view.tsx — confirmed they used OLD lime/forest palette + bg-cream-gradient (no longer defined in globals.css). Rewrote all 3 to use ONLY bg-primary/text-primary-foreground/bg-card/bg-muted/border-border tokens from the new calm palette.
+- **OVERWROTE profile-view.tsx**: Card overflow-visible (FIXES avatar clip bug), banner div h-40 md:h-44 overflow-hidden rounded-t-2xl bg-primary solid petrol-teal (NO gradient) with subtle radial highlight + dotted pattern when no bannerUrl uploaded. UserAvatar size="2xl" (w-28 h-28) with gender prop, ring-4 ring-card — NO rounded-3xl override (keeps UserAvatar's natural rounded-full = perfect circle). Header shows name + gold verified badge + gender badge (مرد/زن) + bio + city + join date + phone (if visible). Action buttons: self → outline "ویرایش پروفایل"; other → ConnectionButton (دنبال کردن/در انتظار gold/متصل disabled/پذیرش درخواست) + outline "پیام" (POST /api/chat/start → if status="active" navigate chat with convId, else toast "درخواست پیام ارسال شد") + ghost "رزومه" (window.open resume URL). Clickable followers/following + post counts in text-primary. Tabs 3-col rounded-2xl bg-muted/60 with data-[state=active]:bg-primary text-primary-foreground. About tab: bioLong card + اطلاعات کلی card (gender/موقعیت/عضو از) + categories with CategoryIcon + Separator + skill badges. Resume tab: timeline border-r-2 border-primary/30 with primary dots, education timeline border-gold/40 with gold dots. Posts tab: PostCard list. Sidebar: QuickStatsCard 2x2 grid + categories card + quick-actions card. ProfileSkeleton with rounded-2xl + rounded-t-2xl banner. NotFound EmptyState kind="people" with primary CTA.
+- **OVERWROTE edit-profile-view.tsx**: 6 sections in order: PhotosBio (upload), Gender (NEW), Location, Categories/Skills, Experience, Education. NEW PhotosBioSection: avatar upload via POST /api/upload multipart with type="avatar" (hidden file input + "آپلود عکس" button with Loader2 spinner) + banner upload via POST /api/upload type="banner" + URL inputs as fallback + bioShort/bioLong with toFa() counters. NEW GenderSection: RadioGroup with 3 cards مرد/زن/نامشخص, each card has icon + label, active = border-primary bg-primary/5 shadow-sm + primary icon circle. Saves via PUT /api/profile/me with gender: "male"|"female"|null. Location: province/city chained Selects + phone-visible Switch in primary/8 card. Categories/Skills: per-category Card with CategoryIcon + lime→primary/10 tinted skill badges + X hover-rose delete + add-skill/add-category dialogs. Experience + Education: list items + add dialogs with primary submit buttons. SectionTitle helper: primary/10 icon chip + bold title. Section quick-nav chips: rounded-full bg-muted hover:bg-primary/15 hover:text-primary. Login prompt if !user with primary CTA.
+- **OVERWROTE chat-view.tsx**: This is the BIG rewrite with NEW message requests system. PageHeader: primary icon chip + "پیام‌ها جدید"/"درخواست" badges + outline "همکاران" button. ChatListPanel (right pane in RTL desktop, full-width on mobile): tabs "پیام‌ها" | "درخواست‌ها" with count badges (active=primary bg, requests=warning bg), search input, scrollable list. ConversationRow: UserAvatar with gender + unread count badge (primary bg) + name + last message preview + time; requests show inline "تأیید" (primary) + "رد" (outline rose) buttons. ChatThread: header bg-primary text-primary-foreground with ArrowRight back button (mobile) + UserAvatar (clickable to profile) + name + status badge BELOW name (active=✓ "دنبال‌شده"; pending+I'm initiator=Clock "در انتظار تأیید درخواست"; pending+I'm receiver=Bell "درخواست پیام جدید"). Messages area bg-background with own msgs=bg-primary text-primary-foreground rounded-tl-md (RIGHT), other msgs=bg-card border rounded-tr-md (LEFT). Auto-scroll, motion slide-in. Input area varies by status: active=Textarea + primary round send button (motion whileTap/whileHover, Send -scale-x-100); pending+my request=warning/10 card "در انتظار تأیید درخواست" no input; pending+their request="تأیید"/"رد" buttons. Accept → re-fetch messages + list. Reject → navigate back to chat. Socket.io PRESERVED EXACTLY: io("/", { path:"/", query:{ XTransformPort:"3003" }, auth:{ userId } }) with join/message/typing events, optimistic send, mark-read on view (POST /api/chat/conversations/[id]/read). On incoming message → if active conv → append + mark read; always refresh conversations list. Empty states kind="chat" with appropriate per-status title/description.
+- FIX: chat "no collaboration" bug — chat now works between accepted connections (status="active" → full chat with input) AND for non-connections (status="pending_request" → message request flow with accept/reject, no input until accepted). Socket.io uses XTransformPort=3003 query, path "/".
+- Ran `bun run lint` — 0 errors in any file (lint clean across entire project).
+- Ran `bunx tsc --noEmit` — 0 errors in my 3 files. (Pre-existing TS errors in api/admin, api/profile, api/tickets routes are out of scope per task constraints "Do NOT modify API routes".)
+- Checked dev.log — multiple "✓ Compiled in Xms" entries, NO errors, NO warnings, NO module-not-found. All API routes returning 200.
+
+Stage Summary:
+- 3 view files rebuilt to NEW calm petrol-teal palette (bg-primary/text-primary-foreground, gold for verified, rose for danger, warning for pending). NO gradients, NO neon, NO lime/forest (those classes no longer exist in globals.css).
+- profile-view: circular BIGGER avatar (size 2xl = w-28 h-28, perfect rounded-full), solid petrol-teal banner (h-40), banner-only overflow-hidden (FIXES avatar clip bug), gender badge, gender in About tab, clickable counts, primary CTAs, motion animations.
+- edit-profile: avatar upload (POST /api/upload type=avatar) + banner upload (POST /api/upload type=banner) with file inputs + Loader2 spinners + URL fallback inputs, NEW GenderSection (RadioGroup مرد/زن/نامشخص saved via PUT /api/profile/me gender), all 5 existing sections preserved with primary palette.
+- chat-view: TWO tabs (پیام‌ها + درخواست‌ها), requests section with تأیید/رد buttons, status header badge (active=دنبال‌شده green-implicit; my-pending=amber "در انتظار تأیید"; their-pending=amber "درخواست پیام جدید"), input area varies by conversation status (active=normal input; my-pending=message only; their-pending=accept/reject buttons), socket.io preserved with XTransformPort=3003 + path "/", mark-read on view, real-time message receive + auto-scroll.
+- All files use "use client" at top, framer-motion staggered entrances, mobile-first responsive (lg:grid-cols-[1fr_320px] for desktop, full-width stack on mobile with back button), toFa() Persian numerals, .slim-scroll for long lists, EmptyState kind="chat"/"people"/"posts" with appropriate actions.
+- No API routes modified, no app-shell/page.tsx/layout.tsx/admin files modified.
+
+---
+Task ID: V3-Final
+Agent: main
+Task: Major redesign — calm palette, iOS mobile UX, chat message requests, gender avatars, scroll-to-top, swipe dock
+
+Work Log:
+- New calm palette: deep petrol-teal primary, warm off-white bg. NO gradients, NO neon. Solid colors only.
+- Removed theme color picker from settings (now just light/dark/system mode + font)
+- Schema: added gender field to Profile, status/initiatorId to Conversation for message requests
+- Created /api/upload for avatar/banner photo upload (saves to /public/uploads)
+- Created /api/feed/home (3 sections: followed posts, relevant talents, same-skill people)
+- Created /api/feed/following (posts from followed users only)
+- Rewrote /api/chat/start: if connected → active conversation; if not → pending_request + message + notification
+- Created /api/chat/conversations/[id]/respond (accept/reject message requests)
+- Created /api/chat/conversations/[id]/read (mark messages read)
+- Updated /api/chat/conversations to return { conversations, requests, unreadCount }
+- New UserAvatar with gender prop: renders male (teal) or female (coral) default avatar
+- New AppShell: back button (top-right with margin, small), liquid-glass floating dock with blur, swipe-up dock (drag to reveal more items), scroll-to-top on navigation, iOS page animations, chat FAB with unread count badge
+- Added "following" route to nav + FollowingView
+- Delegated 6 core views (feed/landing/following/discover/talents/category) + 3 profile/chat views to 2 subagents
+
+Stage Summary:
+- All requested changes implemented
+- Calm professional palette (no neon, no gradients) — VLM: landing 8/10, profile 9/10, dock 8/10
+- Mobile-first iOS-quality: liquid glass dock, swipe-up, back button, scroll-to-top, page animations
+- Chat system fixed: message requests for non-connections, requests section, status header
+- Gender field + default male/female avatars + photo upload for avatar/banner
+- Home page has 3 sections (followed posts, relevant talents, same-skill people)
+- Following page with bottom nav button
+- Discover with strong filters + 2 sections (posts/users)
+- Talents with full-width stacked filters
+- Lint: 0 errors. Both servers running.
+
+---
+Task ID: N-Needs
+Agent: full-stack-developer (Needs + Notifications + Filters)
+Task: Build Needs (JobPost) API + views, categorized notifications, "all" filter option
+
+Work Log:
+- Read worklog.md and existing infrastructure (prisma schema, lib/{types,nav,api-client,auth,format,use-user,geo}, components/shared/{empty-state,user-avatar,illustrations}, components/shared/post-card, components/app-shell, components/views/feed-view, components/views/discover-view, components/views/talents-view, components/views/notifications-view (existing stub), /api/notifications, /api/upload, /api/talents, /api/categories).
+- Extended `src/lib/types.ts` with: `NeedSkill`, `NeedAttachment`, `NeedListItem`, `NeedApplication`, `NeedDetail`, `MyNeedsData`, `NotificationCounts`.
+- Created `/home/z/my-project/src/app/api/needs/route.ts` — GET (list open needs with categoryId/skillId/province/city filters + sort=recent|popular, take 80, includes owner info, category name, skills, applicationCount, appliedByMe) and POST (auth required, validates title (3-120 chars), description (10-5000 chars), categoryId, skills (max 10, validated against category), optional province/city, optional attachments; creates JobPost + JobPostSkill + JobPostAttachment; sends `job_match` notification to all users with matching UserSkills excluding creator).
+- Created `/home/z/my-project/src/app/api/needs/[id]/route.ts` — GET (full detail with applications list for owner only), PUT (owner-only, supports title/description/categoryId/skills/province/city/status updates, used for close/reopen), DELETE (owner-only).
+- Created `/home/z/my-project/src/app/api/needs/[id]/apply/route.ts` — POST (auth, prevents duplicates, prevents applying to own need or closed need, creates JobApplication, notifies owner with type `chat` and link `#/need/{id}`).
+- Created `/home/z/my-project/src/app/api/needs/my-needs/route.ts` — GET returns `{ posted: NeedListItem[], applied: {id, message, createdAt, need: NeedListItem}[] }` for the current user.
+- Created `/home/z/my-project/src/app/api/needs/upload/route.ts` — POST multipart form with `file`, saves to /public/uploads, returns `{ ok, url, fileName, fileSize }`. Supports images, PDF, Word, Excel, ZIP, text up to 5MB. Does NOT update user profile (only for need attachments).
+- Updated `/home/z/my-project/src/app/api/notifications/route.ts` — GET now returns `{ notifications, unreadCount, counts }` where `counts` is `{ all, job_match, connection, chat, broadcast }` (unread only). Supports optional `?type=` query param to filter notifications by category bucket (job_match → ["job_match"], connection → ["connection_request", "connection_accepted"], chat → ["chat", "chat_message"], broadcast → ["broadcast"]). POST markAllRead and markRead both return updated counts object.
+- Overwrote `src/components/views/notifications-view.tsx` — NotificationsView with 5 category tabs (همه | نیازمندی | ارتباط | چت | سراسری) showing count badges per unread category, client-side filtering, mark-all-read button, per-notification mark-read with optimistic state, type-based colored icons (Briefcase for job_match, UserPlus/UserCheck for connection, Megaphone for broadcast, MessageCircle for chat), unread highlight (primary tint background + primary dot), deep-link navigation via `#/...` hash, motion stagger, empty state per category, login prompt for guests.
+- Overwrote `src/components/views/needs-view.tsx` — NeedsView with header + "ثبت نیازمندی" button, sort toggle (recent/popular), collapsible filter card (category→skill chained, province→city chained — all with "همه" first option using value="all"), responsive grid (1 col mobile, 2 col lg) of NeedCard components showing title, 2-line description, category+skill badges, location, application count, owner avatar+name (clickable), time ago, applied-by-me badge, closed badge, chevron. Loading skeletons, EmptyState with clear-filters action, results count.
+- Overwrote `src/components/views/need-detail-view.tsx` — NeedDetailView({id}) with: back button, main card (title, status badge, description, category+skill badges, location+app count, clickable owner card), attachments list (downloadable links with file size in Persian digits), owner actions (close/reopen button, AlertDialog-confirmed delete), applications section (max-h-96 scrollable with slim-scroll, avatar+name+message+time+view-profile per applicant, count badge in header) shown to owner only, ApplySection for non-owners (textarea with 1000 char counter + submit, success state for already-applied, login prompt for guests, closed-state for closed needs), loading skeleton, not-found EmptyState.
+- Overwrote `src/components/views/create-need-view.tsx` — CreateNeedView with: info banner ("هر کاربری می‌تواند نیازمندی ثبت کند"), form (title with counter, description with counter, category select, skills multi-select as toggle chips max 10, optional province/city selects with "همه" first option, attachment upload via /api/needs/upload with drag-drop styled label, file list with size + remove button max 8), validation toasts (3-120 chars title, 10-5000 chars description, category required, skill required), success → navigate to need detail. Auth gate redirect to login if not logged in.
+- Overwrote `src/components/views/my-needs-view.tsx` — MyNeedsView with two Tabs (نیازمندی‌های من / درخواست‌های من) with count badges, PostedNeedCard (status badge, application count, time, location, click → detail), AppliedNeedCard (need title, owner info, message preview, time, click → detail), guest login prompt, empty states per tab with action to create need or browse needs.
+- Updated `src/components/views/discover-view.tsx` — changed province/city state defaults from `""` to `"all"` (sentinel), added `<SelectItem value="all">همه</SelectItem>` as first option in both province and city selects, mapped "all" → empty (omit) in URLSearchParams, updated `activeFiltersCount` and `hasFilters` and `clearAll` accordingly, updated filter chips to use `province !== "all"` and `city !== "all"` checks. City select now disabled when province is "all".
+- Updated `src/components/views/talents-view.tsx` — same pattern: province/city state defaults to "all", added "همه" SelectItem, mapped "all" → empty in params, updated hasFilters check to use `province !== "all"` and `city !== "all"`.
+- Ran `bun run lint` — 0 errors, 0 warnings (exit 0).
+- Verified all API endpoints end-to-end via curl:
+  * `GET /api/needs` (public) returns list of open needs with all required fields.
+  * `GET /api/needs?province=tehran` filters correctly (returns 1); `?province=fars` returns empty.
+  * `GET /api/needs?skillId=...` filters by skill.
+  * `GET /api/needs?sort=popular` sorts by applicationCount desc.
+  * `GET /api/needs/{id}` returns detail with applications list for owner; empty for non-owner.
+  * `POST /api/needs` (auth) creates JobPost + JobPostSkill records; sends job_match notifications to users with matching UserSkill records (verified: created need with "آشپزی ایرانی" skill → seed user "پارسا شریفی" received a notification with type="job_match", title="نیازمندی جدید مطابق مهارت شما", link="#/need/{id}").
+  * `POST /api/needs/{id}/apply` (auth) creates JobApplication; blocks duplicates (400 with error message); blocks self-apply; notifies owner with type="chat".
+  * `PUT /api/needs/{id}` (owner) toggles status open↔closed; returns updated need.
+  * `DELETE /api/needs/{id}` (owner) deletes need; subsequent GET returns 404.
+  * `GET /api/needs/my-needs` (auth) returns posted + applied lists.
+  * `POST /api/needs/upload` (auth) saves file, returns `{ ok, url, fileName, fileSize }`.
+  * `GET /api/notifications` (auth) returns `{ notifications, unreadCount, counts: { all, job_match, connection, chat, broadcast } }`.
+  * `GET /api/notifications?type=job_match|connection|chat|broadcast` (auth) filters list; counts object always the same shape.
+  * `POST /api/notifications { action: "markAllRead" }` returns updated counts (all 0).
+  * `POST /api/notifications { id, action: "markRead" }` returns updated counts after marking single notification.
+- All routes return correct status codes (200/400/401/403/404) and proper Persian error messages.
+
+Stage Summary:
+- 14 files delivered: 5 API route files (needs/route.ts, needs/[id]/route.ts, needs/[id]/apply/route.ts, needs/my-needs/route.ts, needs/upload/route.ts) + 1 updated API (notifications/route.ts) + 4 new view files (needs-view.tsx, need-detail-view.tsx, create-need-view.tsx, my-needs-view.tsx) + 1 updated view (notifications-view.tsx) + 2 updated views for "همه" filter (discover-view.tsx, talents-view.tsx) + 1 types update (types.ts).
+- Needs (نیازمندی‌ها) feature complete end-to-end: list with cascading filters + sort, detail view with apply flow + owner management + attachments, create form with file uploads + skill chips, my-needs dashboard with posted/applied tabs.
+- Categorized notifications: 5 tabs (همه / نیازمندی / ارتباط / چت / سراسری) with count badges, server-side filtering via `?type=` query param, and per-category counts object in every response (including markAllRead/markRead responses).
+- "همه" (all) filter option added to NeedsView, CreateNeedView, DiscoverView, TalentsView — all using consistent `value="all"` sentinel pattern that maps to empty param when building API requests, so the API receives no filter when "همه" is selected.
+- Calm petrol-teal palette throughout: primary `bg-primary text-primary-foreground`, soft `bg-card`, `border-border`, success/rose/gold accents. No gradients, no neon, no blur. Solid colors only.
+- Mobile-first responsive grids (1 col mobile → 2 col lg for needs), loading skeletons during fetch, EmptyState with action buttons, toast feedback for all mutations, AlertDialog for delete confirmation, framer-motion animations (`initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}`) with stagger.
+- Persian text + `toFa()` numerals throughout, Vazirmatn font, RTL-friendly layout.
+- Lint clean: 0 errors, 0 warnings. Dev server confirmed healthy (port 3000 listening, all routes returning 200).
+
+---
+Task ID: N-Needs-Final
+Agent: main
+Task: Needs feature + GitHub setup + blur removal + avatar fix + categorized notifications + filter 'all'
+
+Work Log:
+- Removed all glass/blur effects (`.glass` now solid bg, no backdrop-filter)
+- Removed first-letter from default avatar (just silhouette now)
+- Set up GitHub: configured git (Mahdi Rahimi / AbstractAxisX@gmail.com), created repo AbstractAxisX/hamteam-talent
+- Created .gitignore, README.md (installation guide), git-push.sh helper script
+- Stored token securely via git credential store (not in committed files)
+- Initial commit + push to GitHub
+- Added JobPost, JobPostSkill, JobPostAttachment, JobApplication models to schema
+- Added "needs", "need", "create-need", "my-needs" routes to nav
+- Updated AppShell: bottom nav now has "نیازمندی" instead of "دنبال‌شده", more items include my-needs + following
+- Delegated needs API + views + categorized notifications + filter "all" to subagent
+- All features working: needs CRUD, apply, attachments, match notifications, categorized notif tabs, "همه" filter option
+- Pushed all changes to GitHub
+
+Stage Summary:
+- GitHub repo: https://github.com/AbstractAxisX/hamteam-talent
+- All code pushed. Use `./git-push.sh push "message"` for future pushes.
+- Needs feature fully functional with attachments + match notifications
+- Notifications categorized by type (all/needs/connections/chat/broadcast)
+- Filters have "همه" (all) option for province and city
+- Blur removed, solid backgrounds everywhere
+- Avatar default has no letter, just silhouette
+
+---
+Task ID: Chat-Fix
+Agent: full-stack-developer (Chat fixes)
+Task: Fix chat double-send bug, make full-screen, add sent/seen ticks
+
+Work Log:
+- Read existing chat-view.tsx (1159 lines), worklog.md, app-shell.tsx, mini-services/chat-service/index.ts, prisma schema, messages API route, and shared infra (api-client, nav, use-user, format, user-avatar, empty-state).
+- Diagnosed Bug 1 (double-send): optimistic message added locally with temp id; socket echo came back with real id; existing dedupe-by-id check failed to match, so the message was appended twice. Fix: on socket `message` echo where `senderId === me`, search the local list from the end for an optimistic `temp-*` message with matching content and replace it with the real server message. Falls back to append if no temp found (e.g. cross-device). Other-user messages still just append (deduped by id).
+- Added `readAt?: string | null` to ChatMessage type. Modified `/api/chat/conversations/[id]/messages` route to include `readAt` in the Prisma select + map to ISO string in response (additive 1-line change — necessary because the task asserts this API returns readAt, but the existing code didn't select it; the seen-tick feature cannot work without it).
+- Implemented WhatsApp-style ticks: single `Check` (gray, dimmer when pending) when `readAt` is null/undefined; double `CheckCheck` (bright primary-foreground) when `readAt` is set.
+- Implemented silent 5-second polling of `/messages` while a conversation is open, so the sender's ticks update from single→double when the other user reads. Poll preserves any pending `temp-*` optimistic messages so they don't disappear if the socket echo hasn't arrived yet.
+- Made chat full-screen on mobile: outer wrapper uses `fixed inset-0 z-50 bg-background flex flex-col pt-safe pb-safe` (z-50 covers the AppShell floating pills z-30 and bottom dock). On desktop: `lg:static lg:z-auto lg:inset-auto lg:grid lg:grid-cols-[340px_1fr] lg:gap-4 lg:h-[calc(100vh-5rem)]` — fits inside the main's `md:pt-8 md:pb-12` padding (5rem total).
+- List panel vs thread panel visibility controlled by `conversationId`: on mobile only one is shown at a time (full screen), on desktop both panes are always shown side-by-side.
+- Header shows other user's avatar + name (both clickable → profile) + status: typing dots / دنبال‌شده / درخواست ارسال شد / درخواست پیام جدید / bioShort fallback. Plus a back button (mobile only) and chevron.
+- Fixed bottom message input (shrink-0). Auto-scroll to bottom on new messages. Smart-scroll: only auto-scroll on incoming socket messages if user is within ~180px of the bottom (so we don't yank them up while reading older messages).
+- Typing indicator rendered both inline in the header (animated dots) and as a separate chat bubble at the end of the messages list when the other user is typing.
+- Used `.slim-scroll` on the messages container and on the conversations list.
+- Own messages: `bg-primary text-primary-foreground rounded-2xl rounded-tl-md` aligned end (RTL = visually left). Other's messages: `bg-card border border-border/60 rounded-2xl rounded-tr-md` aligned start (RTL = visually right). Matches the spec exactly.
+- Kept the message-requests tab UI ("پیام‌ها" | "درخواست‌ها") with counts, accept/reject buttons for incoming requests, and pending-state UI for outgoing requests.
+- Socket connection uses `io("/", { path: "/", query: { XTransformPort: "3003" }, auth: { userId } })` per the gateway contract.
+- Lint passed (`bun run lint` exit 0). Dev log shows successful recompile (`✓ Compiled in 599ms`). Chat-service on port 3003 confirmed listening.
+- Verified chat-service process is running on port 3003; Next.js dev server on port 3000 responding 200.
+
+Stage Summary:
+- Bug 1 (double-send) FIXED: optimistic temp-* message is replaced in-place by the real server message when the socket echoes it back, instead of being appended again.
+- Full-screen mobile chat: outer container is `fixed inset-0 z-50` so it covers the AppShell's floating top pills (z-30) and bottom dock. Desktop uses a 2-pane grid (340px list + 1fr thread) inside the main padding.
+- Sent/Seen ticks: single ✓ for sent (readAt null/undefined), double ✓✓ for seen (readAt set). Polled every 5s for live updates. Required adding `readAt` to the messages API select (additive, 1-line) — without it the seen tick never updates.
+- Header: other user's avatar + name (clickable → profile) + status line (دنبال‌شده / درخواست ارسال شد / درخواست پیام جدید / typing dots). Fixed bottom input. Auto-scroll with smart "near bottom" detection. slim-scroll on message list. Typing indicator with animated dots (header + bubble).
+- One necessary additive change to `/api/chat/conversations/[id]/messages/route.ts` (added `readAt: true` to the Prisma select + `readAt: m.readAt ? m.readAt.toISOString() : null` to the response mapping) — needed for the seen-tick feature to actually work. No other API or files were modified.
+
+---
+Task ID: Admin-V2
+Agent: full-stack-developer (Admin Panel v2)
+Task: Rebuild admin panel with white-blue theme, collapsible sidebar, table UX with pagination/search/filters/bulk actions
+
+Work Log:
+- Read worklog.md, prisma/schema.prisma, all existing /api/admin/* routes (auth/login, logout, me, stats, users, users/[id], posts, posts/[id], categories, categories/[id], skills, skills/[id], broadcast), /api/categories, /api/admin/tickets (broken — uses non-existent `user.role === "admin"` field, but unused by this admin panel).
+- Inspected shared infra: src/lib/{api-client,format,auth,nav,utils}.ts, src/components/ui/{table,checkbox,select,alert-dialog,dropdown-menu,dialog,skeleton,badge,button,input,textarea,label,card,tabs}.tsx, src/components/shared/user-avatar.tsx, src/components/app-shell.tsx (admin = full-screen renderView route).
+- Verified admin login works via curl (admin/admin123 → ok, sets hamteam_a cookie). Inspected API response shapes: /api/admin/stats → {stats:{users,posts,categories,tickets,connections,notifications}}; /api/admin/users?q= → {users:[{id,name,phone,isVerifiedBadge,isBanned,avatarUrl,createdAt}]}; /api/admin/posts → {posts:[{id,content,createdAt,user:{name}}]}; /api/categories → {categories:[{id,name,iconUrl,order,createdAt,skills:[...]}]}; /api/admin/broadcast → {count}.
+- Created 2 NEW admin API routes (since admin/jobs routes did not exist despite worklog Task 3-e mentioning them; existing API routes were NOT modified):
+  * src/app/api/admin/jobs/route.ts — GET (admin-only via getCurrentAdmin): all JobPost rows ordered by createdAt desc, take 200, includes user+profile, category, skills+skill names, _count.applications. Returns {jobs:[{id,title,description,status,province,city,createdAt,updatedAt,applicationCount,category:{id,name}|null,skills:[{id,name}],user:{id,name,phone,isVerifiedBadge,avatarUrl}}]}.
+  * src/app/api/admin/jobs/[id]/route.ts — PATCH {status:"open"|"closed"} updates JobPost.status. DELETE removes (cascades via Prisma to JobPostSkill, JobApplication, JobPostAttachment). Both admin-only.
+- Overwrote src/components/views/admin-view.tsx completely (~1300 lines) — old version was a simple Tabs-based layout with card lists. New version features:
+  * Theme constants ADMIN_PRIMARY = "oklch(0.5 0.15 250)" (strong blue, distinct from main site's petrol-teal/emerald/lime), used via inline style + Tailwind arbitrary values (text-[oklch(...)]/bg-[oklch(...)] with underscores). Light gray bg-gray-50 background, white cards with subtle gray-200 borders and shadow-sm.
+  * AdminLogin — full-screen centered card with blue gradient background, shield logo, username/password form, demo hint (admin/admin123), "بازگشت به سایت" link.
+  * AdminDashboard layout: dir="rtl", collapsible sidebar (right side in RTL): desktop fixed aside w-64 ↔ w-16 icon-only (state persisted to localStorage "hamteam-admin-collapsed"); mobile drawer with overlay + slide-in animation (body scroll locked when open). TopBar sticky with mobile menu toggle, current page title+icon, admin profile chip (initial avatar), logout button. Main content area scrollable with AnimatePresence page transitions.
+  * SidebarContent shared between desktop+mobile: brand header, 7 nav items (Dashboard/آمار, Users/کاربران, Categories/دسته‌بندی‌ها, Posts/پست‌ها, Needs/نیازمندی‌ها, Broadcast/اعلان سراسری, Settings/تنظیمات), active state highlighted with ADMIN_PRIMARY bg. Desktop-only collapse toggle (PanelRightClose/Open icons).
+  * PageHeader, TableCard, TableToolbar, SearchInput (with leading search icon), FilterSelect, PaginationBar (with from-to-N count + prev/next + numbered page buttons + ellipsis), BulkActionBar (animated, blue tinted), EmptyRow, StatusBadge (verify/ban/job variants) primitives.
+  * DashboardTab: 6 stat cards (users, posts, categories, connections, notifications, tickets) with colored tint icons + animated reveal; bar chart showing relative distribution of all stats (animated width growth); quick actions grid.
+  * UsersTab: table with select-all checkbox column, avatar+name+photo hint, phone (mono LTR), verify status badge, ban status badge, joined date, per-row DropdownMenu actions (verify/unverify, ban/unban, view profile). Out-of-table SearchInput (debounced 250ms) + two FilterSelect dropdowns (verified/banned) + "clear filters" button. Client-side filtering and pagination (10/page). BulkActionBar with 4 actions (ban, unban, verify, unverify) executing sequentially via apiPut loop with success/failure counts.
+  * CategoriesTab: table with expandable chevron column, emoji icon, name, skill count badge, created date, delete button per row. Click row toggles expand → sub-row shows skills as removable badge chips + add-skill inline form (input + button). SearchInput debounced. "دسته جدید" button opens Dialog with emoji+name inputs.
+  * PostsTab: table with select-all checkbox, content preview (line-clamp-2, max-w-md), author name, time-ago, per-row delete button. SearchInput debounced. BulkActionBar with destructive "حذف انتخاب‌شده‌ها" button. AlertDialog confirmation before delete (single or bulk). Sequential delete execution with success/failure counts.
+  * NeedsTab: table with title (+first 2 skills as chips with +N overflow), owner avatar+name+location, category badge, status badge (open=emerald, closed=amber), application count, time-ago, per-row close/reopen + delete buttons. SearchInput debounced + FilterSelect status dropdown. Pagination 10/page.
+  * BroadcastTab: form card with title (max 100) + body (max 2000) + Persian character counters + send button. Success banner (blue-tinted) shown after send with recipient count. Clock icon + "ارسال فوری" hint.
+  * SettingsTab: admin profile card (initial avatar, name, @username, "مدیر سیستم" badge), system info rows (پلتفرم/نسخه/محیط/پایگاه داده/قالب), account actions (logout + view site).
+- Ran `bun run lint` — 0 errors, 0 warnings (clean).
+- Verified end-to-end via curl + agent-browser:
+  * curl: admin login (ok) → GET /api/admin/jobs (200, returns 2 jobs with skills/app counts/owner info) → PATCH /api/admin/jobs/[id] status=closed (200, returns updated status) → PATCH status=open (200) → PUT /api/admin/users/[id] action=verify (200) → POST /api/admin/broadcast (200, count=16).
+  * agent-browser: opened /#/admin → login form rendered with blue gradient + shield logo. Filled admin/admin123 → clicked "ورود به پنل" → dashboard loaded. Visited all 7 tabs via sidebar nav. Sidebar collapse toggle works (icons-only state, "باز کردن منو" label). On Users tab: selected a user checkbox → BulkActionBar appeared with "مورد انتخاب شده" + 4 bulk action buttons. On Categories tab: clicked "دسته جدید" → Dialog opened → filled icon 🎨 + name "تست دسته ادمین" → clicked "افزودن دسته" → verified via curl that /api/categories now contains the new category (20→21 cats) → deleted test category via DELETE (21→20 cats restored). On Broadcast tab: filled title+body → clicked send → success banner appeared showing recipient count + form cleared.
+- Dev server log shows all admin routes returning 200 OK with no errors. Prisma queries executing correctly.
+
+Stage Summary:
+- 2 new API route files (admin/jobs GET + admin/jobs/[id] PATCH/DELETE) — added, NOT modifying existing routes per task constraints. The previous worklog mentioned admin/jobs routes but they did not exist on disk; recreated cleanly.
+- 1 view file completely rewritten (admin-view.tsx, ~1300 lines): from a simple 5-tab Tabs layout with card lists → a proper admin dashboard with collapsible sidebar, topbar, 7 pages, all using professional data-dense tables with pagination/search/filters/bulk actions.
+- White-blue theme implemented via ADMIN_PRIMARY constant `oklch(0.5 0.15 250)` used as inline style for primary buttons/accents and Tailwind arbitrary values (`text-[oklch(0.5_0.15_250)]`, `bg-[oklch(0.96_0.03_250)]`, etc.) for borders/hover states. Completely separate from main site's petrol-teal palette.
+- All tables: shadcn Table component, overflow-x-auto wrapper for mobile horizontal scroll, debounced search (250ms), FilterSelect dropdowns above table, select-all + per-row checkboxes, animated BulkActionBar, PaginationBar at bottom (10 rows/page, prev/next + numbered pages with ellipsis, "نمایش X تا Y از Z مورد" count).
+- RTL Persian throughout with toFa() numerals on all counts/dates. framer-motion AnimatePresence transitions on page changes + bulk bar appear. localStorage persistence for sidebar collapse state.
+- Lint clean (0 errors, 0 warnings). Dev log clean. All 7 admin pages + login + sidebar collapse + bulk actions verified working via agent-browser. Admin API jobs routes verified via curl. Category add/delete verified via UI→API round-trip. Broadcast send verified showing recipient count banner.

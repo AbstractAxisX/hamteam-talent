@@ -20,6 +20,7 @@ export async function GET() {
           bioLong: user.profile.bioLong,
           avatarUrl: user.profile.avatarUrl,
           bannerUrl: user.profile.bannerUrl,
+          gender: (user.profile.gender as string | null) ?? null,
           province: user.profile.province,
           city: user.profile.city,
           phoneVisible: user.profile.phoneVisible,

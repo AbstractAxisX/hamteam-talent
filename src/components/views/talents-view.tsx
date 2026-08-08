@@ -6,18 +6,12 @@ import { api } from "@/lib/api-client";
 import { navigate } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { SearchableSelect } from "@/components/shared/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import type { CategoryWithSkills, TalentListItem } from "@/lib/types";
-import { PROVINCES } from "@/lib/geo";
+import { PROVINCES, getCitiesForProvince } from "@/lib/geo";
 import {
   Search,
   Sparkles,
@@ -35,12 +29,12 @@ export function TalentsView() {
   const [talents, setTalents] = useState<TalentListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters — "" means "all" (no filter)
   const [q, setQ] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [skillId, setSkillId] = useState("");
-  const [province, setProvince] = useState("all");
-  const [city, setCity] = useState("all");
+  const [province, setProvince] = useState("");
+  const [city, setCity] = useState("");
   const [sort, setSort] = useState<"recent" | "followers">("followers");
 
   useEffect(() => {
@@ -53,10 +47,6 @@ export function TalentsView() {
     () => cats.find((c) => c.id === categoryId),
     [cats, categoryId]
   );
-  const currentProvince = useMemo(
-    () => PROVINCES.find((p) => p.id === province),
-    [province]
-  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,8 +54,8 @@ export function TalentsView() {
       const params = new URLSearchParams();
       if (categoryId) params.set("categoryId", categoryId);
       if (skillId) params.set("skillId", skillId);
-      if (province !== "all") params.set("province", province);
-      if (city !== "all") params.set("city", city);
+      if (province) params.set("province", province);
+      if (city) params.set("city", city);
       if (q.trim()) params.set("q", q.trim());
       params.set("sort", sort);
       const data = await api<{ talents: TalentListItem[] }>(
@@ -84,14 +74,14 @@ export function TalentsView() {
     return () => clearTimeout(t);
   }, [load]);
 
-  const hasFilters = Boolean(categoryId || skillId || q || province !== "all" || city !== "all");
+  const hasFilters = Boolean(categoryId || skillId || q || province || city);
 
   function clearAll() {
     setCategoryId("");
     setSkillId("");
     setQ("");
-    setProvince("all");
-    setCity("all");
+    setProvince("");
+    setCity("");
   }
 
   return (
@@ -115,92 +105,86 @@ export function TalentsView() {
         </div>
       </motion.div>
 
-      {/* ═══ Filters card — full-width stacked rows ═══ */}
+      {/* ═══ Filters card — 4 full-width stacked rows with labels ═══ */}
       <div className="p-4 rounded-2xl bg-card border border-border shadow-sm space-y-3">
-        {/* Row 1: Category — FULL WIDTH */}
-        <Select
+        {/* Text search — full width */}
+        <div>
+          <label className="block text-xs font-bold text-muted-foreground mb-1.5">
+            جستجوی نام یا مهارت
+          </label>
+          <div className="relative">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="مثلاً: علی، طراحی، برنامه‌نویسی..."
+              className="w-full h-11 pr-10 pl-4 rounded-xl bg-background border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all"
+            />
+          </div>
+        </div>
+
+        {/* Row 1: Category — full width */}
+        <SearchableSelect
+          label="دسته‌بندی"
+          options={cats.map((c) => ({
+            value: c.id,
+            label: `${c.iconUrl || "✨"} ${c.name}`,
+          }))}
           value={categoryId}
-          onValueChange={(v) => {
-            setCategoryId(v);
+          onChange={(v) => {
+            setCategoryId(v === "all" ? "" : v);
             setSkillId("");
           }}
-        >
-          <SelectTrigger className="rounded-xl h-11 w-full">
-            <SelectValue placeholder="دسته‌بندی" />
-          </SelectTrigger>
-          <SelectContent>
-            {cats.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.iconUrl || "✨"} {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          allLabel="همه"
+          placeholder="انتخاب دسته‌بندی"
+        />
 
-        {/* Row 2: Skill — FULL WIDTH (chained to category) */}
-        <Select value={skillId} onValueChange={setSkillId} disabled={!categoryId}>
-          <SelectTrigger className="rounded-xl h-11 w-full">
-            <SelectValue placeholder={categoryId ? "مهارت" : "ابتدا دسته‌بندی را انتخاب کنید"} />
-          </SelectTrigger>
-          <SelectContent>
-            {currentCat?.skills.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Row 2: Skill — full width (chained to category) */}
+        <SearchableSelect
+          label="مهارت"
+          options={(currentCat?.skills || []).map((s) => ({
+            value: s.id,
+            label: s.name,
+          }))}
+          value={skillId}
+          onChange={(v) => setSkillId(v === "all" ? "" : v)}
+          allLabel={categoryId ? "همه" : undefined}
+          placeholder={
+            categoryId ? "انتخاب مهارت" : "ابتدا دسته‌بندی را انتخاب کنید"
+          }
+          disabled={!categoryId}
+        />
 
-        {/* Row 3: Text search — FULL WIDTH */}
-        <div className="relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="جستجوی نام یا بیو..."
-            className="w-full h-11 pr-10 pl-4 rounded-xl bg-background border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all"
-          />
-        </div>
+        {/* Row 3: Province — full width */}
+        <SearchableSelect
+          label="استان"
+          options={PROVINCES.map((p) => ({ value: p.id, label: p.name }))}
+          value={province}
+          onChange={(v) => {
+            setProvince(v === "all" ? "" : v);
+            setCity("");
+          }}
+          allLabel="همه"
+          placeholder="انتخاب استان"
+        />
 
-        {/* Row 4: Province + City — side by side */}
-        <div className="grid grid-cols-2 gap-2">
-          <Select
-            value={province}
-            onValueChange={(v) => {
-              setProvince(v);
-              setCity("all");
-            }}
-          >
-            <SelectTrigger className="rounded-xl h-11">
-              <SelectValue placeholder="استان" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">همه</SelectItem>
-              {PROVINCES.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={city} onValueChange={setCity} disabled={province === "all"}>
-            <SelectTrigger className="rounded-xl h-11">
-              <SelectValue placeholder="شهر" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">همه</SelectItem>
-              {currentProvince?.cities.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Row 4: City — full width (chained to province) */}
+        <SearchableSelect
+          label="شهر"
+          options={getCitiesForProvince(province).map((c) => ({
+            value: c,
+            label: c,
+          }))}
+          value={city}
+          onChange={(v) => setCity(v === "all" ? "" : v)}
+          allLabel="همه"
+          placeholder="انتخاب شهر"
+          disabled={!province}
+        />
 
-        {/* Row 5: Sort + Clear */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+        {/* Sort + Clear */}
+        <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
           <div className="flex gap-2">
             <SortPill
               active={sort === "followers"}

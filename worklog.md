@@ -753,3 +753,115 @@ Stage Summary:
 - Filters have "همه" (all) option for province and city
 - Blur removed, solid backgrounds everywhere
 - Avatar default has no letter, just silhouette
+
+---
+Task ID: Chat-Fix
+Agent: full-stack-developer (Chat fixes)
+Task: Fix chat double-send bug, make full-screen, add sent/seen ticks
+
+Work Log:
+- Read existing chat-view.tsx (1159 lines), worklog.md, app-shell.tsx, mini-services/chat-service/index.ts, prisma schema, messages API route, and shared infra (api-client, nav, use-user, format, user-avatar, empty-state).
+- Diagnosed Bug 1 (double-send): optimistic message added locally with temp id; socket echo came back with real id; existing dedupe-by-id check failed to match, so the message was appended twice. Fix: on socket `message` echo where `senderId === me`, search the local list from the end for an optimistic `temp-*` message with matching content and replace it with the real server message. Falls back to append if no temp found (e.g. cross-device). Other-user messages still just append (deduped by id).
+- Added `readAt?: string | null` to ChatMessage type. Modified `/api/chat/conversations/[id]/messages` route to include `readAt` in the Prisma select + map to ISO string in response (additive 1-line change — necessary because the task asserts this API returns readAt, but the existing code didn't select it; the seen-tick feature cannot work without it).
+- Implemented WhatsApp-style ticks: single `Check` (gray, dimmer when pending) when `readAt` is null/undefined; double `CheckCheck` (bright primary-foreground) when `readAt` is set.
+- Implemented silent 5-second polling of `/messages` while a conversation is open, so the sender's ticks update from single→double when the other user reads. Poll preserves any pending `temp-*` optimistic messages so they don't disappear if the socket echo hasn't arrived yet.
+- Made chat full-screen on mobile: outer wrapper uses `fixed inset-0 z-50 bg-background flex flex-col pt-safe pb-safe` (z-50 covers the AppShell floating pills z-30 and bottom dock). On desktop: `lg:static lg:z-auto lg:inset-auto lg:grid lg:grid-cols-[340px_1fr] lg:gap-4 lg:h-[calc(100vh-5rem)]` — fits inside the main's `md:pt-8 md:pb-12` padding (5rem total).
+- List panel vs thread panel visibility controlled by `conversationId`: on mobile only one is shown at a time (full screen), on desktop both panes are always shown side-by-side.
+- Header shows other user's avatar + name (both clickable → profile) + status: typing dots / دنبال‌شده / درخواست ارسال شد / درخواست پیام جدید / bioShort fallback. Plus a back button (mobile only) and chevron.
+- Fixed bottom message input (shrink-0). Auto-scroll to bottom on new messages. Smart-scroll: only auto-scroll on incoming socket messages if user is within ~180px of the bottom (so we don't yank them up while reading older messages).
+- Typing indicator rendered both inline in the header (animated dots) and as a separate chat bubble at the end of the messages list when the other user is typing.
+- Used `.slim-scroll` on the messages container and on the conversations list.
+- Own messages: `bg-primary text-primary-foreground rounded-2xl rounded-tl-md` aligned end (RTL = visually left). Other's messages: `bg-card border border-border/60 rounded-2xl rounded-tr-md` aligned start (RTL = visually right). Matches the spec exactly.
+- Kept the message-requests tab UI ("پیام‌ها" | "درخواست‌ها") with counts, accept/reject buttons for incoming requests, and pending-state UI for outgoing requests.
+- Socket connection uses `io("/", { path: "/", query: { XTransformPort: "3003" }, auth: { userId } })` per the gateway contract.
+- Lint passed (`bun run lint` exit 0). Dev log shows successful recompile (`✓ Compiled in 599ms`). Chat-service on port 3003 confirmed listening.
+- Verified chat-service process is running on port 3003; Next.js dev server on port 3000 responding 200.
+
+Stage Summary:
+- Bug 1 (double-send) FIXED: optimistic temp-* message is replaced in-place by the real server message when the socket echoes it back, instead of being appended again.
+- Full-screen mobile chat: outer container is `fixed inset-0 z-50` so it covers the AppShell's floating top pills (z-30) and bottom dock. Desktop uses a 2-pane grid (340px list + 1fr thread) inside the main padding.
+- Sent/Seen ticks: single ✓ for sent (readAt null/undefined), double ✓✓ for seen (readAt set). Polled every 5s for live updates. Required adding `readAt` to the messages API select (additive, 1-line) — without it the seen tick never updates.
+- Header: other user's avatar + name (clickable → profile) + status line (دنبال‌شده / درخواست ارسال شد / درخواست پیام جدید / typing dots). Fixed bottom input. Auto-scroll with smart "near bottom" detection. slim-scroll on message list. Typing indicator with animated dots (header + bubble).
+- One necessary additive change to `/api/chat/conversations/[id]/messages/route.ts` (added `readAt: true` to the Prisma select + `readAt: m.readAt ? m.readAt.toISOString() : null` to the response mapping) — needed for the seen-tick feature to actually work. No other API or files were modified.
+
+---
+Task ID: Admin-V2
+Agent: full-stack-developer (Admin Panel v2)
+Task: Rebuild admin panel with white-blue theme, collapsible sidebar, table UX with pagination/search/filters/bulk actions
+
+Work Log:
+- Read worklog.md, prisma/schema.prisma, all existing /api/admin/* routes (auth/login, logout, me, stats, users, users/[id], posts, posts/[id], categories, categories/[id], skills, skills/[id], broadcast), /api/categories, /api/admin/tickets (broken — uses non-existent `user.role === "admin"` field, but unused by this admin panel).
+- Inspected shared infra: src/lib/{api-client,format,auth,nav,utils}.ts, src/components/ui/{table,checkbox,select,alert-dialog,dropdown-menu,dialog,skeleton,badge,button,input,textarea,label,card,tabs}.tsx, src/components/shared/user-avatar.tsx, src/components/app-shell.tsx (admin = full-screen renderView route).
+- Verified admin login works via curl (admin/admin123 → ok, sets hamteam_a cookie). Inspected API response shapes: /api/admin/stats → {stats:{users,posts,categories,tickets,connections,notifications}}; /api/admin/users?q= → {users:[{id,name,phone,isVerifiedBadge,isBanned,avatarUrl,createdAt}]}; /api/admin/posts → {posts:[{id,content,createdAt,user:{name}}]}; /api/categories → {categories:[{id,name,iconUrl,order,createdAt,skills:[...]}]}; /api/admin/broadcast → {count}.
+- Created 2 NEW admin API routes (since admin/jobs routes did not exist despite worklog Task 3-e mentioning them; existing API routes were NOT modified):
+  * src/app/api/admin/jobs/route.ts — GET (admin-only via getCurrentAdmin): all JobPost rows ordered by createdAt desc, take 200, includes user+profile, category, skills+skill names, _count.applications. Returns {jobs:[{id,title,description,status,province,city,createdAt,updatedAt,applicationCount,category:{id,name}|null,skills:[{id,name}],user:{id,name,phone,isVerifiedBadge,avatarUrl}}]}.
+  * src/app/api/admin/jobs/[id]/route.ts — PATCH {status:"open"|"closed"} updates JobPost.status. DELETE removes (cascades via Prisma to JobPostSkill, JobApplication, JobPostAttachment). Both admin-only.
+- Overwrote src/components/views/admin-view.tsx completely (~1300 lines) — old version was a simple Tabs-based layout with card lists. New version features:
+  * Theme constants ADMIN_PRIMARY = "oklch(0.5 0.15 250)" (strong blue, distinct from main site's petrol-teal/emerald/lime), used via inline style + Tailwind arbitrary values (text-[oklch(...)]/bg-[oklch(...)] with underscores). Light gray bg-gray-50 background, white cards with subtle gray-200 borders and shadow-sm.
+  * AdminLogin — full-screen centered card with blue gradient background, shield logo, username/password form, demo hint (admin/admin123), "بازگشت به سایت" link.
+  * AdminDashboard layout: dir="rtl", collapsible sidebar (right side in RTL): desktop fixed aside w-64 ↔ w-16 icon-only (state persisted to localStorage "hamteam-admin-collapsed"); mobile drawer with overlay + slide-in animation (body scroll locked when open). TopBar sticky with mobile menu toggle, current page title+icon, admin profile chip (initial avatar), logout button. Main content area scrollable with AnimatePresence page transitions.
+  * SidebarContent shared between desktop+mobile: brand header, 7 nav items (Dashboard/آمار, Users/کاربران, Categories/دسته‌بندی‌ها, Posts/پست‌ها, Needs/نیازمندی‌ها, Broadcast/اعلان سراسری, Settings/تنظیمات), active state highlighted with ADMIN_PRIMARY bg. Desktop-only collapse toggle (PanelRightClose/Open icons).
+  * PageHeader, TableCard, TableToolbar, SearchInput (with leading search icon), FilterSelect, PaginationBar (with from-to-N count + prev/next + numbered page buttons + ellipsis), BulkActionBar (animated, blue tinted), EmptyRow, StatusBadge (verify/ban/job variants) primitives.
+  * DashboardTab: 6 stat cards (users, posts, categories, connections, notifications, tickets) with colored tint icons + animated reveal; bar chart showing relative distribution of all stats (animated width growth); quick actions grid.
+  * UsersTab: table with select-all checkbox column, avatar+name+photo hint, phone (mono LTR), verify status badge, ban status badge, joined date, per-row DropdownMenu actions (verify/unverify, ban/unban, view profile). Out-of-table SearchInput (debounced 250ms) + two FilterSelect dropdowns (verified/banned) + "clear filters" button. Client-side filtering and pagination (10/page). BulkActionBar with 4 actions (ban, unban, verify, unverify) executing sequentially via apiPut loop with success/failure counts.
+  * CategoriesTab: table with expandable chevron column, emoji icon, name, skill count badge, created date, delete button per row. Click row toggles expand → sub-row shows skills as removable badge chips + add-skill inline form (input + button). SearchInput debounced. "دسته جدید" button opens Dialog with emoji+name inputs.
+  * PostsTab: table with select-all checkbox, content preview (line-clamp-2, max-w-md), author name, time-ago, per-row delete button. SearchInput debounced. BulkActionBar with destructive "حذف انتخاب‌شده‌ها" button. AlertDialog confirmation before delete (single or bulk). Sequential delete execution with success/failure counts.
+  * NeedsTab: table with title (+first 2 skills as chips with +N overflow), owner avatar+name+location, category badge, status badge (open=emerald, closed=amber), application count, time-ago, per-row close/reopen + delete buttons. SearchInput debounced + FilterSelect status dropdown. Pagination 10/page.
+  * BroadcastTab: form card with title (max 100) + body (max 2000) + Persian character counters + send button. Success banner (blue-tinted) shown after send with recipient count. Clock icon + "ارسال فوری" hint.
+  * SettingsTab: admin profile card (initial avatar, name, @username, "مدیر سیستم" badge), system info rows (پلتفرم/نسخه/محیط/پایگاه داده/قالب), account actions (logout + view site).
+- Ran `bun run lint` — 0 errors, 0 warnings (clean).
+- Verified end-to-end via curl + agent-browser:
+  * curl: admin login (ok) → GET /api/admin/jobs (200, returns 2 jobs with skills/app counts/owner info) → PATCH /api/admin/jobs/[id] status=closed (200, returns updated status) → PATCH status=open (200) → PUT /api/admin/users/[id] action=verify (200) → POST /api/admin/broadcast (200, count=16).
+  * agent-browser: opened /#/admin → login form rendered with blue gradient + shield logo. Filled admin/admin123 → clicked "ورود به پنل" → dashboard loaded. Visited all 7 tabs via sidebar nav. Sidebar collapse toggle works (icons-only state, "باز کردن منو" label). On Users tab: selected a user checkbox → BulkActionBar appeared with "مورد انتخاب شده" + 4 bulk action buttons. On Categories tab: clicked "دسته جدید" → Dialog opened → filled icon 🎨 + name "تست دسته ادمین" → clicked "افزودن دسته" → verified via curl that /api/categories now contains the new category (20→21 cats) → deleted test category via DELETE (21→20 cats restored). On Broadcast tab: filled title+body → clicked send → success banner appeared showing recipient count + form cleared.
+- Dev server log shows all admin routes returning 200 OK with no errors. Prisma queries executing correctly.
+
+Stage Summary:
+- 2 new API route files (admin/jobs GET + admin/jobs/[id] PATCH/DELETE) — added, NOT modifying existing routes per task constraints. The previous worklog mentioned admin/jobs routes but they did not exist on disk; recreated cleanly.
+- 1 view file completely rewritten (admin-view.tsx, ~1300 lines): from a simple 5-tab Tabs layout with card lists → a proper admin dashboard with collapsible sidebar, topbar, 7 pages, all using professional data-dense tables with pagination/search/filters/bulk actions.
+- White-blue theme implemented via ADMIN_PRIMARY constant `oklch(0.5 0.15 250)` used as inline style for primary buttons/accents and Tailwind arbitrary values (`text-[oklch(0.5_0.15_250)]`, `bg-[oklch(0.96_0.03_250)]`, etc.) for borders/hover states. Completely separate from main site's petrol-teal palette.
+- All tables: shadcn Table component, overflow-x-auto wrapper for mobile horizontal scroll, debounced search (250ms), FilterSelect dropdowns above table, select-all + per-row checkboxes, animated BulkActionBar, PaginationBar at bottom (10 rows/page, prev/next + numbered pages with ellipsis, "نمایش X تا Y از Z مورد" count).
+- RTL Persian throughout with toFa() numerals on all counts/dates. framer-motion AnimatePresence transitions on page changes + bulk bar appear. localStorage persistence for sidebar collapse state.
+- Lint clean (0 errors, 0 warnings). Dev log clean. All 7 admin pages + login + sidebar collapse + bulk actions verified working via agent-browser. Admin API jobs routes verified via curl. Category add/delete verified via UI→API round-trip. Broadcast send verified showing recipient count banner.
+
+---
+Task ID: Filters-Fix
+Agent: full-stack-developer (Filters)
+Task: Make filters 4 full-width lines with labels in Discover and Talents views, add searchable selects
+
+Work Log:
+- Read worklog.md (full history), src/components/views/discover-view.tsx (existing 642-line file with collapsible filters using shadcn Select in 2x2 grid layout), src/components/views/talents-view.tsx (355-line file with stacked category/skill/search but province+city in 2-col grid), src/components/shared/searchable-select.tsx (custom component with search box + grouped options + `label` prop + `allLabel` for "all" option + `disabled` prop + `value` accepts "" or "all" both treated as `isAll`), src/lib/geo.ts (PROVINCES with 31 provinces, getCitiesForProvince(id), getProvinceName(id)), dev.log (server healthy on port 3000, /api/categories returning 200).
+- Diagnosed the issue: existing layout put province+city side-by-side in `grid grid-cols-2 gap-2`, no labels above selects, used non-searchable shadcn Select. User wanted 4 full-width stacked rows with labels above each filter, using searchable SearchableSelect for category & skill, allLabel="همه" for province & city, city chained to province.
+- Diagnosed clipping risk: original discover-view wrapped filters in framer-motion AnimatePresence with `height:0→auto` animation using `overflow-hidden` (which would clip the SearchableSelect's absolutely-positioned dropdown). Switched to opacity+y-only animation (no `overflow-hidden`) so the SearchableSelect dropdown can escape the card bounds when opened.
+- OVERWROTE src/components/views/discover-view.tsx (~580 lines):
+  * Kept: header, search bar + filter toggle button with active-count badge, category quick-chips row, tab switcher (پست‌ها/کاربران), sort pills (جدیدترین/محبوب‌ترین), results grid, talent mini cards, "مشاهده همه استعدادها" link, FilterChip badges, all helper components (TabButton, SortPill, FilterChip, TalentMiniCard).
+  * Changed state shape: `province` and `city` now use "" (empty) for "all" instead of "all" — empty string is falsy so `if (province) params.set(...)` correctly skips when no filter. activeFiltersCount simplified to `[q, categoryId, skillId, province, city].filter(Boolean).length`.
+  * Updated load() to use `if (province)` / `if (city)` instead of `if (province !== "all")` / `if (city !== "all")`.
+  * Updated FilterChip rendering: `{province && ...}` / `{city && ...}` instead of `{province !== "all" && ...}` / `{city !== "all" && ...}`. setProvince("") / setCity("") in clearAll and onRemove.
+  * Replaced filter card content: removed 2x2 grid of shadcn Selects; added 4 vertically stacked `<SearchableSelect>` components each with `label` prop (دسته‌بندی/مهارت/استان/شهر), full-width by default (SearchableSelect root is `relative` block, button is `w-full h-11`), wrapped in `space-y-3` card with `p-4 rounded-2xl bg-card border border-border shadow-sm`.
+  * Category: `allLabel="همه"`, options from `cats.map(c => ({value:c.id, label:\`${c.iconUrl || "✨"} ${c.name}\`}))`, onChange converts "all"→"" and clears skillId.
+  * Skill: chained to category, `disabled={!categoryId}`, `allLabel={categoryId ? "همه" : undefined}` (so when disabled, displays placeholder "ابتدا دسته‌بندی را انتخاب کنید"; when enabled with no skill selected, displays "همه"), options from `(currentCat?.skills || [])`.
+  * Province: `allLabel="همه"`, options from `PROVINCES.map(p => ({value:p.id, label:p.name}))`, onChange converts "all"→"" and clears city.
+  * City: chained to province via `getCitiesForProvince(province)`, `disabled={!province}`, `allLabel="همه"`.
+  * Switched collapsible behavior from `AnimatePresence` + height animation (with `overflow-hidden` that clipped dropdowns) to `AnimatePresence` + opacity/y animation (no `overflow-hidden`) so SearchableSelect dropdown floats freely above neighbor content.
+  * Default `showFilters=true` so the 4-line filter card is visible on first load.
+  * Removed unused imports: `Select, SelectContent, SelectItem, SelectTrigger, SelectValue` from shadcn/ui/select. Added: `SearchableSelect` from `@/components/shared/searchable-select`, `getCitiesForProvince` from `@/lib/geo`. Kept `getProvinceName` (still used by FilterChip for province display).
+- OVERWROTE src/components/views/talents-view.tsx (~330 lines):
+  * Kept: header with talent count (`toFa(talents.length)`), results grid (1 col mobile → 2 sm → 3 lg), TalentCardLarge exported component (used by CategoryView), SortPill helper, EmptyState with "clear filters" action, loading skeletons.
+  * Changed state shape: `province` and `city` use "" for "all" (same as discover-view).
+  * Updated load() to use `if (province)` / `if (city)`.
+  * Updated hasFilters: `Boolean(categoryId || skillId || q || province || city)`.
+  * Replaced filter card: removed old layout (category full-width / skill full-width / search full-width / province+city 2-col grid). New layout: text search input with label "جستجوی نام یا مهارت" at top (labelled to match the spec's "label above each filter" pattern), then 4 stacked `<SearchableSelect>` with labels (دسته‌بندی/مهارت/استان/شهر), then sort pills + clear button at bottom.
+  * Same SearchableSelect config as discover-view: category (allLabel="همه"), skill (chained to category, disabled when no category, allLabel conditional), province (allLabel="همه", options from PROVINCES), city (chained via getCitiesForProvince, allLabel="همه", disabled when no province).
+  * TalentCardLarge component unchanged (still exported, still used by CategoryView per spec).
+- Ran `bun run lint` → 0 errors, 0 warnings (clean).
+- Verified dev server: tail of dev.log shows /api/categories returning 200, all routes healthy, multiple successful compiles. No errors in log.
+
+Stage Summary:
+- 2 view files overwritten (discover-view.tsx ~580 lines, talents-view.tsx ~330 lines). 0 API routes modified. 0 shared components modified. 0 admin files touched.
+- Both views now render the 4-line stacked filter layout: each filter is full-width on its own line with a bold Persian label above it ("دسته‌بندی", "مهارت", "استان", "شهر"). All 4 use the SearchableSelect component (search box inside dropdown).
+- Category & Skill: searchable dropdowns. Skill is chained to category (disabled until category selected; placeholder "ابتدا دسته‌بندی را انتخاب کنید" when disabled). Both have "همه" option.
+- Province & City: "همه" is the first item in the dropdown. City is chained to province (disabled until province selected; options come from `getCitiesForProvince(provinceId)`).
+- State normalization: province/city store "" (empty string) for "all" — SearchableSelect treats `value === "all" || value === ""` as `isAll`, so displays allLabel correctly. API requests only include `province`/`city` params when truthy (no empty string sent).
+- Removed AnimatePresence height animation in discover-view (it used `overflow-hidden` which would have clipped the SearchableSelect's absolutely-positioned dropdown). Replaced with opacity + y-offset animation that doesn't clip.
+- TalentCardLarge still exported from talents-view.tsx (used by CategoryView).
+- Lint clean. Dev server healthy. No API or shared component changes.

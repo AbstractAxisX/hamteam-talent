@@ -27,6 +27,7 @@ import { LogoMark } from "@/components/shared/illustrations";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { AuthView } from "@/components/views/auth-view";
 import { FeedView } from "@/components/views/feed-view";
+import { DashboardView } from "@/components/views/dashboard-view";
 import { FollowingView } from "@/components/views/following-view";
 import { DiscoverView } from "@/components/views/discover-view";
 import { TalentsView } from "@/components/views/talents-view";
@@ -50,6 +51,7 @@ import { toast } from "@/hooks/use-toast";
 function renderView(route: Route) {
   switch (route.view) {
     case "feed": return <FeedView />;
+    case "dashboard": return <DashboardView />;
     case "following": return <FollowingView />;
     case "discover": return <DiscoverView />;
     case "talents": return <TalentsView />;

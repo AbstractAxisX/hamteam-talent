@@ -33,6 +33,7 @@ export async function GET(
       senderId: true,
       content: true,
       createdAt: true,
+      readAt: true,
     },
   });
 
@@ -62,6 +63,7 @@ export async function GET(
       senderId: m.senderId,
       content: m.content,
       createdAt: m.createdAt.toISOString(),
+      readAt: m.readAt ? m.readAt.toISOString() : null,
     })),
   });
 }

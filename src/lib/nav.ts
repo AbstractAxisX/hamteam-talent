@@ -4,6 +4,7 @@ import { create } from "zustand";
 
 export type Route =
   | { view: "feed" }
+  | { view: "dashboard" }
   | { view: "following" }
   | { view: "discover" }
   | { view: "talents" }
@@ -29,6 +30,8 @@ function parseHash(): Route {
   const hash = window.location.hash.replace(/^#\/?/, "");
   const [path, ...rest] = hash.split("/");
   switch (path) {
+    case "feed": return { view: "feed" };
+    case "dashboard": return { view: "dashboard" };
     case "discover": return { view: "discover" };
     case "following": return { view: "following" };
     case "talents": return { view: "talents" };
@@ -38,6 +41,7 @@ function parseHash(): Route {
     case "my-needs": return { view: "my-needs" };
     case "category": return { view: "category", id: rest[0] || "" };
     case "profile": return { view: "profile", id: rest[0] || "" };
+    case "my-profile": return { view: "my-profile" };
     case "edit-profile": return { view: "edit-profile" };
     case "connections": return { view: "connections" };
     case "chat": return { view: "chat", conversationId: rest[0] };

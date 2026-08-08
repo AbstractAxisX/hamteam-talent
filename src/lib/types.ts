@@ -15,6 +15,7 @@ export type SafeUser = {
     bioLong: string;
     avatarUrl: string | null;
     bannerUrl: string | null;
+    gender: string | null;
     province: string | null;
     city: string | null;
     phoneVisible: boolean;

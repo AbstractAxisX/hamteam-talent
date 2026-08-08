@@ -95,6 +95,7 @@ export async function GET() {
     bioLong: user.profile?.bioLong ?? "",
     avatarUrl: user.profile?.avatarUrl ?? null,
     bannerUrl: user.profile?.bannerUrl ?? null,
+    gender: (user.profile?.gender as string | null) ?? null,
     province: user.profile?.province ?? null,
     city: user.profile?.city ?? null,
     phoneVisible: user.profile?.phoneVisible ?? false,

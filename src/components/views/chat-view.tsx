@@ -6,9 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -25,6 +23,7 @@ import {
   Sparkles,
   ChevronLeft,
   Check,
+  CheckCheck,
   X,
   Clock,
   UserCheck,
@@ -63,6 +62,7 @@ type ChatMessage = {
   senderId: string;
   content: string;
   createdAt: string;
+  readAt?: string | null;
 };
 
 type ConversationDetail = {
@@ -91,12 +91,13 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   const socketRef = useRef<Socket | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeConvRef = useRef<ConversationDetail | null>(null);
   const activeConvIdRef = useRef<string | undefined>(conversationId);
+  const myUserIdRef = useRef<string | undefined>(user?.id);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* ── Load conversation list ── */
   const loadConversations = useCallback(async () => {
-    setConvLoading(true);
+    setConvLoading((prev) => (prev ? prev : true));
     try {
       const d = await api<{
         conversations: ConversationListItem[];
@@ -112,7 +113,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     }
   }, []);
 
-  /* ── Load messages of active conversation ── */
+  /* ── Load messages of active conversation (with loading state) ── */
   const loadMessages = useCallback(async (id: string) => {
     setMsgLoading(true);
     try {
@@ -128,16 +129,42 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     }
   }, []);
 
+  /* ── Silent poll for read-status / new messages from server ── */
+  // Replaces local messages with server truth, but preserves optimistic
+  // temp-* messages that haven't been confirmed by socket echo yet.
+  const pollMessages = useCallback(async (id: string) => {
+    try {
+      const d = await api<ConversationDetail>(
+        `/api/chat/conversations/${id}/messages`
+      );
+      setActiveConv((prev) => {
+        if (!prev || prev.conversation?.id !== id) return prev;
+        const pending = prev.messages.filter((m) => m.id.startsWith("temp-"));
+        return { ...d, messages: [...d.messages, ...pending] };
+      });
+    } catch {
+      /* ignore — polling is best-effort */
+    }
+  }, []);
+
+  /* ── Keep refs in sync (used inside socket handlers) ── */
+  useEffect(() => {
+    activeConvIdRef.current = conversationId;
+  }, [conversationId]);
+
+  useEffect(() => {
+    myUserIdRef.current = user?.id;
+  }, [user?.id]);
+
   useEffect(() => {
     if (user) loadConversations();
     else setConvLoading(false);
   }, [user, loadConversations]);
 
   useEffect(() => {
-    activeConvIdRef.current = conversationId;
     if (conversationId && user) {
       loadMessages(conversationId);
-      // Mark messages as read
+      // Mark messages as read on open
       apiPost(`/api/chat/conversations/${conversationId}/read`)
         .then(() => loadConversations())
         .catch(() => {});
@@ -147,15 +174,17 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   }, [conversationId, user, loadMessages, loadConversations]);
 
   /* ── Auto-scroll helper ── */
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
     const el = messagesContainerRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
   }, []);
 
-  /* ── Keep activeConv ref synced for socket handlers ── */
-  useEffect(() => {
-    activeConvRef.current = activeConv;
-  }, [activeConv]);
+  const isNearBottom = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 180;
+  }, []);
 
   /* ── Socket.io connection (mini-service on port 3003 via gateway) ── */
   useEffect(() => {
@@ -175,17 +204,56 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     });
 
     socket.on("message", (msg: ChatMessage) => {
-      if (activeConvRef.current?.conversation?.id === msg.conversationId) {
+      const myId = myUserIdRef.current;
+      const activeId = activeConvIdRef.current;
+
+      if (msg.conversationId === activeId) {
         setActiveConv((prev) => {
           if (!prev) return prev;
+          // Dedupe by id (in case of duplicate delivery)
           if (prev.messages.some((m) => m.id === msg.id)) return prev;
+
+          // ── Bug fix: double-send ──
+          // If the message is from ME, it was already added optimistically
+          // with a temp-* id. Find that optimistic message (matching content,
+          // most-recent-first) and replace it with the real server message.
+          // This prevents the duplicate the sender previously saw.
+          if (msg.senderId === myId) {
+            const msgs = [...prev.messages];
+            for (let i = msgs.length - 1; i >= 0; i--) {
+              if (
+                msgs[i].id.startsWith("temp-") &&
+                msgs[i].content === msg.content
+              ) {
+                msgs[i] = msg;
+                return { ...prev, messages: msgs };
+              }
+            }
+            // No temp message found (e.g. sent from another device) — append.
+            return { ...prev, messages: [...msgs, msg] };
+          }
+
+          // From the other user — just append.
           return { ...prev, messages: [...prev.messages, msg] };
         });
-        queueMicrotask(() => scrollToBottom());
-        // Mark read if I'm the receiver
-        apiPost(`/api/chat/conversations/${msg.conversationId}/read`).catch(() => {});
+
+        // Auto-scroll only if user is near the bottom (so we don't yank them
+        // up while they're reading older messages).
+        if (isNearBottom()) {
+          queueMicrotask(() => scrollToBottom());
+        }
+
+        // If I'm the receiver, mark as read — this also sets readAt on the
+        // sender's messages which my polling will pick up.
+        if (msg.senderId !== myId) {
+          apiPost(`/api/chat/conversations/${msg.conversationId}/read`)
+            .then(() => loadConversations())
+            .catch(() => {});
+        }
       }
-      // Always refresh conversation list to update last message preview + unread counts
+
+      // Always refresh the conversation list so lastMessage preview + unread
+      // counts stay in sync.
       loadConversations();
     });
 
@@ -193,8 +261,8 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
       "typing",
       (data: { conversationId: string; userId: string; isTyping: boolean }) => {
         if (
-          activeConvRef.current?.conversation?.id === data.conversationId &&
-          data.userId !== user.id
+          activeConvIdRef.current === data.conversationId &&
+          data.userId !== myUserIdRef.current
         ) {
           setIsTyping(data.isTyping);
           if (data.isTyping) {
@@ -211,7 +279,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       if (typingClearRef.current) clearTimeout(typingClearRef.current);
     };
-  }, [user, loadConversations, scrollToBottom]);
+  }, [user, loadConversations, scrollToBottom, isNearBottom]);
 
   /* ── Emit join when active conversation changes ── */
   useEffect(() => {
@@ -225,6 +293,19 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     }
   }, [conversationId]);
 
+  /* ── Poll for read-status every 5s while chat is open ── */
+  // This updates the sender's ticks from single (✓) to double (✓✓) once the
+  // other user reads the messages (their `read` API call sets `readAt`).
+  useEffect(() => {
+    if (!conversationId || !user) return;
+    pollRef.current = setInterval(() => {
+      pollMessages(conversationId);
+    }, 5000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [conversationId, user, pollMessages]);
+
   /* ── Auto-scroll to bottom on new messages ── */
   useEffect(() => {
     queueMicrotask(() => scrollToBottom());
@@ -233,22 +314,26 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   /* ── Send a message ── */
   const handleSend = useCallback(() => {
     const content = draft.trim();
-    if (!content || !conversationId || !user || !socketRef.current) return;
+    const convId = conversationId;
+    if (!content || !convId || !user || !socketRef.current) return;
     setDraft("");
     socketRef.current.emit("typing", {
-      conversationId,
+      conversationId: convId,
       userId: user.id,
       isTyping: false,
     });
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
+    // Optimistic message with temp id — will be replaced when the socket
+    // echoes back the real, persisted message.
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const optimistic: ChatMessage = {
       id: tempId,
-      conversationId,
+      conversationId: convId,
       senderId: user.id,
       content,
       createdAt: new Date().toISOString(),
+      readAt: null,
     };
     setActiveConv((prev) =>
       prev ? { ...prev, messages: [...prev.messages, optimistic] } : prev
@@ -256,7 +341,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     queueMicrotask(() => scrollToBottom());
 
     socketRef.current.emit("message", {
-      conversationId,
+      conversationId: convId,
       senderId: user.id,
       content,
     });
@@ -264,7 +349,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     setConversations((prev) =>
       prev
         .map((c) =>
-          c.id === conversationId
+          c.id === convId
             ? {
                 ...c,
                 lastMessage: {
@@ -315,7 +400,6 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
       conversations.find((c) => c.id === conversationId) ||
       requests.find((c) => c.id === conversationId);
     if (inList) return inList;
-    // Default: assume active when not found in either list
     return {
       id: conversationId,
       otherUser: activeConv?.conversation?.otherUser ?? {
@@ -351,70 +435,91 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   /* ── Not logged in ── */
   if (!userLoading && !user) {
     return (
-      <div className="max-w-3xl mx-auto space-y-5">
-        <PageHeader unreadCount={0} requestsCount={0} />
-        <Card className="p-0 rounded-2xl border-border/60 overflow-hidden">
-          <EmptyState
-            kind="chat"
-            title="برای چت کردن وارد شوید"
-            description="برای شروع گفتگو با همکاران، ابتدا وارد حساب کاربری خود شوید."
-            action={
-              <Button
-                onClick={() => navigate({ view: "auth" })}
-                className="gap-1.5 rounded-2xl bg-primary text-primary-foreground font-bold hover:bg-primary/90"
-              >
-                <Lock className="w-4 h-4" />
-                ورود / ثبت‌نام
-              </Button>
-            }
-          />
-        </Card>
+      <div className="fixed inset-0 z-50 lg:static lg:z-auto bg-background flex items-center justify-center p-6 pt-safe pb-safe">
+        <EmptyState
+          kind="chat"
+          title="برای چت کردن وارد شوید"
+          description="برای شروع گفتگو با همکاران، ابتدا وارد حساب کاربری خود شوید."
+          action={
+            <Button
+              onClick={() => navigate({ view: "auth" })}
+              className="gap-1.5 rounded-2xl bg-primary text-primary-foreground font-bold hover:bg-primary/90"
+            >
+              <Lock className="w-4 h-4" />
+              ورود / ثبت‌نام
+            </Button>
+          }
+        />
       </div>
     );
   }
 
-  const showMobileList = !conversationId;
+  /* ── Respond to message requests (shared handler) ── */
+  const handleRespond = async (id: string, action: "accept" | "reject") => {
+    try {
+      await apiPost(`/api/chat/conversations/${id}/respond`, { action });
+      toast({
+        title: action === "accept" ? "درخواست تأیید شد ✅" : "درخواست رد شد",
+      });
+      if (action === "accept") {
+        await loadMessages(id);
+        await loadConversations();
+        navigate({ view: "chat", conversationId: id });
+      } else {
+        await loadConversations();
+        if (id === conversationId) navigate({ view: "chat" });
+      }
+    } catch (e) {
+      toast({
+        title: "خطا",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    }
+  };
 
+  /* ── Full-screen mobile layout, 2-pane desktop layout ── */
+  // Mobile: covers entire viewport (incl. top floating pills + bottom dock)
+  //         via `fixed inset-0 z-50`. Shows list OR thread depending on conv.
+  // Desktop: fits inside <main> padding as a 2-column grid (list + thread).
   return (
-    <div className="space-y-4">
-      <PageHeader
-        unreadCount={conversations.reduce((s, c) => s + (c.unreadCount || 0), 0)}
-        requestsCount={requests.length}
-      />
-
-      {/* Mobile: chat list OR active chat */}
-      {showMobileList && (
-        <div className="lg:hidden">
-          <ChatListPanel
-            conversations={filteredConversations}
-            requests={filteredRequests}
-            loading={convLoading}
-            search={search}
-            onSearch={setSearch}
-            activeId={conversationId}
-            listTab={listTab}
-            onTabChange={setListTab}
-            onRespond={async (id, action) => {
-              try {
-                await apiPost(`/api/chat/conversations/${id}/respond`, { action });
-                toast({
-                  title: action === "accept" ? "درخواست تأیید شد ✅" : "درخواست رد شد",
-                });
-                await loadConversations();
-              } catch (e) {
-                toast({
-                  title: "خطا",
-                  description: (e as Error).message,
-                  variant: "destructive",
-                });
-              }
-            }}
-          />
-        </div>
+    <div
+      className={cn(
+        "fixed inset-0 z-50 bg-background flex flex-col pt-safe pb-safe",
+        "lg:static lg:z-auto lg:inset-auto lg:bg-transparent lg:p-0",
+        "lg:grid lg:grid-cols-[340px_1fr] lg:gap-4 lg:h-[calc(100vh-5rem)]"
       )}
+    >
+      {/* ── List panel ── */}
+      {/* Mobile: shown only when no active conversation. Desktop: always shown. */}
+      <div
+        className={cn(
+          "flex-1 min-h-0",
+          conversationId && "hidden lg:block"
+        )}
+      >
+        <ChatListPanel
+          conversations={filteredConversations}
+          requests={filteredRequests}
+          loading={convLoading}
+          search={search}
+          onSearch={setSearch}
+          activeId={conversationId}
+          listTab={listTab}
+          onTabChange={setListTab}
+          onRespond={handleRespond}
+        />
+      </div>
 
-      {!showMobileList && (
-        <div className="lg:hidden">
+      {/* ── Thread panel ── */}
+      {/* Mobile: shown only when conversation is active. Desktop: always shown. */}
+      <div
+        className={cn(
+          "flex-1 min-h-0",
+          !conversationId && "hidden lg:block"
+        )}
+      >
+        {conversationId ? (
           <ChatThread
             conv={activeConv}
             convInfo={activeConvInfo}
@@ -427,169 +532,29 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
             isTyping={isTyping}
             messagesContainerRef={messagesContainerRef}
             onBack={() => navigate({ view: "chat" })}
-            onRespond={async (id, action) => {
-              try {
-                await apiPost(`/api/chat/conversations/${id}/respond`, { action });
-                toast({
-                  title: action === "accept" ? "درخواست تأیید شد ✅" : "درخواست رد شد",
-                });
-                if (action === "accept") {
-                  await loadMessages(id);
-                  await loadConversations();
-                } else {
-                  navigate({ view: "chat" });
-                }
-              } catch (e) {
-                toast({
-                  title: "خطا",
-                  description: (e as Error).message,
-                  variant: "destructive",
-                });
-              }
-            }}
+            onRespond={handleRespond}
           />
-        </div>
-      )}
-
-      {/* Desktop: two-pane — list on right (RTL start), chat on left */}
-      <div className="hidden lg:grid lg:grid-cols-[1fr_340px] gap-4">
-        <div>
-          {conversationId ? (
-            <ChatThread
-              conv={activeConv}
-              convInfo={activeConvInfo}
-              loading={msgLoading}
-              draft={draft}
-              onDraftChange={handleDraftChange}
-              onKeyDown={handleKeyDown}
-              onSend={handleSend}
-              currentUserId={user?.id || ""}
-              isTyping={isTyping}
-              messagesContainerRef={messagesContainerRef}
-              onRespond={async (id, action) => {
-                try {
-                  await apiPost(`/api/chat/conversations/${id}/respond`, { action });
-                  toast({
-                    title: action === "accept" ? "درخواست تأیید شد ✅" : "درخواست رد شد",
-                  });
-                  if (action === "accept") {
-                    await loadMessages(id);
-                    await loadConversations();
-                  } else {
-                    navigate({ view: "chat" });
-                  }
-                } catch (e) {
-                  toast({
-                    title: "خطا",
-                    description: (e as Error).message,
-                    variant: "destructive",
-                  });
-                }
-              }}
+        ) : (
+          <div className="h-full flex items-center justify-center rounded-2xl border border-border/60 bg-muted/30 p-6">
+            <EmptyState
+              kind="chat"
+              title="یک گفتگو را انتخاب کنید"
+              description="از لیست کناری یک گفتگو را انتخاب کنید یا همکار جدیدی پیدا کنید."
+              action={
+                <Button
+                  variant="outline"
+                  onClick={() => navigate({ view: "talents" })}
+                  className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5"
+                >
+                  <Users className="w-4 h-4" />
+                  پیدا کردن همکار
+                </Button>
+              }
             />
-          ) : (
-            <Card className="h-[72vh] flex items-center justify-center rounded-2xl border-border/60 bg-muted/30">
-              <EmptyState
-                kind="chat"
-                title="یک گفتگو را انتخاب کنید"
-                description="از لیست کناری یک گفتگو را انتخاب کنید یا همکار جدیدی پیدا کنید."
-                action={
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate({ view: "talents" })}
-                    className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5"
-                  >
-                    <Users className="w-4 h-4" />
-                    پیدا کردن همکار
-                  </Button>
-                }
-              />
-            </Card>
-          )}
-        </div>
-        <div>
-          <ChatListPanel
-            conversations={filteredConversations}
-            requests={filteredRequests}
-            loading={convLoading}
-            search={search}
-            onSearch={setSearch}
-            activeId={conversationId}
-            listTab={listTab}
-            onTabChange={setListTab}
-            onRespond={async (id, action) => {
-              try {
-                await apiPost(`/api/chat/conversations/${id}/respond`, { action });
-                toast({
-                  title: action === "accept" ? "درخواست تأیید شد ✅" : "درخواست رد شد",
-                });
-                await loadConversations();
-                if (action === "accept") {
-                  navigate({ view: "chat", conversationId: id });
-                }
-              } catch (e) {
-                toast({
-                  title: "خطا",
-                  description: (e as Error).message,
-                  variant: "destructive",
-                });
-              }
-            }}
-          />
-        </div>
+          </div>
+        )}
       </div>
     </div>
-  );
-}
-
-/* ───────────────────────────── Page Header ───────────────────────────── */
-
-function PageHeader({
-  unreadCount,
-  requestsCount,
-}: {
-  unreadCount: number;
-  requestsCount: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex items-center justify-between"
-    >
-      <div className="flex items-center gap-3">
-        <div className="grid place-items-center w-11 h-11 rounded-2xl bg-primary text-primary-foreground shadow-md">
-          <MessageCircle className="w-5 h-5" />
-        </div>
-        <div>
-          <h1 className="text-xl font-extrabold leading-tight tracking-tight">چت</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            گفتگوی زنده با همکاران
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {requestsCount > 0 && (
-          <Badge className="bg-warning/15 text-warning border border-warning/30 rounded-full font-bold">
-            {toFa(requestsCount)} درخواست
-          </Badge>
-        )}
-        {unreadCount > 0 && (
-          <Badge className="bg-primary/15 text-primary border border-primary/30 rounded-full font-bold">
-            {toFa(unreadCount)} پیام جدید
-          </Badge>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate({ view: "talents" })}
-          className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5"
-        >
-          <Users className="w-4 h-4" />
-          <span className="hidden sm:inline">همکاران</span>
-        </Button>
-      </div>
-    </motion.div>
   );
 }
 
@@ -622,9 +587,23 @@ function ChatListPanel({
   ];
 
   return (
-    <Card className="flex flex-col h-[72vh] overflow-hidden rounded-2xl border-border/60 shadow-card">
-      {/* Header with tabs */}
-      <div className="p-3 border-b border-border/60 space-y-3 bg-card">
+    <div className="h-full flex flex-col bg-card border-b border-border/60 lg:border lg:rounded-2xl lg:shadow-card overflow-hidden">
+      {/* Header with title + tabs + search */}
+      <div className="shrink-0 p-3 border-b border-border/60 space-y-3 bg-card lg:rounded-t-2xl">
+        {/* Mobile title (full-screen header) */}
+        <div className="flex items-center gap-3 lg:hidden">
+          <div className="grid place-items-center w-10 h-10 rounded-2xl bg-primary text-primary-foreground shadow-md">
+            <MessageCircle className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-extrabold leading-tight tracking-tight">چت</h1>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              گفتگوی زنده با همکاران
+            </p>
+          </div>
+        </div>
+
+        {/* Tabs + find-coworkers button */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/60">
             {tabItems.map((t) => (
@@ -656,7 +635,18 @@ function ChatListPanel({
               </button>
             ))}
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0 rounded-xl hover:bg-primary/5 text-primary"
+            onClick={() => navigate({ view: "talents" })}
+            aria-label="پیدا کردن همکار"
+          >
+            <Users className="w-4 h-4" />
+          </Button>
         </div>
+
+        {/* Search */}
         <div className="relative">
           <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <input
@@ -668,8 +658,8 @@ function ChatListPanel({
         </div>
       </div>
 
-      {/* List */}
-      <div className="flex-1 overflow-y-auto slim-scroll">
+      {/* Scrollable list */}
+      <div className="flex-1 overflow-y-auto slim-scroll min-h-0">
         {loading ? (
           <div className="p-3 space-y-2">
             {[...Array(5)].map((_, i) => (
@@ -747,7 +737,7 @@ function ChatListPanel({
           ))
         )}
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -841,7 +831,7 @@ function ConversationRow({
         )}
       </button>
 
-      {/* Accept / reject buttons for requests */}
+      {/* Accept / reject buttons for incoming requests */}
       {showActions && (
         <div className="px-3 pb-3 flex items-center gap-2">
           <Button
@@ -919,9 +909,9 @@ function ChatThread({
   }
 
   return (
-    <Card className="flex flex-col h-[72vh] overflow-hidden rounded-2xl border-border/60 shadow-card">
+    <div className="h-full flex flex-col bg-background lg:rounded-2xl lg:border lg:border-border/60 lg:shadow-card overflow-hidden">
       {/* ── Header ── */}
-      <div className="p-3 border-b border-border/60 flex items-center gap-3 bg-primary text-primary-foreground">
+      <div className="shrink-0 p-3 border-b border-border/60 flex items-center gap-3 bg-primary text-primary-foreground lg:rounded-t-2xl">
         {onBack && (
           <Button
             variant="ghost"
@@ -951,7 +941,7 @@ function ChatThread({
             <div className="flex-1 min-w-0">
               <button
                 onClick={() => navigate({ view: "profile", id: other.id })}
-                className="font-bold text-sm hover:opacity-90 transition-opacity truncate block text-right"
+                className="font-bold text-sm hover:opacity-90 transition-opacity truncate block text-right w-full"
               >
                 {other.name}
               </button>
@@ -971,7 +961,7 @@ function ChatThread({
                   </span>
                 ) : isMyRequestPending ? (
                   <span className="truncate flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> در انتظار تأیید درخواست
+                    <Clock className="w-3 h-3" /> درخواست ارسال شد
                   </span>
                 ) : isTheirRequestPending ? (
                   <span className="truncate flex items-center gap-1">
@@ -995,7 +985,7 @@ function ChatThread({
       {/* ── Messages ── */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto slim-scroll p-4 space-y-3 bg-background"
+        className="flex-1 overflow-y-auto slim-scroll p-4 space-y-3 bg-background min-h-0"
       >
         {loading ? (
           <div className="space-y-3">
@@ -1043,6 +1033,8 @@ function ChatThread({
               const isMine = m.senderId === currentUserId;
               const prev = messages[idx - 1];
               const showSender = !isMine && (!prev || prev.senderId !== m.senderId);
+              const isPending = m.id.startsWith("temp-");
+              const isRead = !!m.readAt;
               return (
                 <motion.div
                   key={m.id}
@@ -1069,24 +1061,61 @@ function ChatThread({
                     )}
                   >
                     {m.content}
-                    <span
-                      className={cn(
-                        "block text-[9px] mt-1",
-                        isMine ? "text-primary-foreground/60" : "text-muted-foreground"
+                    <span className="flex items-center gap-1.5 mt-1 -mb-0.5">
+                      <span
+                        className={cn(
+                          "text-[9px]",
+                          isMine ? "text-primary-foreground/60" : "text-muted-foreground"
+                        )}
+                      >
+                        {timeAgoFa(m.createdAt)}
+                      </span>
+                      {/* ── Sent / Seen ticks (WhatsApp-style) ── */}
+                      {isMine && (
+                        <span className="mr-auto flex items-center">
+                          {isRead ? (
+                            // Seen — double tick, brighter (signifies read receipt)
+                            <CheckCheck className="w-3.5 h-3.5 text-primary-foreground" />
+                          ) : (
+                            // Sent (or pending) — single tick, slightly dimmer
+                            <Check
+                              className={cn(
+                                "w-3 h-3",
+                                isPending
+                                  ? "text-primary-foreground/40"
+                                  : "text-primary-foreground/70"
+                              )}
+                            />
+                          )}
+                        </span>
                       )}
-                    >
-                      {timeAgoFa(m.createdAt)}
                     </span>
                   </div>
                 </motion.div>
               );
             })}
+            {/* Live typing indicator (other user is typing) */}
+            {isTyping && (
+              <motion.div
+                key="typing-indicator"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="flex items-start"
+              >
+                <div className="bg-card border border-border/60 rounded-2xl rounded-tr-md px-4 py-3 flex gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" />
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
         )}
       </div>
 
-      {/* ── Input area (varies by status) ── */}
-      <div className="p-3 border-t border-border/60 bg-card">
+      {/* ── Input area (varies by conversation status) ── */}
+      <div className="shrink-0 p-3 border-t border-border/60 bg-card lg:rounded-b-2xl">
         {status === "active" ? (
           <>
             <div className="flex items-end gap-2">
@@ -1154,6 +1183,6 @@ function ChatThread({
           </div>
         ) : null}
       </div>
-    </Card>
+    </div>
   );
 }
