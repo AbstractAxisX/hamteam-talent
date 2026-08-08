@@ -725,3 +725,31 @@ Stage Summary:
 - Mobile-first responsive grids (1 col mobile → 2 col lg for needs), loading skeletons during fetch, EmptyState with action buttons, toast feedback for all mutations, AlertDialog for delete confirmation, framer-motion animations (`initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}`) with stagger.
 - Persian text + `toFa()` numerals throughout, Vazirmatn font, RTL-friendly layout.
 - Lint clean: 0 errors, 0 warnings. Dev server confirmed healthy (port 3000 listening, all routes returning 200).
+
+---
+Task ID: N-Needs-Final
+Agent: main
+Task: Needs feature + GitHub setup + blur removal + avatar fix + categorized notifications + filter 'all'
+
+Work Log:
+- Removed all glass/blur effects (`.glass` now solid bg, no backdrop-filter)
+- Removed first-letter from default avatar (just silhouette now)
+- Set up GitHub: configured git (Mahdi Rahimi / AbstractAxisX@gmail.com), created repo AbstractAxisX/hamteam-talent
+- Created .gitignore, README.md (installation guide), git-push.sh helper script
+- Stored token securely via git credential store (not in committed files)
+- Initial commit + push to GitHub
+- Added JobPost, JobPostSkill, JobPostAttachment, JobApplication models to schema
+- Added "needs", "need", "create-need", "my-needs" routes to nav
+- Updated AppShell: bottom nav now has "نیازمندی" instead of "دنبال‌شده", more items include my-needs + following
+- Delegated needs API + views + categorized notifications + filter "all" to subagent
+- All features working: needs CRUD, apply, attachments, match notifications, categorized notif tabs, "همه" filter option
+- Pushed all changes to GitHub
+
+Stage Summary:
+- GitHub repo: https://github.com/AbstractAxisX/hamteam-talent
+- All code pushed. Use `./git-push.sh push "message"` for future pushes.
+- Needs feature fully functional with attachments + match notifications
+- Notifications categorized by type (all/needs/connections/chat/broadcast)
+- Filters have "همه" (all) option for province and city
+- Blur removed, solid backgrounds everywhere
+- Avatar default has no letter, just silhouette
