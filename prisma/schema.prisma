@@ -18,12 +18,15 @@ model User {
   name            String
   isVerifiedBadge Boolean   @default(false)
   isBanned        Boolean   @default(false)
+  isTopTalent     Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   profile         Profile?
   posts           Post[]
   likes           PostLike[]
+  comments        Comment[]
+  commentLikes    CommentLike[]
   connectionsReq  Connection[] @relation("ConnectionRequester")
   connectionsRec  Connection[] @relation("ConnectionReceiver")
   conversationsA  Conversation[] @relation("ConvUserA")
@@ -35,6 +38,7 @@ model User {
   userSkills      UserSkill[]
   jobPosts        JobPost[]
   jobApplications JobApplication[]
+  topTalentRequests TopTalentRequest[]
 }
 
 // ─── Admin (separate auth, username+password) ──────────────────
@@ -57,6 +61,7 @@ model Profile {
   gender        String?  // "male" | "female" | null
   province      String?
   city          String?
+  mainCategoryId String? // the user's main category (for avatar ring color)
   phoneVisible  Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -69,6 +74,7 @@ model Category {
   id        String   @id @default(cuid())
   name      String   @unique
   iconUrl   String?  // emoji or image URL — admin sets
+  color     String?  // hex color for category (admin sets, used for avatar ring)
   order     Int      @default(0)
   createdAt DateTime @default(now())
 
@@ -161,14 +167,17 @@ model Post {
   category   Category? @relation(fields: [categoryId], references: [id])
   skillId    String?
   skill      Skill?    @relation(fields: [skillId], references: [id])
+  isFeatured Boolean  @default(false) // featured in Top Talents explore
   createdAt  DateTime @default(now())
 
   media      PostMedia[]
   likes      PostLike[]
+  comments   Comment[]
 
   @@index([userId])
   @@index([createdAt])
   @@index([categoryId])
+  @@index([isFeatured])
 }
 
 model PostMedia {
@@ -330,4 +339,53 @@ model JobApplication {
 
   @@unique([jobPostId, applicantId])
   @@index([applicantId])
+}
+
+// ─── Comments (on featured posts in Top Talents explore) ───────
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  parentId  String?  // for replies
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+  createdAt DateTime @default(now())
+
+  likes     CommentLike[]
+
+  @@index([postId, createdAt])
+  @@index([userId])
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "like" | "dislike"
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId])
+}
+
+// ─── Top Talent Requests ───────────────────────────────────────
+model TopTalentRequest {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nationalIdPhotoUrl String  // uploaded photo of national ID
+  phoneNumber     String   // main phone number
+  socialMediaId   String   // social media handle (free text)
+  description     String   @default("") // optional description
+  status          String   @default("pending") // "pending" | "approved" | "rejected"
+  rejectReason    String?  // admin's rejection reason
+  reviewedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
 }
