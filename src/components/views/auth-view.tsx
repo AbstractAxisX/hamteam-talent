@@ -12,7 +12,6 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { toast } from "@/hooks/use-toast";
 import { LogoMark, AuthIllustration } from "@/components/shared/illustrations";
 import { ArrowLeft, Loader2, Phone, ShieldCheck, Sparkles, User as UserIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export function AuthView() {
   const [step, setStep] = useState<"info" | "otp">("info");
@@ -57,14 +56,13 @@ export function AuthView() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-cream-gradient">
-      {/* Mobile-first: single column with hero illustration at top */}
+    <div className="min-h-screen flex flex-col bg-background">
       <div className="flex-1 flex flex-col lg:flex-row">
-        {/* Left: Brand visual (desktop) / top hero (mobile) */}
-        <div className="relative bg-forest-gradient text-white p-6 pt-16 pb-8 lg:p-12 lg:flex lg:flex-col lg:justify-between overflow-hidden">
+        {/* Left: Brand visual (solid color, no gradient) */}
+        <div className="relative bg-primary text-primary-foreground p-6 pt-16 pb-8 lg:p-12 lg:flex lg:flex-col lg:justify-between overflow-hidden">
           <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
-          <div className="absolute top-10 left-6 w-24 h-24 rounded-full bg-lime/10 animate-float" />
-          <div className="absolute bottom-10 right-6 w-32 h-32 rounded-full bg-lime/8 animate-float" style={{ animationDelay: "1.5s" }} />
+          <div className="absolute top-10 left-6 w-24 h-24 rounded-full bg-white/5 animate-float" />
+          <div className="absolute bottom-10 right-6 w-32 h-32 rounded-full bg-white/3 animate-float" style={{ animationDelay: "1.5s" }} />
 
           <div className="relative flex items-center gap-2.5">
             <LogoMark className="w-10 h-10" />
@@ -79,13 +77,13 @@ export function AuthView() {
               <h1 className="text-2xl lg:text-4xl font-extrabold leading-snug">
                 استعدادت رو<br />کشف کن و نشان بده
               </h1>
-              <p className="text-sm lg:text-lg text-white/75 leading-7 lg:leading-8 max-w-md">
+              <p className="text-sm lg:text-lg text-primary-foreground/75 leading-7 lg:leading-8 max-w-md">
                 پروفایل استعدادت رو بساز، مهارت‌هات رو نشان بده و با افراد مستعد ارتباط بگیر.
               </p>
             </div>
           </div>
 
-          <p className="relative text-xs lg:text-sm text-white/50 mt-6 lg:mt-0">همتیم — کاملاً رایگان</p>
+          <p className="relative text-xs lg:text-sm text-primary-foreground/50 mt-6 lg:mt-0">همتیم — کاملاً رایگان</p>
         </div>
 
         {/* Right: Form */}
@@ -103,9 +101,9 @@ export function AuthView() {
 
                   <InfoForm submitting={submitting} onSubmit={submitInfo} />
 
-                  <div className="mt-5 p-3.5 rounded-2xl bg-lime/10 border border-lime/20">
+                  <div className="mt-5 p-3.5 rounded-2xl bg-muted border border-border">
                     <p className="text-xs text-foreground/70 leading-6">
-                      <Sparkles className="w-3.5 h-3.5 inline-block ml-1 text-forest" />
+                      <Sparkles className="w-3.5 h-3.5 inline-block ml-1 text-primary" />
                       کد تایید برای همه <strong>۱۲۳۴</strong> است (نسخه دمو).
                     </p>
                   </div>
@@ -122,8 +120,8 @@ export function AuthView() {
               ) : (
                 <motion.div key="otp" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                   <div className="mb-7">
-                    <div className="grid place-items-center w-16 h-16 rounded-2xl bg-lime/20 mb-4">
-                      <ShieldCheck className="w-8 h-8 text-forest" />
+                    <div className="grid place-items-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
+                      <ShieldCheck className="w-8 h-8 text-primary" />
                     </div>
                     <h2 className="text-2xl font-extrabold tracking-tight">تایید شماره</h2>
                     <p className="text-muted-foreground mt-1.5 leading-6 text-sm">
@@ -131,9 +129,9 @@ export function AuthView() {
                     </p>
                   </div>
 
-                  <div className="mb-6 p-4 rounded-2xl bg-lime/15 border border-lime/30 text-center">
+                  <div className="mb-6 p-4 rounded-2xl bg-primary/8 border border-primary/20 text-center">
                     <p className="text-xs text-muted-foreground mb-1">کد دمو</p>
-                    <p className="font-mono text-2xl tracking-[0.5em] font-extrabold text-forest" dir="ltr">{demoOtp}</p>
+                    <p className="font-mono text-2xl tracking-[0.5em] font-extrabold text-primary" dir="ltr">{demoOtp}</p>
                   </div>
 
                   <div className="mb-6">
@@ -150,8 +148,13 @@ export function AuthView() {
                     </div>
                   </div>
 
-                  <Button onClick={onVerify} className="w-full h-13 rounded-2xl text-base font-bold py-3.5 bg-forest hover:bg-forest/90" disabled={submitting || otp.length < 4}>
-                    {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "تایید و ورود"}
+                  {/* BIG clear login button */}
+                  <Button
+                    onClick={onVerify}
+                    className="w-full h-14 rounded-2xl text-base font-bold py-3.5 bg-primary text-primary-foreground hover:bg-primary/90"
+                    disabled={submitting || otp.length < 4}
+                  >
+                    {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "ورود به همتیم"}
                   </Button>
 
                   <button type="button" onClick={() => setStep("info")} className="w-full mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -211,7 +214,7 @@ function InfoForm({ submitting, onSubmit }: { submitting: boolean; onSubmit: (da
           />
         </div>
       </div>
-      <Button type="submit" className="w-full h-13 rounded-2xl text-base font-bold py-3.5 bg-lime text-forest hover:bg-lime/90" disabled={submitting}>
+      <Button type="submit" className="w-full h-13 rounded-2xl text-base font-bold py-3.5" disabled={submitting}>
         {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "دریافت کد تایید"}
         {!submitting && <ArrowLeft className="w-4 h-4 mr-1" />}
       </Button>
