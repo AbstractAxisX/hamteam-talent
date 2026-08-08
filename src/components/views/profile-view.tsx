@@ -273,7 +273,6 @@ function ProfileHeader({
               verified={profile.isVerifiedBadge}
               gender={profile.gender}
               size="2xl"
-              className="ring-4 ring-card"
             />
 
             {/* Name + meta */}
