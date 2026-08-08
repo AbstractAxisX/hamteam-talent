@@ -7,6 +7,10 @@ export type Route =
   | { view: "following" }
   | { view: "discover" }
   | { view: "talents" }
+  | { view: "needs" }
+  | { view: "need"; id: string }
+  | { view: "create-need" }
+  | { view: "my-needs" }
   | { view: "category"; id: string }
   | { view: "profile"; id: string }
   | { view: "my-profile" }
@@ -28,6 +32,10 @@ function parseHash(): Route {
     case "discover": return { view: "discover" };
     case "following": return { view: "following" };
     case "talents": return { view: "talents" };
+    case "needs": return { view: "needs" };
+    case "need": return { view: "need", id: rest[0] || "" };
+    case "create-need": return { view: "create-need" };
+    case "my-needs": return { view: "my-needs" };
     case "category": return { view: "category", id: rest[0] || "" };
     case "profile": return { view: "profile", id: rest[0] || "" };
     case "edit-profile": return { view: "edit-profile" };
@@ -47,6 +55,7 @@ function routeToHash(r: Route): string {
   switch (r.view) {
     case "profile": return `#/profile/${r.id}`;
     case "category": return `#/category/${r.id}`;
+    case "need": return `#/need/${r.id}`;
     case "chat": return r.conversationId ? `#/chat/${r.conversationId}` : "#/chat";
     case "ticket": return `#/ticket/${r.id}`;
     default: return `#/${r.view}`;

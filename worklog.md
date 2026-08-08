@@ -675,3 +675,53 @@ Stage Summary:
 - Discover with strong filters + 2 sections (posts/users)
 - Talents with full-width stacked filters
 - Lint: 0 errors. Both servers running.
+
+---
+Task ID: N-Needs
+Agent: full-stack-developer (Needs + Notifications + Filters)
+Task: Build Needs (JobPost) API + views, categorized notifications, "all" filter option
+
+Work Log:
+- Read worklog.md and existing infrastructure (prisma schema, lib/{types,nav,api-client,auth,format,use-user,geo}, components/shared/{empty-state,user-avatar,illustrations}, components/shared/post-card, components/app-shell, components/views/feed-view, components/views/discover-view, components/views/talents-view, components/views/notifications-view (existing stub), /api/notifications, /api/upload, /api/talents, /api/categories).
+- Extended `src/lib/types.ts` with: `NeedSkill`, `NeedAttachment`, `NeedListItem`, `NeedApplication`, `NeedDetail`, `MyNeedsData`, `NotificationCounts`.
+- Created `/home/z/my-project/src/app/api/needs/route.ts` — GET (list open needs with categoryId/skillId/province/city filters + sort=recent|popular, take 80, includes owner info, category name, skills, applicationCount, appliedByMe) and POST (auth required, validates title (3-120 chars), description (10-5000 chars), categoryId, skills (max 10, validated against category), optional province/city, optional attachments; creates JobPost + JobPostSkill + JobPostAttachment; sends `job_match` notification to all users with matching UserSkills excluding creator).
+- Created `/home/z/my-project/src/app/api/needs/[id]/route.ts` — GET (full detail with applications list for owner only), PUT (owner-only, supports title/description/categoryId/skills/province/city/status updates, used for close/reopen), DELETE (owner-only).
+- Created `/home/z/my-project/src/app/api/needs/[id]/apply/route.ts` — POST (auth, prevents duplicates, prevents applying to own need or closed need, creates JobApplication, notifies owner with type `chat` and link `#/need/{id}`).
+- Created `/home/z/my-project/src/app/api/needs/my-needs/route.ts` — GET returns `{ posted: NeedListItem[], applied: {id, message, createdAt, need: NeedListItem}[] }` for the current user.
+- Created `/home/z/my-project/src/app/api/needs/upload/route.ts` — POST multipart form with `file`, saves to /public/uploads, returns `{ ok, url, fileName, fileSize }`. Supports images, PDF, Word, Excel, ZIP, text up to 5MB. Does NOT update user profile (only for need attachments).
+- Updated `/home/z/my-project/src/app/api/notifications/route.ts` — GET now returns `{ notifications, unreadCount, counts }` where `counts` is `{ all, job_match, connection, chat, broadcast }` (unread only). Supports optional `?type=` query param to filter notifications by category bucket (job_match → ["job_match"], connection → ["connection_request", "connection_accepted"], chat → ["chat", "chat_message"], broadcast → ["broadcast"]). POST markAllRead and markRead both return updated counts object.
+- Overwrote `src/components/views/notifications-view.tsx` — NotificationsView with 5 category tabs (همه | نیازمندی | ارتباط | چت | سراسری) showing count badges per unread category, client-side filtering, mark-all-read button, per-notification mark-read with optimistic state, type-based colored icons (Briefcase for job_match, UserPlus/UserCheck for connection, Megaphone for broadcast, MessageCircle for chat), unread highlight (primary tint background + primary dot), deep-link navigation via `#/...` hash, motion stagger, empty state per category, login prompt for guests.
+- Overwrote `src/components/views/needs-view.tsx` — NeedsView with header + "ثبت نیازمندی" button, sort toggle (recent/popular), collapsible filter card (category→skill chained, province→city chained — all with "همه" first option using value="all"), responsive grid (1 col mobile, 2 col lg) of NeedCard components showing title, 2-line description, category+skill badges, location, application count, owner avatar+name (clickable), time ago, applied-by-me badge, closed badge, chevron. Loading skeletons, EmptyState with clear-filters action, results count.
+- Overwrote `src/components/views/need-detail-view.tsx` — NeedDetailView({id}) with: back button, main card (title, status badge, description, category+skill badges, location+app count, clickable owner card), attachments list (downloadable links with file size in Persian digits), owner actions (close/reopen button, AlertDialog-confirmed delete), applications section (max-h-96 scrollable with slim-scroll, avatar+name+message+time+view-profile per applicant, count badge in header) shown to owner only, ApplySection for non-owners (textarea with 1000 char counter + submit, success state for already-applied, login prompt for guests, closed-state for closed needs), loading skeleton, not-found EmptyState.
+- Overwrote `src/components/views/create-need-view.tsx` — CreateNeedView with: info banner ("هر کاربری می‌تواند نیازمندی ثبت کند"), form (title with counter, description with counter, category select, skills multi-select as toggle chips max 10, optional province/city selects with "همه" first option, attachment upload via /api/needs/upload with drag-drop styled label, file list with size + remove button max 8), validation toasts (3-120 chars title, 10-5000 chars description, category required, skill required), success → navigate to need detail. Auth gate redirect to login if not logged in.
+- Overwrote `src/components/views/my-needs-view.tsx` — MyNeedsView with two Tabs (نیازمندی‌های من / درخواست‌های من) with count badges, PostedNeedCard (status badge, application count, time, location, click → detail), AppliedNeedCard (need title, owner info, message preview, time, click → detail), guest login prompt, empty states per tab with action to create need or browse needs.
+- Updated `src/components/views/discover-view.tsx` — changed province/city state defaults from `""` to `"all"` (sentinel), added `<SelectItem value="all">همه</SelectItem>` as first option in both province and city selects, mapped "all" → empty (omit) in URLSearchParams, updated `activeFiltersCount` and `hasFilters` and `clearAll` accordingly, updated filter chips to use `province !== "all"` and `city !== "all"` checks. City select now disabled when province is "all".
+- Updated `src/components/views/talents-view.tsx` — same pattern: province/city state defaults to "all", added "همه" SelectItem, mapped "all" → empty in params, updated hasFilters check to use `province !== "all"` and `city !== "all"`.
+- Ran `bun run lint` — 0 errors, 0 warnings (exit 0).
+- Verified all API endpoints end-to-end via curl:
+  * `GET /api/needs` (public) returns list of open needs with all required fields.
+  * `GET /api/needs?province=tehran` filters correctly (returns 1); `?province=fars` returns empty.
+  * `GET /api/needs?skillId=...` filters by skill.
+  * `GET /api/needs?sort=popular` sorts by applicationCount desc.
+  * `GET /api/needs/{id}` returns detail with applications list for owner; empty for non-owner.
+  * `POST /api/needs` (auth) creates JobPost + JobPostSkill records; sends job_match notifications to users with matching UserSkill records (verified: created need with "آشپزی ایرانی" skill → seed user "پارسا شریفی" received a notification with type="job_match", title="نیازمندی جدید مطابق مهارت شما", link="#/need/{id}").
+  * `POST /api/needs/{id}/apply` (auth) creates JobApplication; blocks duplicates (400 with error message); blocks self-apply; notifies owner with type="chat".
+  * `PUT /api/needs/{id}` (owner) toggles status open↔closed; returns updated need.
+  * `DELETE /api/needs/{id}` (owner) deletes need; subsequent GET returns 404.
+  * `GET /api/needs/my-needs` (auth) returns posted + applied lists.
+  * `POST /api/needs/upload` (auth) saves file, returns `{ ok, url, fileName, fileSize }`.
+  * `GET /api/notifications` (auth) returns `{ notifications, unreadCount, counts: { all, job_match, connection, chat, broadcast } }`.
+  * `GET /api/notifications?type=job_match|connection|chat|broadcast` (auth) filters list; counts object always the same shape.
+  * `POST /api/notifications { action: "markAllRead" }` returns updated counts (all 0).
+  * `POST /api/notifications { id, action: "markRead" }` returns updated counts after marking single notification.
+- All routes return correct status codes (200/400/401/403/404) and proper Persian error messages.
+
+Stage Summary:
+- 14 files delivered: 5 API route files (needs/route.ts, needs/[id]/route.ts, needs/[id]/apply/route.ts, needs/my-needs/route.ts, needs/upload/route.ts) + 1 updated API (notifications/route.ts) + 4 new view files (needs-view.tsx, need-detail-view.tsx, create-need-view.tsx, my-needs-view.tsx) + 1 updated view (notifications-view.tsx) + 2 updated views for "همه" filter (discover-view.tsx, talents-view.tsx) + 1 types update (types.ts).
+- Needs (نیازمندی‌ها) feature complete end-to-end: list with cascading filters + sort, detail view with apply flow + owner management + attachments, create form with file uploads + skill chips, my-needs dashboard with posted/applied tabs.
+- Categorized notifications: 5 tabs (همه / نیازمندی / ارتباط / چت / سراسری) with count badges, server-side filtering via `?type=` query param, and per-category counts object in every response (including markAllRead/markRead responses).
+- "همه" (all) filter option added to NeedsView, CreateNeedView, DiscoverView, TalentsView — all using consistent `value="all"` sentinel pattern that maps to empty param when building API requests, so the API receives no filter when "همه" is selected.
+- Calm petrol-teal palette throughout: primary `bg-primary text-primary-foreground`, soft `bg-card`, `border-border`, success/rose/gold accents. No gradients, no neon, no blur. Solid colors only.
+- Mobile-first responsive grids (1 col mobile → 2 col lg for needs), loading skeletons during fetch, EmptyState with action buttons, toast feedback for all mutations, AlertDialog for delete confirmation, framer-motion animations (`initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}`) with stagger.
+- Persian text + `toFa()` numerals throughout, Vazirmatn font, RTL-friendly layout.
+- Lint clean: 0 errors, 0 warnings. Dev server confirmed healthy (port 3000 listening, all routes returning 200).

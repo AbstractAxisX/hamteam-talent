@@ -33,6 +33,8 @@ model User {
   tickets         Ticket[]
   userCategories  UserCategory[]
   userSkills      UserSkill[]
+  jobPosts        JobPost[]
+  jobApplications JobApplication[]
 }
 
 // ─── Admin (separate auth, username+password) ──────────────────
@@ -73,6 +75,7 @@ model Category {
   skills    Skill[]
   posts     Post[]
   userCats  UserCategory[]
+  jobPosts  JobPost[]
 }
 
 model Skill {
@@ -84,6 +87,7 @@ model Skill {
 
   posts      Post[]
   userSkills UserSkill[]
+  jobPostSkills JobPostSkill[]
 
   @@unique([categoryId, name])
 }
@@ -269,4 +273,61 @@ model TicketReply {
   isAdmin   Boolean  @default(false)
   content   String
   createdAt DateTime @default(now())
+}
+
+// ─── Job Posts (نیازمندی‌ها) ───────────────────────────────────
+model JobPost {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  province    String?
+  city        String?
+  status      String   @default("open") // "open" | "closed"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  skills      JobPostSkill[]
+  attachments JobPostAttachment[]
+  applications JobApplication[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([categoryId])
+}
+
+model JobPostSkill {
+  id        String  @id @default(cuid())
+  jobPostId String
+  jobPost   JobPost @relation(fields: [jobPostId], references: [id], onDelete: Cascade)
+  skillId   String
+  skill     Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([jobPostId, skillId])
+}
+
+model JobPostAttachment {
+  id        String @id @default(cuid())
+  jobPostId String
+  jobPost   JobPost @relation(fields: [jobPostId], references: [id], onDelete: Cascade)
+  url       String
+  fileName  String
+  fileSize  Int     @default(0)
+  createdAt DateTime @default(now())
+}
+
+model JobApplication {
+  id          String   @id @default(cuid())
+  jobPostId   String
+  jobPost     JobPost  @relation(fields: [jobPostId], references: [id], onDelete: Cascade)
+  applicantId String
+  applicant   User     @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  message     String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@unique([jobPostId, applicantId])
+  @@index([applicantId])
 }

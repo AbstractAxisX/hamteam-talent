@@ -39,8 +39,8 @@ export function TalentsView() {
   const [q, setQ] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [skillId, setSkillId] = useState("");
-  const [province, setProvince] = useState("");
-  const [city, setCity] = useState("");
+  const [province, setProvince] = useState("all");
+  const [city, setCity] = useState("all");
   const [sort, setSort] = useState<"recent" | "followers">("followers");
 
   useEffect(() => {
@@ -64,8 +64,8 @@ export function TalentsView() {
       const params = new URLSearchParams();
       if (categoryId) params.set("categoryId", categoryId);
       if (skillId) params.set("skillId", skillId);
-      if (province) params.set("province", province);
-      if (city) params.set("city", city);
+      if (province !== "all") params.set("province", province);
+      if (city !== "all") params.set("city", city);
       if (q.trim()) params.set("q", q.trim());
       params.set("sort", sort);
       const data = await api<{ talents: TalentListItem[] }>(
@@ -84,14 +84,14 @@ export function TalentsView() {
     return () => clearTimeout(t);
   }, [load]);
 
-  const hasFilters = Boolean(categoryId || skillId || q || province || city);
+  const hasFilters = Boolean(categoryId || skillId || q || province !== "all" || city !== "all");
 
   function clearAll() {
     setCategoryId("");
     setSkillId("");
     setQ("");
-    setProvince("");
-    setCity("");
+    setProvince("all");
+    setCity("all");
   }
 
   return (
@@ -169,13 +169,14 @@ export function TalentsView() {
             value={province}
             onValueChange={(v) => {
               setProvince(v);
-              setCity("");
+              setCity("all");
             }}
           >
             <SelectTrigger className="rounded-xl h-11">
               <SelectValue placeholder="استان" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">همه</SelectItem>
               {PROVINCES.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name}
@@ -183,11 +184,12 @@ export function TalentsView() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={city} onValueChange={setCity} disabled={!province}>
+          <Select value={city} onValueChange={setCity} disabled={province === "all"}>
             <SelectTrigger className="rounded-xl h-11">
               <SelectValue placeholder="شهر" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">همه</SelectItem>
               {currentProvince?.cities.map((c) => (
                 <SelectItem key={c} value={c}>
                   {c}

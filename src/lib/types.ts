@@ -55,6 +55,75 @@ export type TalentListItem = {
   followersCount: number;
 };
 
+// ─── Needs (نیازمندی‌ها) ───────────────────────────────────────
+// A "Need" is a JobPost: anyone can post one, anyone can apply.
+
+export type NeedSkill = { id: string; name: string };
+
+export type NeedAttachment = {
+  id: string;
+  url: string;
+  fileName: string;
+  fileSize: number;
+};
+
+export type NeedListItem = {
+  id: string;
+  title: string;
+  description: string;
+  categoryName: string | null;
+  province: string | null;
+  city: string | null;
+  status: string;
+  createdAt: string;
+  skills: NeedSkill[];
+  applicationCount: number;
+  appliedByMe: boolean;
+  user: {
+    id: string;
+    name: string;
+    isVerifiedBadge: boolean;
+    avatarUrl: string | null;
+  };
+};
+
+export type NeedApplication = {
+  id: string;
+  message: string;
+  createdAt: string;
+  applicant: {
+    id: string;
+    name: string;
+    isVerifiedBadge: boolean;
+    avatarUrl: string | null;
+    bioShort: string | null;
+  };
+};
+
+export type NeedDetail = NeedListItem & {
+  description: string;
+  attachments: NeedAttachment[];
+  applications: NeedApplication[];
+};
+
+export type MyNeedsData = {
+  posted: NeedListItem[];
+  applied: {
+    id: string; // application id
+    message: string;
+    createdAt: string;
+    need: NeedListItem;
+  }[];
+};
+
+export type NotificationCounts = {
+  all: number;
+  job_match: number;
+  connection: number;
+  chat: number;
+  broadcast: number;
+};
+
 export type ProfileDetail = {
   id: string;
   userId: string;

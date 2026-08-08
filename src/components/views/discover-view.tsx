@@ -54,8 +54,8 @@ export function DiscoverView() {
   const [q, setQ] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [skillId, setSkillId] = useState("");
-  const [province, setProvince] = useState("");
-  const [city, setCity] = useState("");
+  const [province, setProvince] = useState("all");
+  const [city, setCity] = useState("all");
   const [postSort, setPostSort] = useState<PostSort>("recent");
   const [userSort, setUserSort] = useState<UserSort>("followers");
   const [showFilters, setShowFilters] = useState(false);
@@ -79,8 +79,8 @@ export function DiscoverView() {
     q,
     categoryId,
     skillId,
-    province,
-    city,
+    province !== "all" ? province : "",
+    city !== "all" ? city : "",
   ].filter(Boolean).length;
 
   const load = useCallback(async () => {
@@ -105,8 +105,8 @@ export function DiscoverView() {
         const params = new URLSearchParams();
         if (categoryId) params.set("categoryId", categoryId);
         if (skillId) params.set("skillId", skillId);
-        if (province) params.set("province", province);
-        if (city) params.set("city", city);
+        if (province !== "all") params.set("province", province);
+        if (city !== "all") params.set("city", city);
         if (q.trim()) params.set("q", q.trim());
         params.set("sort", userSort);
         const data = await api<{ talents: TalentListItem[] }>(
@@ -131,8 +131,8 @@ export function DiscoverView() {
     setQ("");
     setCategoryId("");
     setSkillId("");
-    setProvince("");
-    setCity("");
+    setProvince("all");
+    setCity("all");
   }
 
   return (
@@ -289,11 +289,12 @@ export function DiscoverView() {
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <Select value={province} onValueChange={(v) => { setProvince(v); setCity(""); }}>
+                <Select value={province} onValueChange={(v) => { setProvince(v); setCity("all"); }}>
                   <SelectTrigger className="rounded-xl h-10">
                     <SelectValue placeholder="استان" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">همه</SelectItem>
                     {PROVINCES.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name}
@@ -301,11 +302,12 @@ export function DiscoverView() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={city} onValueChange={setCity} disabled={!province}>
+                <Select value={city} onValueChange={setCity} disabled={province === "all"}>
                   <SelectTrigger className="rounded-xl h-10">
                     <SelectValue placeholder="شهر" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">همه</SelectItem>
                     {currentProvince?.cities.map((c) => (
                       <SelectItem key={c} value={c}>
                         {c}
@@ -345,18 +347,18 @@ export function DiscoverView() {
               onRemove={() => setSkillId("")}
             />
           )}
-          {province && (
+          {province !== "all" && (
             <FilterChip
               label={getProvinceName(province) || "استان"}
               icon={MapPin}
               onRemove={() => {
-                setProvince("");
-                setCity("");
+                setProvince("all");
+                setCity("all");
               }}
             />
           )}
-          {city && (
-            <FilterChip label={city} icon={MapPin} onRemove={() => setCity("")} />
+          {city !== "all" && (
+            <FilterChip label={city} icon={MapPin} onRemove={() => setCity("all")} />
           )}
           {q.trim() && (
             <FilterChip label={`«${q.trim()}»`} onRemove={() => setQ("")} />

@@ -20,6 +20,7 @@ import {
   Settings,
   X,
   ChevronRight,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/shared/illustrations";
@@ -29,6 +30,10 @@ import { FeedView } from "@/components/views/feed-view";
 import { FollowingView } from "@/components/views/following-view";
 import { DiscoverView } from "@/components/views/discover-view";
 import { TalentsView } from "@/components/views/talents-view";
+import { NeedsView } from "@/components/views/needs-view";
+import { NeedDetailView } from "@/components/views/need-detail-view";
+import { CreateNeedView } from "@/components/views/create-need-view";
+import { MyNeedsView } from "@/components/views/my-needs-view";
 import { CategoryView } from "@/components/views/category-view";
 import { ProfileView } from "@/components/views/profile-view";
 import { EditProfileView } from "@/components/views/edit-profile-view";
@@ -48,6 +53,10 @@ function renderView(route: Route) {
     case "following": return <FollowingView />;
     case "discover": return <DiscoverView />;
     case "talents": return <TalentsView />;
+    case "needs": return <NeedsView />;
+    case "need": return <NeedDetailView id={route.id} />;
+    case "create-need": return <CreateNeedView />;
+    case "my-needs": return <MyNeedsView />;
     case "category": return <CategoryView id={route.id} />;
     case "profile": return <ProfileView id={route.id} />;
     case "my-profile": return <ProfileView id="me" />;
@@ -64,15 +73,15 @@ function renderView(route: Route) {
   }
 }
 
-// Mobile bottom nav: Home, Discover, Talents, Following
+// Mobile bottom nav: Home, Discover, Talents, Needs
 const BOTTOM_NAV = [
   { key: "feed", label: "خانه", icon: Home },
   { key: "discover", label: "کشف", icon: Search },
   { key: "talents", label: "استعدادها", icon: Sparkles },
-  { key: "following", label: "دنبال‌شده", icon: UserCheck },
+  { key: "needs", label: "نیازمندی", icon: Briefcase },
 ] as const;
 
-const TOP_LEVEL = new Set(["feed", "discover", "talents", "following", "settings"]);
+const TOP_LEVEL = new Set(["feed", "discover", "talents", "needs", "following", "settings"]);
 
 export function AppShell({ children }: { children?: React.ReactNode }) {
   const route = useNav((s) => s.route);
@@ -268,6 +277,8 @@ function SwipeUpDock({
 
   const moreItems = [
     { key: "chat", label: "چت", icon: MessageCircle, badge: chatUnread },
+    { key: "following", label: "دنبال‌شده", icon: UserCheck },
+    { key: "my-needs", label: "نیازمندی‌های من", icon: Briefcase },
     { key: "connections", label: "ارتباطات", icon: UserPlus },
     { key: "notifications", label: "اعلان‌ها", icon: Bell, badge: unread },
     { key: "edit-profile", label: "ویرایش", icon: UserIcon },
