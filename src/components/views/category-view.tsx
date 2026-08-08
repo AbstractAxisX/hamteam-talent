@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TalentCardLarge } from "@/components/views/talents-view";
 import type { CategoryWithSkills, TalentListItem } from "@/lib/types";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Users, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toFa } from "@/lib/format";
 
@@ -80,7 +80,7 @@ export function CategoryView({ id }: { id: string }) {
         action={
           <Button
             onClick={() => navigate({ view: "discover" })}
-            className="rounded-2xl bg-lime text-forest font-bold"
+            className="rounded-2xl font-bold"
           >
             بازگشت به کشف
           </Button>
@@ -91,41 +91,34 @@ export function CategoryView({ id }: { id: string }) {
 
   return (
     <div className="space-y-5 max-w-4xl mx-auto">
-      {/* ══════ Hero header ══════ */}
+      {/* ══════ Hero header — solid petrol-teal ══════ */}
       <motion.section
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-3xl bg-forest-gradient text-white p-6 sm:p-8"
+        className="relative overflow-hidden rounded-3xl bg-primary text-primary-foreground p-6 sm:p-8 shadow-sm"
       >
-        <div className="absolute -top-10 -left-10 w-40 h-40 rounded-full bg-lime/15 animate-float" />
+        {/* Soft solid circles — NO gradients */}
+        <div className="absolute -top-10 -left-10 w-40 h-40 rounded-full bg-primary-foreground/10 animate-float" />
         <div
-          className="absolute -bottom-12 -right-8 w-32 h-32 rounded-full bg-lime/10 animate-float"
+          className="absolute -bottom-12 -right-8 w-32 h-32 rounded-full bg-accent/20 animate-float"
           style={{ animationDelay: "1.5s" }}
         />
-        <div
-          className="absolute inset-0 opacity-[0.08]"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle, white 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-          }}
-        />
         <div className="relative flex items-center gap-4">
-          <span className="grid place-items-center w-20 h-20 rounded-3xl bg-lime text-5xl shadow-lg shrink-0">
+          <span className="grid place-items-center w-20 h-20 rounded-3xl bg-primary-foreground/15 text-5xl shrink-0">
             {cat.iconUrl || "✨"}
           </span>
           <div className="space-y-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl font-extrabold truncate">
               {cat.name}
             </h1>
-            <p className="text-sm text-white/80 flex items-center gap-2 flex-wrap">
+            <p className="text-sm text-primary-foreground/80 flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1">
-                <Sparkles className="w-4 h-4 text-lime" />
+                <Sparkles className="w-4 h-4 text-gold" />
                 {toFa(cat.skills.length)} مهارت
               </span>
-              <span className="text-white/40">·</span>
+              <span className="text-primary-foreground/40">·</span>
               <span className="inline-flex items-center gap-1">
-                <span className="text-lime">★</span>
+                <Users className="w-4 h-4 text-gold" />
                 {toFa(talents.length)} استعداد
               </span>
             </p>
@@ -142,8 +135,8 @@ export function CategoryView({ id }: { id: string }) {
               className={cn(
                 "inline-flex items-center gap-1.5 h-9 px-4 rounded-full text-xs font-bold transition-all active:scale-95 shrink-0",
                 !skillId
-                  ? "bg-lime text-forest shadow-sm"
-                  : "bg-card border border-border/60 text-muted-foreground hover:bg-muted"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-card border border-border text-muted-foreground hover:bg-muted"
               )}
             >
               همه
@@ -155,8 +148,8 @@ export function CategoryView({ id }: { id: string }) {
                 className={cn(
                   "inline-flex items-center gap-1.5 h-9 px-4 rounded-full text-xs font-bold transition-all active:scale-95 shrink-0",
                   skillId === s.id
-                    ? "bg-lime text-forest shadow-sm"
-                    : "bg-card border border-border/60 text-muted-foreground hover:bg-muted"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-card border border-border text-muted-foreground hover:bg-muted"
                 )}
               >
                 {s.name}
@@ -165,6 +158,24 @@ export function CategoryView({ id }: { id: string }) {
           </div>
         </div>
       )}
+
+      {/* ══════ Back to discover ══════ */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate({ view: "discover" })}
+          className="text-primary font-bold h-9"
+        >
+          <ArrowLeft className="w-4 h-4 rotate-180" />
+          بازگشت به کشف
+        </Button>
+        {!loading && talents.length > 0 && (
+          <span className="text-xs text-muted-foreground font-medium">
+            {toFa(talents.length)} نتیجه
+          </span>
+        )}
+      </div>
 
       {/* ══════ Results ══════ */}
       {loading ? (
@@ -186,7 +197,7 @@ export function CategoryView({ id }: { id: string }) {
             skillId ? (
               <Button
                 onClick={() => setSkillId("")}
-                className="rounded-2xl bg-lime text-forest font-bold"
+                className="rounded-2xl font-bold"
               >
                 نمایش همه
               </Button>

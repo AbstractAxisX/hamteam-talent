@@ -52,6 +52,7 @@ model Profile {
   bioLong       String   @default("")
   avatarUrl     String?
   bannerUrl     String?
+  gender        String?  // "male" | "female" | null
   province      String?
   city          String?
   phoneVisible  Boolean  @default(false)
@@ -202,14 +203,16 @@ model Connection {
 
 // ─── Chat ──────────────────────────────────────────────────────
 model Conversation {
-  id        String   @id @default(cuid())
-  userAId   String
-  userA     User     @relation("ConvUserA", fields: [userAId], references: [id], onDelete: Cascade)
-  userBId   String
-  userB     User     @relation("ConvUserB", fields: [userBId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  userAId    String
+  userA      User     @relation("ConvUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId    String
+  userB      User     @relation("ConvUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  status     String   @default("active") // "active" | "pending_request"
+  initiatorId String? // who started the request (for pending_request conversations)
+  createdAt  DateTime @default(now())
 
-  messages  Message[]
+  messages   Message[]
 
   @@unique([userAId, userBId])
 }

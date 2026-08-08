@@ -1,0 +1,787 @@
+     1→"use client";
+     2→
+     3→import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+     4→import { io, type Socket } from "socket.io-client";
+     5→import { motion, AnimatePresence } from "framer-motion";
+     6→import { api } from "@/lib/api-client";
+     7→import { useUser } from "@/lib/use-user";
+     8→import { navigate } from "@/lib/nav";
+     9→import { Card } from "@/components/ui/card";
+    10→import { Button } from "@/components/ui/button";
+    11→import { Skeleton } from "@/components/ui/skeleton";
+    12→import { Textarea } from "@/components/ui/textarea";
+    13→import { EmptyState } from "@/components/shared/empty-state";
+    14→import { UserAvatar } from "@/components/shared/user-avatar";
+    15→import { toast } from "@/hooks/use-toast";
+    16→import { timeAgoFa, toFa } from "@/lib/format";
+    17→import {
+    18→  MessageCircle,
+    19→  Send,
+    20→  ArrowRight,
+    21→  Users,
+    22→  Lock,
+    23→  Search,
+    24→  Sparkles,
+    25→  ChevronLeft,
+    26→} from "lucide-react";
+    27→import { cn } from "@/lib/utils";
+    28→
+    29→/* ───────────────────────────── Types ───────────────────────────── */
+    30→
+    31→type OtherUser = {
+    32→  id: string;
+    33→  name: string;
+    34→  isVerifiedBadge: boolean;
+    35→  avatarUrl: string | null;
+    36→};
+    37→
+    38→type ConversationListItem = {
+    39→  id: string;
+    40→  otherUser: OtherUser;
+    41→  lastMessage: {
+    42→    content: string;
+    43→    createdAt: string;
+    44→    senderId: string;
+    45→  } | null;
+    46→};
+    47→
+    48→type ChatMessage = {
+    49→  id: string;
+    50→  conversationId: string;
+    51→  senderId: string;
+    52→  content: string;
+    53→  createdAt: string;
+    54→};
+    55→
+    56→type ConversationDetail = {
+    57→  conversation: {
+    58→    id: string;
+    59→    otherUser: OtherUser & { bioShort?: string };
+    60→  } | null;
+    61→  messages: ChatMessage[];
+    62→};
+    63→
+    64→/* ───────────────────────────── Main View ───────────────────────────── */
+    65→
+    66→export function ChatView({ conversationId }: { conversationId?: string }) {
+    67→  const { user, loading: userLoading } = useUser();
+    68→  const [conversations, setConversations] = useState<ConversationListItem[]>([]);
+    69→  const [convLoading, setConvLoading] = useState(true);
+    70→  const [activeConv, setActiveConv] = useState<ConversationDetail | null>(null);
+    71→  const [msgLoading, setMsgLoading] = useState(false);
+    72→  const [draft, setDraft] = useState("");
+    73→  const [isTyping, setIsTyping] = useState(false);
+    74→  const [search, setSearch] = useState("");
+    75→
+    76→  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+    77→  const socketRef = useRef<Socket | null>(null);
+    78→  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    79→  const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    80→  const activeConvRef = useRef<ConversationDetail | null>(null);
+    81→
+    82→  /* ── Load conversation list ── */
+    83→  const loadConversations = useCallback(async () => {
+    84→    setConvLoading(true);
+    85→    try {
+    86→      const d = await api<{ conversations: ConversationListItem[] }>(
+    87→        "/api/chat/conversations"
+    88→      );
+    89→      setConversations(d.conversations);
+    90→    } catch (e) {
+    91→      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    92→    } finally {
+    93→      setConvLoading(false);
+    94→    }
+    95→  }, []);
+    96→
+    97→  /* ── Load messages of active conversation ── */
+    98→  const loadMessages = useCallback(async (id: string) => {
+    99→    setMsgLoading(true);
+   100→    try {
+   101→      const d = await api<ConversationDetail>(
+   102→        `/api/chat/conversations/${id}/messages`
+   103→      );
+   104→      setActiveConv(d);
+   105→    } catch (e) {
+   106→      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+   107→      setActiveConv(null);
+   108→    } finally {
+   109→      setMsgLoading(false);
+   110→    }
+   111→  }, []);
+   112→
+   113→  useEffect(() => {
+   114→    if (user) loadConversations();
+   115→    else setConvLoading(false);
+   116→  }, [user, loadConversations]);
+   117→
+   118→  useEffect(() => {
+   119→    if (conversationId && user) loadMessages(conversationId);
+   120→    else setActiveConv(null);
+   121→  }, [conversationId, user, loadMessages]);
+   122→
+   123→  /* ── Auto-scroll helper ── */
+   124→  const scrollToBottom = useCallback(() => {
+   125→    const el = messagesContainerRef.current;
+   126→    if (el) el.scrollTop = el.scrollHeight;
+   127→  }, []);
+   128→
+   129→  /* ── Keep activeConv ref synced for socket handlers ── */
+   130→  useEffect(() => {
+   131→    activeConvRef.current = activeConv;
+   132→  }, [activeConv]);
+   133→
+   134→  /* ── Socket.io connection (mini-service on port 3003 via gateway) ── */
+   135→  useEffect(() => {
+   136→    if (!user) return;
+   137→    const socket = io("/", {
+   138→      path: "/",
+   139→      query: { XTransformPort: "3003" },
+   140→      auth: { userId: user.id },
+   141→      transports: ["websocket", "polling"],
+   142→      reconnection: true,
+   143→      reconnectionDelay: 1500,
+   144→    });
+   145→    socketRef.current = socket;
+   146→
+   147→    socket.on("connect_error", (err: Error) => {
+   148→      console.warn("[chat] socket connect_error", err.message);
+   149→    });
+   150→
+   151→    socket.on("message", (msg: ChatMessage) => {
+   152→      if (activeConvRef.current?.conversation?.id === msg.conversationId) {
+   153→        setActiveConv((prev) => {
+   154→          if (!prev) return prev;
+   155→          if (prev.messages.some((m) => m.id === msg.id)) return prev;
+   156→          return { ...prev, messages: [...prev.messages, msg] };
+   157→        });
+   158→        queueMicrotask(() => scrollToBottom());
+   159→      }
+   160→      // Always refresh conversation list to update last message preview
+   161→      loadConversations();
+   162→    });
+   163→
+   164→    socket.on(
+   165→      "typing",
+   166→      (data: { conversationId: string; userId: string; isTyping: boolean }) => {
+   167→        if (
+   168→          activeConvRef.current?.conversation?.id === data.conversationId &&
+   169→          data.userId !== user.id
+   170→        ) {
+   171→          setIsTyping(data.isTyping);
+   172→          if (data.isTyping) {
+   173→            if (typingClearRef.current) clearTimeout(typingClearRef.current);
+   174→            typingClearRef.current = setTimeout(() => setIsTyping(false), 4000);
+   175→          }
+   176→        }
+   177→      }
+   178→    );
+   179→
+   180→    return () => {
+   181→      socket.disconnect();
+   182→      socketRef.current = null;
+   183→      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+   184→      if (typingClearRef.current) clearTimeout(typingClearRef.current);
+   185→    };
+   186→  }, [user, loadConversations, scrollToBottom]);
+   187→
+   188→  /* ── Emit join when active conversation changes ── */
+   189→  useEffect(() => {
+   190→    if (!conversationId || !socketRef.current) return;
+   191→    if (socketRef.current.connected) {
+   192→      socketRef.current.emit("join", { conversationId });
+   193→    } else {
+   194→      socketRef.current.once("connect", () => {
+   195→        socketRef.current?.emit("join", { conversationId });
+   196→      });
+   197→    }
+   198→  }, [conversationId]);
+   199→
+   200→  /* ── Auto-scroll to bottom on new messages ── */
+   201→  useEffect(() => {
+   202→    queueMicrotask(() => scrollToBottom());
+   203→  }, [activeConv?.messages.length, scrollToBottom]);
+   204→
+   205→  /* ── Send a message ── */
+   206→  const handleSend = useCallback(() => {
+   207→    const content = draft.trim();
+   208→    if (!content || !conversationId || !user || !socketRef.current) return;
+   209→    setDraft("");
+   210→    socketRef.current.emit("typing", {
+   211→      conversationId,
+   212→      userId: user.id,
+   213→      isTyping: false,
+   214→    });
+   215→    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+   216→
+   217→    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+   218→    const optimistic: ChatMessage = {
+   219→      id: tempId,
+   220→      conversationId,
+   221→      senderId: user.id,
+   222→      content,
+   223→      createdAt: new Date().toISOString(),
+   224→    };
+   225→    setActiveConv((prev) =>
+   226→      prev ? { ...prev, messages: [...prev.messages, optimistic] } : prev
+   227→    );
+   228→    queueMicrotask(() => scrollToBottom());
+   229→
+   230→    socketRef.current.emit("message", {
+   231→      conversationId,
+   232→      senderId: user.id,
+   233→      content,
+   234→    });
+   235→
+   236→    setConversations((prev) =>
+   237→      prev
+   238→        .map((c) =>
+   239→          c.id === conversationId
+   240→            ? {
+   241→                ...c,
+   242→                lastMessage: {
+   243→                  content,
+   244→                  createdAt: optimistic.createdAt,
+   245→                  senderId: user.id,
+   246→                },
+   247→              }
+   248→            : c
+   249→        )
+   250→        .sort((a, b) => {
+   251→          const at = a.lastMessage?.createdAt || "0";
+   252→          const bt = b.lastMessage?.createdAt || "0";
+   253→          return at < bt ? 1 : -1;
+   254→        })
+   255→    );
+   256→  }, [draft, conversationId, user, scrollToBottom]);
+   257→
+   258→  const handleDraftChange = (val: string) => {
+   259→    setDraft(val);
+   260→    if (!conversationId || !user || !socketRef.current) return;
+   261→    socketRef.current.emit("typing", {
+   262→      conversationId,
+   263→      userId: user.id,
+   264→      isTyping: true,
+   265→    });
+   266→    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+   267→    typingTimeoutRef.current = setTimeout(() => {
+   268→      socketRef.current?.emit("typing", {
+   269→        conversationId,
+   270→        userId: user.id,
+   271→        isTyping: false,
+   272→      });
+   273→    }, 1500);
+   274→  };
+   275→
+   276→  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+   277→    if (e.key === "Enter" && !e.shiftKey) {
+   278→      e.preventDefault();
+   279→      handleSend();
+   280→    }
+   281→  };
+   282→
+   283→  /* ── Filtered list ── */
+   284→  const filteredConversations = useMemo(() => {
+   285→    if (!search.trim()) return conversations;
+   286→    const q = search.trim().toLowerCase();
+   287→    return conversations.filter((c) =>
+   288→      c.otherUser.name.toLowerCase().includes(q)
+   289→    );
+   290→  }, [conversations, search]);
+   291→
+   292→  /* ── Not logged in ── */
+   293→  if (!userLoading && !user) {
+   294→    return (
+   295→      <div className="max-w-3xl mx-auto space-y-5">
+   296→        <PageHeader />
+   297→        <Card className="p-0 rounded-2xl border-border/60 overflow-hidden">
+   298→          <EmptyState
+   299→            kind="chat"
+   300→            title="برای چت کردن وارد شوید"
+   301→            description="برای شروع گفتگو با همکاران، ابتدا وارد حساب کاربری خود شوید."
+   302→            action={
+   303→              <Button
+   304→                onClick={() => navigate({ view: "auth" })}
+   305→                className="gap-1.5 rounded-2xl bg-lime text-forest font-bold hover:bg-lime/90"
+   306→              >
+   307→                <Lock className="w-4 h-4" />
+   308→                ورود / ثبت‌نام
+   309→              </Button>
+   310→            }
+   311→          />
+   312→        </Card>
+   313→      </div>
+   314→    );
+   315→  }
+   316→
+   317→  const showMobileList = !conversationId;
+   318→
+   319→  return (
+   320→    <div className="space-y-4">
+   321→      <PageHeader />
+   322→
+   323→      {/* Mobile: chat list */}
+   324→      {showMobileList && (
+   325→        <div className="lg:hidden">
+   326→          <ChatList
+   327→            conversations={filteredConversations}
+   328→            loading={convLoading}
+   329→            search={search}
+   330→            onSearch={setSearch}
+   331→            activeId={conversationId}
+   332→          />
+   333→        </div>
+   334→      )}
+   335→
+   336→      {/* Mobile: active chat */}
+   337→      {!showMobileList && (
+   338→        <div className="lg:hidden">
+   339→          <ChatThread
+   340→            conv={activeConv}
+   341→            loading={msgLoading}
+   342→            draft={draft}
+   343→            onDraftChange={handleDraftChange}
+   344→            onKeyDown={handleKeyDown}
+   345→            onSend={handleSend}
+   346→            currentUserId={user?.id || ""}
+   347→            isTyping={isTyping}
+   348→            messagesContainerRef={messagesContainerRef}
+   349→            onBack={() => navigate({ view: "chat" })}
+   350→          />
+   351→        </div>
+   352→      )}
+   353→
+   354→      {/* Desktop: two-pane — list on right (RTL start), chat on left */}
+   355→      <div className="hidden lg:grid lg:grid-cols-[1fr_320px] gap-4">
+   356→        <div>
+   357→          {conversationId ? (
+   358→            <ChatThread
+   359→              conv={activeConv}
+   360→              loading={msgLoading}
+   361→              draft={draft}
+   362→              onDraftChange={handleDraftChange}
+   363→              onKeyDown={handleKeyDown}
+   364→              onSend={handleSend}
+   365→              currentUserId={user?.id || ""}
+   366→              isTyping={isTyping}
+   367→              messagesContainerRef={messagesContainerRef}
+   368→            />
+   369→          ) : (
+   370→            <Card className="h-[72vh] flex items-center justify-center rounded-2xl border-border/60 bg-cream-gradient">
+   371→              <EmptyState
+   372→                kind="chat"
+   373→                title="یک گفتگو را انتخاب کنید"
+   374→                description="از لیست کناری یک گفتگو را انتخاب کنید یا همکار جدیدی پیدا کنید."
+   375→                action={
+   376→                  <Button
+   377→                    variant="outline"
+   378→                    onClick={() => navigate({ view: "talents" })}
+   379→                    className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5"
+   380→                  >
+   381→                    <Users className="w-4 h-4" />
+   382→                    پیدا کردن همکار
+   383→                  </Button>
+   384→                }
+   385→              />
+   386→            </Card>
+   387→          )}
+   388→        </div>
+   389→        <div>
+   390→          <ChatList
+   391→            conversations={filteredConversations}
+   392→            loading={convLoading}
+   393→            search={search}
+   394→            onSearch={setSearch}
+   395→            activeId={conversationId}
+   396→          />
+   397→        </div>
+   398→      </div>
+   399→    </div>
+   400→  );
+   401→}
+   402→
+   403→/* ───────────────────────────── Page Header ───────────────────────────── */
+   404→
+   405→function PageHeader() {
+   406→  return (
+   407→    <motion.div
+   408→      initial={{ opacity: 0, y: -8 }}
+   409→      animate={{ opacity: 1, y: 0 }}
+   410→      className="flex items-center justify-between"
+   411→    >
+   412→      <div className="flex items-center gap-3">
+   413→        <div className="grid place-items-center w-11 h-11 rounded-2xl bg-forest text-lime shadow-md">
+   414→          <MessageCircle className="w-5 h-5" />
+   415→        </div>
+   416→        <div>
+   417→          <h1 className="text-xl font-extrabold leading-tight tracking-tight">چت</h1>
+   418→          <p className="text-xs text-muted-foreground mt-0.5">گفتگوی زنده با همکاران</p>
+   419→        </div>
+   420→      </div>
+   421→      <Button
+   422→        variant="outline"
+   423→        size="sm"
+   424→        onClick={() => navigate({ view: "talents" })}
+   425→        className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5"
+   426→      >
+   427→        <Users className="w-4 h-4" />
+   428→        <span className="hidden sm:inline">همکاران</span>
+   429→      </Button>
+   430→    </motion.div>
+   431→  );
+   432→}
+   433→
+   434→/* ───────────────────────────── Chat List (right pane, RTL) ───────────────────────────── */
+   435→
+   436→function ChatList({
+   437→  conversations,
+   438→  loading,
+   439→  search,
+   440→  onSearch,
+   441→  activeId,
+   442→}: {
+   443→  conversations: ConversationListItem[];
+   444→  loading: boolean;
+   445→  search: string;
+   446→  onSearch: (v: string) => void;
+   447→  activeId?: string;
+   448→}) {
+   449→  return (
+   450→    <Card className="flex flex-col h-[72vh] lg:h-[72vh] overflow-hidden rounded-2xl border-border/60 shadow-sm">
+   451→      {/* Header */}
+   452→      <div className="p-3.5 border-b border-border/60 space-y-2.5 bg-card">
+   453→        <div className="flex items-center justify-between gap-2">
+   454→          <h2 className="font-bold text-sm flex items-center gap-2">
+   455→            <span className="grid place-items-center w-6 h-6 rounded-lg bg-lime/20 text-forest">
+   456→              <MessageCircle className="w-3.5 h-3.5" />
+   457→            </span>
+   458→            گفتگوها
+   459→          </h2>
+   460→          <span className="text-[10px] text-muted-foreground font-medium">
+   461→            {toFa(conversations.length)} گفتگو
+   462→          </span>
+   463→        </div>
+   464→        <div className="relative">
+   465→          <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+   466→          <input
+   467→            value={search}
+   468→            onChange={(e) => onSearch(e.target.value)}
+   469→            placeholder="جست‌وجو در گفتگوها..."
+   470→            className="w-full h-9 pr-8 pl-3 text-xs rounded-xl border border-input bg-muted/40 focus:outline-none focus:ring-2 focus:ring-lime/50 focus:border-transparent transition-all"
+   471→          />
+   472→        </div>
+   473→      </div>
+   474→
+   475→      {/* List */}
+   476→      <div className="flex-1 overflow-y-auto slim-scroll">
+   477→        {loading ? (
+   478→          <div className="p-3 space-y-2">
+   479→            {[...Array(5)].map((_, i) => (
+   480→              <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl">
+   481→                <Skeleton className="w-11 h-11 rounded-full shrink-0" />
+   482→                <div className="flex-1 space-y-2">
+   483→                  <Skeleton className="h-3.5 w-28 rounded" />
+   484→                  <Skeleton className="h-2.5 w-40 rounded" />
+   485→                </div>
+   486→              </div>
+   487→            ))}
+   488→          </div>
+   489→        ) : conversations.length === 0 ? (
+   490→          <div className="p-4">
+   491→            <EmptyState
+   492→              kind="chat"
+   493→              title={search ? "موردی پیدا نشد" : "گفتگویی ندارید"}
+   494→              description={
+   495→                search
+   496→                  ? "عبارت دیگری را امتحان کنید."
+   497→                  : "برای شروع گفتگو، به پروفایل یکی از همکاران بروید."
+   498→              }
+   499→              className="py-6"
+   500→              action={
+   501→                !search ? (
+   502→                  <Button
+   503→                    variant="outline"
+   504→                    size="sm"
+   505→                    onClick={() => navigate({ view: "talents" })}
+   506→                    className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5"
+   507→                  >
+   508→                    <Users className="w-4 h-4" />
+   509→                    پیدا کردن همکار
+   510→                  </Button>
+   511→                ) : undefined
+   512→              }
+   513→            />
+   514→          </div>
+   515→        ) : (
+   516→          conversations.map((c, i) => {
+   517→            const active = c.id === activeId;
+   518→            return (
+   519→              <motion.button
+   520→                key={c.id}
+   521→                initial={{ opacity: 0, y: 6 }}
+   522→                animate={{ opacity: 1, y: 0 }}
+   523→                transition={{ duration: 0.25, delay: Math.min(i * 0.03, 0.25) }}
+   524→                onClick={() => navigate({ view: "chat", conversationId: c.id })}
+   525→                className={cn(
+   526→                  "relative w-full text-right flex items-center gap-3 p-3 transition-colors border-b border-border/40",
+   527→                  active ? "bg-lime/15" : "hover:bg-muted/40"
+   528→                )}
+   529→              >
+   530→                <UserAvatar
+   531→                  name={c.otherUser.name}
+   532→                  avatarUrl={c.otherUser.avatarUrl}
+   533→                  verified={c.otherUser.isVerifiedBadge}
+   534→                  size="md"
+   535→                />
+   536→                <div className="flex-1 min-w-0">
+   537→                  <div className="flex items-center justify-between gap-2">
+   538→                    <span
+   539→                      className={cn(
+   540→                        "text-xs truncate",
+   541→                        active
+   542→                          ? "font-bold text-forest"
+   543→                          : "font-semibold text-foreground"
+   544→                      )}
+   545→                    >
+   546→                      {c.otherUser.name}
+   547→                    </span>
+   548→                    {c.lastMessage && (
+   549→                      <span className="text-[10px] text-muted-foreground shrink-0">
+   550→                        {timeAgoFa(c.lastMessage.createdAt)}
+   551→                      </span>
+   552→                    )}
+   553→                  </div>
+   554→                  <p
+   555→                    className={cn(
+   556→                      "text-[11px] line-clamp-1 mt-0.5 leading-5",
+   557→                      active ? "text-forest/70" : "text-muted-foreground"
+   558→                    )}
+   559→                  >
+   560→                    {c.lastMessage
+   561→                      ? c.lastMessage.content
+   562→                      : "گفتگوی جدید — شروع کنید"}
+   563→                  </p>
+   564→                </div>
+   565→                {active && (
+   566→                  <motion.span
+   567→                    layoutId="chat-active-pill"
+   568→                    className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-l-full bg-lime"
+   569→                  />
+   570→                )}
+   571→              </motion.button>
+   572→            );
+   573→          })
+   574→        )}
+   575→      </div>
+   576→    </Card>
+   577→  );
+   578→}
+   579→
+   580→/* ───────────────────────────── Chat Thread (left pane) ───────────────────────────── */
+   581→
+   582→function ChatThread({
+   583→  conv,
+   584→  loading,
+   585→  draft,
+   586→  onDraftChange,
+   587→  onKeyDown,
+   588→  onSend,
+   589→  currentUserId,
+   590→  isTyping,
+   591→  messagesContainerRef,
+   592→  onBack,
+   593→}: {
+   594→  conv: ConversationDetail | null;
+   595→  loading: boolean;
+   596→  draft: string;
+   597→  onDraftChange: (v: string) => void;
+   598→  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+   599→  onSend: () => void;
+   600→  currentUserId: string;
+   601→  isTyping: boolean;
+   602→  messagesContainerRef: React.RefObject<HTMLDivElement | null>;
+   603→  onBack?: () => void;
+   604→}) {
+   605→  const other = conv?.conversation?.otherUser;
+   606→  const messages = conv?.messages ?? [];
+   607→
+   608→  return (
+   609→    <Card className="flex flex-col h-[72vh] overflow-hidden rounded-2xl border-border/60 shadow-sm">
+   610→      {/* ── Header ── */}
+   611→      <div className="p-3 border-b border-border/60 flex items-center gap-3 bg-forest text-white">
+   612→        {onBack && (
+   613→          <Button
+   614→            variant="ghost"
+   615→            size="icon"
+   616→            className="h-9 w-9 shrink-0 rounded-xl hover:bg-white/10 text-white"
+   617→            onClick={onBack}
+   618→            aria-label="بازگشت"
+   619→          >
+   620→            <ArrowRight className="w-4 h-4" />
+   621→          </Button>
+   622→        )}
+   623→        {other ? (
+   624→          <>
+   625→            <button
+   626→              onClick={() => navigate({ view: "profile", id: other.id })}
+   627→              className="shrink-0"
+   628→              aria-label="مشاهده پروفایل"
+   629→            >
+   630→              <UserAvatar
+   631→                name={other.name}
+   632→                avatarUrl={other.avatarUrl}
+   633→                verified={other.isVerifiedBadge}
+   634→                size="md"
+   635→              />
+   636→            </button>
+   637→            <div className="flex-1 min-w-0">
+   638→              <button
+   639→                onClick={() => navigate({ view: "profile", id: other.id })}
+   640→                className="font-bold text-sm hover:text-lime transition-colors truncate block text-right"
+   641→              >
+   642→                {other.name}
+   643→              </button>
+   644→              <p className="text-[11px] text-white/70 flex items-center gap-1.5 h-4">
+   645→                {isTyping ? (
+   646→                  <span className="text-lime font-medium flex items-center gap-1.5">
+   647→                    <span className="flex gap-0.5">
+   648→                      <span className="w-1.5 h-1.5 rounded-full bg-lime animate-bounce [animation-delay:-0.3s]" />
+   649→                      <span className="w-1.5 h-1.5 rounded-full bg-lime animate-bounce [animation-delay:-0.15s]" />
+   650→                      <span className="w-1.5 h-1.5 rounded-full bg-lime animate-bounce" />
+   651→                    </span>
+   652→                    در حال تایپ...
+   653→                  </span>
+   654→                ) : (
+   655→                  <span className="truncate">{other.bioShort || "مشاهده پروفایل"}</span>
+   656→                )}
+   657→              </p>
+   658→            </div>
+   659→            <ChevronLeft className="w-4 h-4 text-white/40 shrink-0" />
+   660→          </>
+   661→        ) : (
+   662→          <div className="flex-1">
+   663→            <Skeleton className="h-4 w-32 rounded bg-white/10" />
+   664→            <Skeleton className="h-2.5 w-20 mt-1.5 rounded bg-white/10" />
+   665→          </div>
+   666→        )}
+   667→      </div>
+   668→
+   669→      {/* ── Messages ── */}
+   670→      <div
+   671→        ref={messagesContainerRef}
+   672→        className="flex-1 overflow-y-auto slim-scroll p-4 space-y-3 bg-cream-gradient"
+   673→      >
+   674→        {loading ? (
+   675→          <div className="space-y-3">
+   676→            {[...Array(6)].map((_, i) => {
+   677→              // Spec: own messages on LEFT visually (items-end in RTL),
+   678→              // other's on RIGHT visually (items-start in RTL).
+   679→              const mine = i % 2 === 0;
+   680→              return (
+   681→                <div
+   682→                  key={i}
+   683→                  className={cn("flex", mine ? "justify-end" : "justify-start")}
+   684→                >
+   685→                  <Skeleton
+   686→                    className={cn(
+   687→                      "h-12 rounded-2xl",
+   688→                      mine ? "w-48 rounded-tl-md" : "w-56 rounded-tr-md"
+   689→                    )}
+   690→                  />
+   691→                </div>
+   692→              );
+   693→            })}
+   694→          </div>
+   695→        ) : messages.length === 0 ? (
+   696→          <div className="h-full flex items-center justify-center">
+   697→            <EmptyState
+   698→              kind="chat"
+   699→              title="گفتگو را شروع کنید"
+   700→              description="اولین پیام را ارسال کنید — گفتگوی شما کاملاً خصوصی است."
+   701→              className="py-6"
+   702→            />
+   703→          </div>
+   704→        ) : (
+   705→          <AnimatePresence initial={false}>
+   706→            {messages.map((m, idx) => {
+   707→              const isMine = m.senderId === currentUserId;
+   708→              const prev = messages[idx - 1];
+   709→              const showSender =
+   710→                !isMine && (!prev || prev.senderId !== m.senderId);
+   711→              return (
+   712→                <motion.div
+   713→                  key={m.id}
+   714→                  layout="position"
+   715→                  initial={{ opacity: 0, y: 10, scale: 0.97 }}
+   716→                  animate={{ opacity: 1, y: 0, scale: 1 }}
+   717→                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+   718→                  className={cn(
+   719→                    "flex flex-col",
+   720→                    // Spec: own messages on LEFT visually (items-end in RTL flex-col),
+   721→                    // other's on RIGHT visually (items-start in RTL flex-col).
+   722→                    isMine ? "items-end" : "items-start"
+   723→                  )}
+   724→                >
+   725→                  {showSender && (
+   726→                    <span className="text-[10px] text-muted-foreground mb-1 px-2 font-medium">
+   727→                      {other?.name}
+   728→                    </span>
+   729→                  )}
+   730→                  <div
+   731→                    className={cn(
+   732→                      "max-w-[80%] sm:max-w-[70%] px-3.5 py-2.5 text-sm leading-6 break-words whitespace-pre-wrap shadow-sm",
+   733→                      isMine
+   734→                        ? "bg-forest text-white rounded-2xl rounded-tl-md"
+   735→                        : "bg-card border border-border/60 rounded-2xl rounded-tr-md"
+   736→                    )}
+   737→                  >
+   738→                    {m.content}
+   739→                    <span
+   740→                      className={cn(
+   741→                        "block text-[9px] mt-1",
+   742→                        isMine ? "text-white/60" : "text-muted-foreground"
+   743→                      )}
+   744→                    >
+   745→                      {timeAgoFa(m.createdAt)}
+   746→                    </span>
+   747→                  </div>
+   748→                </motion.div>
+   749→              );
+   750→            })}
+   751→          </AnimatePresence>
+   752→        )}
+   753→      </div>
+   754→
+   755→      {/* ── Input ── */}
+   756→      <div className="p-3 border-t border-border/60 bg-card">
+   757→        <div className="flex items-end gap-2">
+   758→          <div className="flex-1 relative">
+   759→            <Textarea
+   760→              value={draft}
+   761→              onChange={(e) => onDraftChange(e.target.value)}
+   762→              onKeyDown={onKeyDown}
+   763→              placeholder="پیام بنویسید..."
+   764→              className="flex-1 min-h-[44px] max-h-32 resize-none text-sm rounded-2xl pr-4 pl-3 py-2.5 border-border/60 focus-visible:ring-1 focus-visible:ring-lime/50"
+   765→              rows={1}
+   766→            />
+   767→          </div>
+   768→          <motion.button
+   769→            whileTap={{ scale: 0.9 }}
+   770→            whileHover={{ scale: 1.05 }}
+   771→            onClick={onSend}
+   772→            disabled={!draft.trim()}
+   773→            className="h-11 w-11 p-0 shrink-0 rounded-full bg-lime text-forest grid place-items-center shadow-md disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed transition-shadow hover:shadow-lg"
+   774→            aria-label="ارسال"
+   775→          >
+   776→            <Send className="w-4 h-4 -scale-x-100" />
+   777→          </motion.button>
+   778→        </div>
+   779→        <p className="text-[10px] text-muted-foreground mt-1.5 px-2 flex items-center gap-1">
+   780→          <Sparkles className="w-3 h-3 text-gold/70" />
+   781→          Enter برای ارسال · Shift+Enter برای خط جدید
+   782→        </p>
+   783→      </div>
+   784→    </Card>
+   785→  );
+   786→}
+   787→

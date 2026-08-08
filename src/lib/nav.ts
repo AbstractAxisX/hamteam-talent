@@ -4,6 +4,7 @@ import { create } from "zustand";
 
 export type Route =
   | { view: "feed" }
+  | { view: "following" }
   | { view: "discover" }
   | { view: "talents" }
   | { view: "category"; id: string }
@@ -25,6 +26,7 @@ function parseHash(): Route {
   const [path, ...rest] = hash.split("/");
   switch (path) {
     case "discover": return { view: "discover" };
+    case "following": return { view: "following" };
     case "talents": return { view: "talents" };
     case "category": return { view: "category", id: rest[0] || "" };
     case "profile": return { view: "profile", id: rest[0] || "" };

@@ -130,6 +130,11 @@ export async function PUT(req: Request) {
   const phoneVisible =
     typeof body.phoneVisible === "boolean" ? body.phoneVisible : undefined;
 
+  // Gender: "male" | "female" | null
+  let gender: string | null | undefined = undefined;
+  if (body.gender === null || body.gender === "") gender = null;
+  else if (body.gender === "male" || body.gender === "female") gender = body.gender;
+
   // Province: validate against known IDs (or null to clear)
   let province: string | null | undefined = undefined;
   if (body.province === null || body.province === "") province = null;
@@ -168,6 +173,7 @@ export async function PUT(req: Request) {
     if (province !== undefined) patch.province = province;
     if (city !== undefined) patch.city = city;
     if (phoneVisible !== undefined) patch.phoneVisible = phoneVisible;
+    if (gender !== undefined) patch.gender = gender;
     if (Object.keys(patch).length > 0) {
       await db.profile.update({ where: { userId: me.id }, data: patch });
     }

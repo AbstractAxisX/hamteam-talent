@@ -48,6 +48,7 @@ export type TalentListItem = {
   isVerifiedBadge: boolean;
   bioShort: string;
   avatarUrl: string | null;
+  gender: string | null;
   province: string | null;
   city: string | null;
   categories: { id: string; name: string; iconUrl: string | null }[];
@@ -63,6 +64,7 @@ export type ProfileDetail = {
   bioLong: string;
   avatarUrl: string | null;
   bannerUrl: string | null;
+  gender: string | null;
   province: string | null;
   city: string | null;
   phoneVisible: boolean;

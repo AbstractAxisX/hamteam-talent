@@ -54,6 +54,7 @@ export async function GET(req: Request) {
     isVerifiedBadge: u.isVerifiedBadge,
     bioShort: u.profile?.bioShort || "",
     avatarUrl: u.profile?.avatarUrl ?? null,
+    gender: (u.profile?.gender as string | null) ?? null,
     province: u.profile?.province ?? null,
     city: u.profile?.city ?? null,
     categories: u.userCategories.map((uc) => ({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { api, apiPost, apiPut, apiDelete } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
@@ -51,29 +51,15 @@ import {
   Trash2,
   Lock,
   ChevronLeft,
+  Upload,
+  VenusAndMars,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/* Lime + Forest banner gradients (NO blue/indigo) */
-const BANNER_GRADIENTS = [
-  "linear-gradient(135deg, oklch(0.32 0.05 165) 0%, oklch(0.22 0.04 180) 100%)",
-  "linear-gradient(135deg, oklch(0.32 0.05 165) 0%, oklch(0.55 0.15 140) 100%)",
-  "linear-gradient(135deg, oklch(0.4 0.1 160) 0%, oklch(0.7 0.18 125) 100%)",
-  "linear-gradient(135deg, oklch(0.32 0.05 165) 0%, oklch(0.6 0.13 158) 100%)",
-  "linear-gradient(135deg, oklch(0.32 0.05 165) 0%, oklch(0.65 0.15 75) 100%)",
-  "linear-gradient(135deg, oklch(0.4 0.1 160) 0%, oklch(0.55 0.18 15) 100%)",
-];
-
-function hashIdToIndex(id: string, mod: number): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) {
-    h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  }
-  return h % mod;
-}
-
 const SECTIONS = [
   { key: "photos", label: "عکس‌ها و بیو" },
+  { key: "gender", label: "جنسیت" },
   { key: "location", label: "موقعیت" },
   { key: "categories", label: "دسته‌بندی و مهارت‌ها" },
   { key: "experience", label: "سوابق کاری" },
@@ -117,7 +103,7 @@ export function EditProfileView() {
     return (
       <div className="max-w-3xl mx-auto">
         <Card className="p-8 text-center space-y-3 border-border/60 shadow-card rounded-2xl">
-          <div className="grid place-items-center w-14 h-14 rounded-2xl bg-forest/10 text-forest mx-auto">
+          <div className="grid place-items-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mx-auto">
             <Lock className="w-6 h-6" />
           </div>
           <h2 className="font-bold text-lg">برای ویرایش پروفایل وارد شوید</h2>
@@ -126,7 +112,7 @@ export function EditProfileView() {
           </p>
           <Button
             onClick={() => navigate({ view: "auth" })}
-            className="rounded-2xl bg-lime text-forest hover:bg-lime/90 gap-1.5 mx-auto font-bold"
+            className="rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5 mx-auto font-bold"
           >
             ورود / ثبت‌نام
           </Button>
@@ -145,7 +131,7 @@ export function EditProfileView() {
           action={
             <Button
               onClick={load}
-              className="rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold"
+              className="rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
             >
               تلاش مجدد
             </Button>
@@ -191,7 +177,7 @@ export function EditProfileView() {
               e.preventDefault();
               document.getElementById(`section-${s.key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
-            className="text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-lime/20 hover:text-forest transition-colors font-medium"
+            className="text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/15 hover:text-primary transition-colors font-medium"
           >
             {s.label}
           </a>
@@ -200,6 +186,9 @@ export function EditProfileView() {
 
       <SectionWrapper id="section-photos" delay={0.05}>
         <PhotosBioSection profile={profile} onUpdated={load} />
+      </SectionWrapper>
+      <SectionWrapper id="section-gender" delay={0.08}>
+        <GenderSection profile={profile} onUpdated={load} />
       </SectionWrapper>
       <SectionWrapper id="section-location" delay={0.1}>
         <LocationSection profile={profile} onUpdated={load} />
@@ -238,7 +227,7 @@ function SectionWrapper({
   );
 }
 
-// ─── Section 1: Photos + Bio ──────────────────────────────────────
+// ─── Section 1: Photos + Bio (with avatar/banner upload) ─────────
 function PhotosBioSection({
   profile,
   onUpdated,
@@ -251,6 +240,11 @@ function PhotosBioSection({
   const [bioShort, setBioShort] = useState(profile.bioShort);
   const [bioLong, setBioLong] = useState(profile.bioLong);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const bannerInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setAvatarUrl(profile.avatarUrl ?? "");
@@ -259,12 +253,49 @@ function PhotosBioSection({
     setBioLong(profile.bioLong);
   }, [profile]);
 
-  const isDefaultBanner = !bannerUrl || bannerUrl.startsWith("default");
-  const defaultIdx = isDefaultBanner
-    ? bannerUrl
-      ? Math.max(0, Number(bannerUrl.replace("default-", "")) - 1)
-      : hashIdToIndex(profile.userId, BANNER_GRADIENTS.length)
-    : 0;
+  // Avatar upload — POST /api/upload multipart with type=avatar
+  async function handleAvatarUpload(file: File) {
+    setUploadingAvatar(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "avatar");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "آپلود ناموفق بود");
+      }
+      setAvatarUrl(data.url);
+      toast({ title: "عکس پروفایل به‌روزرسانی شد ✅" });
+      onUpdated();
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
+  // Banner upload — POST /api/upload multipart with type=banner
+  async function handleBannerUpload(file: File) {
+    setUploadingBanner(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "banner");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "آپلود ناموفق بود");
+      }
+      setBannerUrl(data.url);
+      toast({ title: "بنر به‌روزرسانی شد ✅" });
+      onUpdated();
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setUploadingBanner(false);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -288,92 +319,117 @@ function PhotosBioSection({
     <Card className="p-5 md:p-6 space-y-5 border-border/60 shadow-card rounded-2xl">
       <SectionTitle icon={ImageIcon} title="عکس‌ها و بیو" />
 
-      {/* Banner preview */}
+      {/* Banner preview + upload */}
       <div className="space-y-2">
-        <Label>پیش‌نمایش بنر</Label>
-        <div className="h-28 md:h-32 rounded-2xl overflow-hidden relative border border-border/60">
-          {isDefaultBanner ? (
-            <div
-              className="absolute inset-0"
-              style={{ background: BANNER_GRADIENTS[defaultIdx] }}
-            >
-              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_20%,white_0%,transparent_45%)]" />
-              <div className="absolute -bottom-8 -left-6 w-32 h-32 rounded-full bg-lime/20 blur-2xl" />
-            </div>
-          ) : (
+        <Label>بنر پروفایل</Label>
+        <div className="h-28 md:h-32 rounded-2xl overflow-hidden relative border border-border/60 bg-primary">
+          {bannerUrl && !bannerUrl.startsWith("default") ? (
             <img src={bannerUrl} alt="بنر" className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
+            <>
+              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_20%,white_0%,transparent_50%)]" />
+              <div
+                className="absolute inset-0 opacity-10"
+                style={{
+                  backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
+                  backgroundSize: "24px 24px",
+                }}
+              />
+            </>
           )}
         </div>
-        <RadioGroup
-          value={isDefaultBanner ? `default-${defaultIdx + 1}` : "custom"}
-          onValueChange={(v) => {
-            if (v === "custom") {
-              setBannerUrl("");
-            } else {
-              setBannerUrl(v);
-            }
+        <input
+          ref={bannerInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleBannerUpload(f);
+            e.target.value = "";
           }}
-          className="grid grid-cols-3 sm:grid-cols-7 gap-2"
-        >
-          {BANNER_GRADIENTS.map((g, i) => (
-            <Label
-              key={i}
-              htmlFor={`banner-${i}`}
-              className="cursor-pointer flex flex-col items-center gap-1"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => bannerInputRef.current?.click()}
+            disabled={uploadingBanner}
+            className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
+          >
+            {uploadingBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            آپلود بنر
+          </Button>
+          {bannerUrl && !bannerUrl.startsWith("default") && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setBannerUrl("")}
+              className="gap-1.5 rounded-2xl text-muted-foreground hover:text-rose"
             >
-              <RadioGroupItem id={`banner-${i}`} value={`default-${i + 1}`} className="sr-only" />
-              <div
-                className={cn(
-                  "h-10 w-full rounded-lg border-2",
-                  isDefaultBanner && defaultIdx === i
-                    ? "border-forest shadow-md scale-105"
-                    : "border-transparent"
-                )}
-                style={{ background: g }}
-              />
-              <span className="text-[10px] text-muted-foreground nums-fa">{toFa(i + 1)}</span>
-            </Label>
-          ))}
-          <Label htmlFor="banner-custom" className="cursor-pointer flex flex-col items-center gap-1">
-            <RadioGroupItem id="banner-custom" value="custom" className="sr-only" />
-            <div
-              className={cn(
-                "h-10 w-full rounded-lg border-2 grid place-items-center bg-muted",
-                !isDefaultBanner ? "border-forest shadow-md scale-105" : "border-transparent"
-              )}
-            >
-              <ImageIcon className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <span className="text-[10px] text-muted-foreground">سفارشی</span>
-          </Label>
-        </RadioGroup>
-        {!isDefaultBanner && (
-          <Input
-            placeholder="آدرس تصویر بنر (URL)"
-            value={bannerUrl}
-            onChange={(e) => setBannerUrl(e.target.value)}
-            dir="ltr"
-            className="rounded-2xl"
-          />
-        )}
+              <X className="w-3.5 h-3.5" /> حذف
+            </Button>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-5">
+          عکس با ابعاد ۱۲۰۰×۴۰۰ پیکسل بهترین نتیجه را می‌دهد. حداکثر ۵ مگابایت.
+        </p>
       </div>
 
-      {/* Avatar */}
+      {/* Avatar upload */}
       <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 items-start">
         <div className="flex flex-col items-center gap-2">
           <UserAvatar
             name={profile.name}
             avatarUrl={avatarUrl}
             verified={profile.isVerifiedBadge}
+            gender={profile.gender}
             size="xl"
           />
           <span className="text-[11px] text-muted-foreground">پیش‌نمایش</span>
         </div>
         <div className="space-y-2 flex-1">
-          <Label htmlFor="avatar-url">آدرس تصویر پروفایل</Label>
+          <Label htmlFor="avatar-url">عکس پروفایل</Label>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleAvatarUpload(f);
+              e.target.value = "";
+            }}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
+            >
+              {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              آپلود عکس
+            </Button>
+            {avatarUrl && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setAvatarUrl("")}
+                className="gap-1.5 rounded-2xl text-muted-foreground hover:text-rose"
+              >
+                <X className="w-3.5 h-3.5" /> حذف
+              </Button>
+            )}
+          </div>
           <Input
             id="avatar-url"
-            placeholder="https://..."
+            placeholder="یا آدرس تصویر (URL)"
             value={avatarUrl}
             onChange={(e) => setAvatarUrl(e.target.value)}
             dir="ltr"
@@ -396,7 +452,7 @@ function PhotosBioSection({
           maxLength={200}
           className="rounded-2xl"
         />
-        <p className="text-[11px] text-muted-foreground text-left nums-fa">
+        <p className="text-[11px] text-muted-foreground text-left">
           {toFa(bioShort.length)}/{toFa(200)}
         </p>
       </div>
@@ -413,7 +469,7 @@ function PhotosBioSection({
           maxLength={4000}
           className="rounded-2xl resize-none leading-7"
         />
-        <p className="text-[11px] text-muted-foreground text-left nums-fa">
+        <p className="text-[11px] text-muted-foreground text-left">
           {toFa(bioLong.length)}/{toFa(4000)}
         </p>
       </div>
@@ -422,7 +478,7 @@ function PhotosBioSection({
         <Button
           onClick={save}
           disabled={saving}
-          className="gap-1.5 rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold"
+          className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           ذخیره
@@ -432,7 +488,121 @@ function PhotosBioSection({
   );
 }
 
-// ─── Section 2: Location ───────────────────────────────────────────
+// ─── Section 2: Gender ─────────────────────────────────────────────
+function GenderSection({
+  profile,
+  onUpdated,
+}: {
+  profile: ProfileDetail;
+  onUpdated: () => void;
+}) {
+  const [gender, setGender] = useState<string>(profile.gender ?? "none");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setGender(profile.gender ?? "none");
+  }, [profile]);
+
+  async function save(value: string) {
+    setSaving(true);
+    try {
+      const payload =
+        value === "male" || value === "female" ? value : null;
+      await apiPut("/api/profile/me", { gender: payload });
+      setGender(value);
+      toast({ title: "ذخیره شد ✅" });
+      onUpdated();
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const options = [
+    { value: "male", label: "مرد", icon: User },
+    { value: "female", label: "زن", icon: User },
+  ];
+
+  return (
+    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
+      <SectionTitle icon={VenusAndMars} title="جنسیت" />
+      <p className="text-xs text-muted-foreground leading-5">
+        جنسیت برای نمایش آواتار پیش‌فرض و در پروفایل عمومی شما استفاده می‌شود. این اطلاعات اختیاری است.
+      </p>
+      <RadioGroup
+        value={gender}
+        onValueChange={(v) => save(v)}
+        disabled={saving}
+        className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+      >
+        {options.map((opt) => {
+          const Icon = opt.icon;
+          const active = gender === opt.value;
+          return (
+            <Label
+              key={opt.value}
+              htmlFor={`gender-${opt.value}`}
+              className={cn(
+                "cursor-pointer flex items-center gap-2.5 p-3.5 rounded-2xl border-2 transition-all",
+                active
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-border/60 hover:border-primary/30 hover:bg-muted/40"
+              )}
+            >
+              <RadioGroupItem id={`gender-${opt.value}`} value={opt.value} className="sr-only" />
+              <div
+                className={cn(
+                  "grid place-items-center w-9 h-9 rounded-full transition-colors",
+                  active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                )}
+              >
+                <Icon className="w-4 h-4" />
+              </div>
+              <span className={cn("font-bold text-sm", active ? "text-primary" : "text-foreground")}>
+                {opt.label}
+              </span>
+            </Label>
+          );
+        })}
+        <Label
+          htmlFor="gender-none"
+          className={cn(
+            "cursor-pointer flex items-center gap-2.5 p-3.5 rounded-2xl border-2 transition-all",
+            gender === "none"
+              ? "border-primary bg-primary/5 shadow-sm"
+              : "border-border/60 hover:border-primary/30 hover:bg-muted/40"
+          )}
+        >
+          <RadioGroupItem id="gender-none" value="none" className="sr-only" />
+          <div
+            className={cn(
+              "grid place-items-center w-9 h-9 rounded-full transition-colors",
+              gender === "none" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+            )}
+          >
+            <X className="w-4 h-4" />
+          </div>
+          <span
+            className={cn(
+              "font-bold text-sm",
+              gender === "none" ? "text-primary" : "text-foreground"
+            )}
+          >
+            نامشخص
+          </span>
+        </Label>
+      </RadioGroup>
+      {saving && (
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+          <Loader2 className="w-3 h-3 animate-spin" /> در حال ذخیره...
+        </p>
+      )}
+    </Card>
+  );
+}
+
+// ─── Section 3: Location ────────────────────────────────────────────
 function LocationSection({
   profile,
   onUpdated,
@@ -514,9 +684,9 @@ function LocationSection({
         </div>
       </div>
 
-      <div className="flex items-start justify-between gap-3 rounded-2xl bg-lime/10 p-4 border border-lime/20">
+      <div className="flex items-start justify-between gap-3 rounded-2xl bg-primary/8 p-4 border border-primary/15">
         <div className="flex items-start gap-2.5">
-          <div className="grid place-items-center w-8 h-8 rounded-xl bg-forest/10 text-forest shrink-0">
+          <div className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary shrink-0">
             <Phone className="w-4 h-4" />
           </div>
           <div>
@@ -535,7 +705,7 @@ function LocationSection({
         <Button
           onClick={save}
           disabled={saving}
-          className="gap-1.5 rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold"
+          className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           ذخیره
@@ -545,7 +715,7 @@ function LocationSection({
   );
 }
 
-// ─── Section 3: Categories & Skills ───────────────────────────────
+// ─── Section 4: Categories & Skills ───────────────────────────────
 function CategoriesSection({
   profile,
   allCats,
@@ -633,7 +803,7 @@ function CategoriesSection({
             <Button
               size="sm"
               variant="outline"
-              className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
+              className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
               disabled={availableCats.length === 0}
             >
               <Plus className="w-4 h-4" /> افزودن دسته‌بندی
@@ -652,13 +822,13 @@ function CategoriesSection({
                   key={c.id}
                   onClick={() => addCategory(c.id)}
                   disabled={busy}
-                  className="w-full text-right px-3 py-2 rounded-xl hover:bg-lime/15 text-sm flex items-center justify-between transition-colors"
+                  className="w-full text-right px-3 py-2 rounded-xl hover:bg-primary/10 text-sm flex items-center justify-between transition-colors"
                 >
                   <span className="flex items-center gap-2">
                     <CategoryIcon emoji={c.iconUrl} className="w-7 h-7 text-base" />
                     {c.name}
                   </span>
-                  <Plus className="w-4 h-4 text-forest" />
+                  <Plus className="w-4 h-4 text-primary" />
                 </button>
               ))}
             </div>
@@ -681,7 +851,7 @@ function CategoriesSection({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: i * 0.05 }}
             >
-              <Card className="p-4 border-border/60 shadow-soft hover:shadow-lift transition-shadow rounded-2xl">
+              <Card className="p-4 border-border/60 shadow-card hover:shadow-lift transition-shadow rounded-2xl">
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <h4 className="font-bold text-sm flex items-center gap-2">
                     <CategoryIcon emoji={c.iconUrl} className="w-7 h-7 text-base" />
@@ -691,7 +861,7 @@ function CategoriesSection({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 gap-1 text-xs rounded-xl font-semibold text-forest hover:bg-lime/15"
+                      className="h-8 gap-1 text-xs rounded-xl font-semibold text-primary hover:bg-primary/10"
                       onClick={() => setAddSkillCatId(c.id)}
                       disabled={busy}
                     >
@@ -714,7 +884,7 @@ function CategoriesSection({
                     {c.skills.map((s) => (
                       <Badge
                         key={s.id}
-                        className="bg-lime/15 text-forest border border-lime/30 gap-1 pr-1 pl-2.5 py-1 rounded-lg text-xs font-medium hover:bg-lime/25"
+                        className="bg-primary/10 text-primary border border-primary/20 gap-1 pr-1 pl-2.5 py-1 rounded-lg text-xs font-medium hover:bg-primary/20"
                       >
                         {s.name}
                         <button
@@ -757,10 +927,10 @@ function CategoriesSection({
                   key={s.id}
                   onClick={() => addSkill(s.id)}
                   disabled={busy}
-                  className="w-full text-right px-3 py-2 rounded-xl hover:bg-lime/15 text-sm flex items-center justify-between transition-colors"
+                  className="w-full text-right px-3 py-2 rounded-xl hover:bg-primary/10 text-sm flex items-center justify-between transition-colors"
                 >
                   <span>{s.name}</span>
-                  <Plus className="w-4 h-4 text-forest" />
+                  <Plus className="w-4 h-4 text-primary" />
                 </button>
               ))}
             </div>
@@ -771,7 +941,7 @@ function CategoriesSection({
   );
 }
 
-// ─── Section 4: Experience ────────────────────────────────────────
+// ─── Section 5: Experience ────────────────────────────────────────
 function ExperienceSection({
   profile,
   allCats,
@@ -852,7 +1022,7 @@ function ExperienceSection({
         <Button
           size="sm"
           variant="outline"
-          className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
+          className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
           onClick={() => setOpen(true)}
         >
           <Plus className="w-4 h-4" /> افزودن
@@ -873,11 +1043,11 @@ function ExperienceSection({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: i * 0.05 }}
-              className="rounded-2xl border border-border/60 p-3.5 flex items-start justify-between gap-2 hover:shadow-soft transition-shadow bg-card"
+              className="rounded-2xl border border-border/60 p-3.5 flex items-start justify-between gap-2 hover:shadow-card transition-shadow bg-card"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <div className="grid place-items-center w-8 h-8 rounded-xl bg-forest/10 text-forest shrink-0">
+                  <div className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary shrink-0">
                     <Briefcase className="w-4 h-4" />
                   </div>
                   <p className="font-bold text-sm">
@@ -886,8 +1056,8 @@ function ExperienceSection({
                   </p>
                 </div>
                 {(e.startDate || e.endDate) && (
-                  <p className="text-[11px] text-muted-foreground mt-1.5 nums-fa" dir="ltr">
-                    {[e.startDate, e.endDate || "تاکنون"].filter(Boolean).join(" — ")}
+                  <p className="text-[11px] text-muted-foreground mt-1.5" dir="ltr">
+                    {toFa([e.startDate, e.endDate || "تاکنون"].filter(Boolean).join(" — "))}
                   </p>
                 )}
                 {e.description && (
@@ -901,7 +1071,7 @@ function ExperienceSection({
                       </Badge>
                     )}
                     {e.skillName && (
-                      <Badge className="text-[10px] h-5 rounded-md bg-lime/15 text-forest border border-lime/30 font-medium">
+                      <Badge className="text-[10px] h-5 rounded-md bg-primary/10 text-primary border border-primary/20 font-medium">
                         {e.skillName}
                       </Badge>
                     )}
@@ -1019,7 +1189,7 @@ function ExperienceSection({
             <Button
               onClick={submit}
               disabled={busy}
-              className="gap-1.5 rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold"
+              className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
             >
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
               افزودن
@@ -1031,7 +1201,7 @@ function ExperienceSection({
   );
 }
 
-// ─── Section 5: Education ─────────────────────────────────────────
+// ─── Section 6: Education ─────────────────────────────────────────
 function EducationSection({
   profile,
   onUpdated,
@@ -1098,7 +1268,7 @@ function EducationSection({
         <Button
           size="sm"
           variant="outline"
-          className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
+          className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
           onClick={() => setOpen(true)}
         >
           <Plus className="w-4 h-4" /> افزودن
@@ -1119,7 +1289,7 @@ function EducationSection({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: i * 0.05 }}
-              className="rounded-2xl border border-border/60 p-3.5 flex items-start justify-between gap-2 hover:shadow-soft transition-shadow bg-card"
+              className="rounded-2xl border border-border/60 p-3.5 flex items-start justify-between gap-2 hover:shadow-card transition-shadow bg-card"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -1130,7 +1300,7 @@ function EducationSection({
                 </div>
                 <p className="text-xs text-muted-foreground mt-1.5 pr-10">{e.institution}</p>
                 {e.year && (
-                  <p className="text-[11px] text-muted-foreground mt-0.5 pr-10 nums-fa" dir="ltr">{toFa(e.year)}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 pr-10" dir="ltr">{toFa(e.year)}</p>
                 )}
                 {e.description && (
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-5 pr-10">{e.description}</p>
@@ -1202,7 +1372,7 @@ function EducationSection({
             <Button
               onClick={submit}
               disabled={busy}
-              className="gap-1.5 rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold"
+              className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
             >
               {busy && <Loader2 className="w-4 h-4 animate-spin" />}
               افزودن
@@ -1224,7 +1394,7 @@ function SectionTitle({
 }) {
   return (
     <h2 className="text-sm font-bold flex items-center gap-2">
-      <span className="grid place-items-center w-7 h-7 rounded-xl bg-forest/10 text-forest">
+      <span className="grid place-items-center w-7 h-7 rounded-xl bg-primary/10 text-primary">
         <Icon className="w-4 h-4" />
       </span>
       {title}

@@ -590,3 +590,88 @@ Stage Summary:
 - Both servers running (dev:3000, chat:3003)
 - Admin login: admin / admin123 (at #/admin)
 - User demo: any phone + OTP 1234
+
+---
+Task ID: V3-Core
+Agent: full-stack-developer (Core Views v3)
+Task: Rebuild Feed (3 sections), Following, Discover (2 sections + strong filters), Talents (full-width filters), Category views
+
+Work Log:
+- Read worklog.md, globals.css (calm petrol-teal palette), illustrations.tsx, empty-state.tsx, user-avatar.tsx (gender prop), post-card.tsx, app-shell.tsx (swipe-up dock + floating pills), existing feed/discover/talents/category/landing view stubs, nav.ts, types.ts, format.ts, geo.ts, api-client.ts, use-user.ts, /api/feed/home, /api/feed/following, /api/posts, /api/talents, /api/connections.
+- Rebuilt **landing-view.tsx** — Solid `bg-primary text-primary-foreground` hero (NO gradients, NO lime/forest), warm `bg-accent` CTA section, category quick-access grid with emoji circle cards, FEATURES grid, "چطور کار می‌کند؟" steps, bottom CTA + dev notice "توسعه‌ی این صفحه ادامه دارد".
+- Rebuilt **feed-view.tsx** — Fetches `/api/feed/home`. 3 staggered sections: (1) پست‌های دنبال‌شوندگان (vertical PostCard list, with empty prompt for new users linking to discover); (2) استعدادهای مرتبط (horizontal scroll of TalentMiniCard with avatar + name + bio + follow button → POST /api/connections); (3) افراد هم‌مهارت (2-col grid of TalentSquareCard with avatar + follow button). Collapsible CreatePostBox at top. SectionHeader with count badge + "همه" link. Uses UserAvatar with `gender` prop. Loading skeleton. Reload-on-create via reloadKey.
+- Rebuilt **following-view.tsx** — Dedicated page for posts from followed users only. Title "دنبال‌شده‌ها" with subtitle. Sort toggle (recent/popular). Fetches `/api/feed/following?sort=`. EmptyState kind="posts" with CTA to discover when no posts. Stagger animations on PostCard list.
+- Rebuilt **discover-view.tsx** — Strong filters: text search + collapsible "فیلترهای دقیق" panel with Category select (chained), Skill select (chained), Province select (chained), City select (chained), sort toggle (recent/popular for posts, recent/followers for users). Category quick-chips row (horizontal scroll). Active filter chips (removable) below search. Tab switcher: پست‌ها | کاربران. Posts tab fetches `/api/posts?sort=` then filters client-side by categoryId/skillId/q. Users tab fetches `/api/talents?...` with all filters server-side. EmptyState kind="posts" or "people" with CTA. Loading skeletons.
+- Rebuilt **talents-view.tsx** — Full-width stacked filters (Row 1: Category full-width, Row 2: Skill full-width chained, Row 3: text search full-width, Row 4: Province + City side-by-side, Row 5: Sort toggle + Clear). Grid of TalentCardLarge (1 col mobile, 2 col sm, 3 col lg). Each card: UserAvatar (lg, with gender), name + verified badge, bio, city, category badges, follower count. Exports `TalentCardLarge` for reuse by CategoryView.
+- Rebuilt **category-view.tsx** — Solid petrol-teal hero header with category emoji, name, counts (skills + talents). Skill filter pills (horizontal scroll, "همه" + skills). Back-to-discover button + result count. Talent grid using shared `TalentCardLarge` from talents-view. Fetches `/api/talents?categoryId=ID&skillId=...&sort=followers`.
+- All views use `"use client"`, framer-motion `initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}`, `toFa()` for Persian numbers, calm palette (NO gradients, NO neon, NO indigo/blue, NO lime/forest/cream), mobile-first single-column layouts with `rounded-2xl` cards and `border border-border` shadows.
+- Verified: `bun run lint` passes with no errors. dev.log shows clean compile. Browser-tested all 6 views with iPhone 14 viewport: landing renders hero+categories+features+CTA+dev-notice; discover shows category chips, tab switcher (پست‌ها ۱۲ | کاربران ۰), filter panel expands correctly with 4 chained selects; talents shows 14 talent cards with full-width stacked filters; following shows empty-state with CTA; category view (id=cmsg6dt52001bof3el9np4uso) shows hero "آشپزی و شیرینی‌پزی", 9 skill pills, 1 talent result; feed shows landing for guests.
+
+Stage Summary:
+- 6 core views rebuilt with V3 calm petrol-teal design system, mobile-first iOS-quality
+- NO gradients, NO neon, NO blue/indigo/lime/forest/cream — solid colors only via `bg-primary`, `bg-card`, `bg-accent`, `bg-secondary`, `bg-muted`
+- All animations use framer-motion with subtle y/scale transitions (`[0.16, 1, 0.3, 1]` easing, 0.35s duration)
+- All Persian text, `toFa()` for numbers, `formatCount` for follower counts
+- UserAvatar uses new `gender` prop on every avatar render
+- TalentCardLarge exported from talents-view and imported by category-view (no duplication)
+- Follow button on feed's TalentMiniCard/TalentSquareCard triggers POST /api/connections (auto-accepts pending-received, otherwise sends request)
+- Lint passes, dev compiles cleanly, all routes render correctly in browser test
+
+---
+Task ID: V3-Profile-Chat
+Agent: full-stack-developer (Profile + Chat v3)
+Task: Rebuild Profile (circular avatar, gender, upload), EditProfile (upload + gender), Chat (message requests, status header, requests section)
+
+Work Log:
+- Read worklog.md, prisma/schema.prisma (Profile.gender, Conversation.status + initiatorId), globals.css (NEW calm petrol-teal palette: --primary oklch(0.4 0.05 200), warm off-white bg, --gold/--rose/--success/--warning/--teal tokens, NO gradients/neon utilities, .glass/.glass-strong/.slim-scroll/.animate-*).
+- Read shared infrastructure: user-avatar.tsx (UserAvatar accepts gender prop; sizes xs→2xl where 2xl = w-28 h-28; rounded-full + ring-2 ring-background; renders male=teal or female=coral default avatar), illustrations.tsx (CategoryIcon with emoji prop, EmptyIllustration kinds), empty-state.tsx (EmptyState with kind prop, motion fade-in-up), post-card.tsx, app-shell.tsx (floating pills + bottom dock + chat FAB; passes gender={user.profile?.gender} to UserAvatar).
+- Read API routes to confirm shapes: /api/profile/[id] (ProfileDetail now includes gender), /api/profile/me (PUT accepts gender: "male"|"female"|null), /api/upload (multipart file + type "avatar"|"banner", returns {ok,url}, updates profile), /api/chat/conversations (returns {conversations:[active+my own pending as myRequestPending], requests:[their pending_request for me], unreadCount}), /api/chat/start ({userId,initialMessage?} → {conversationId, status:"active"|"pending_request"}), /api/chat/conversations/[id]/respond ({action:"accept"|"reject"}), /api/chat/conversations/[id]/messages (returns {conversation:{otherUser}, messages}), /api/chat/conversations/[id]/read (POST marks as read).
+- Read existing profile-view.tsx + edit-profile-view.tsx + chat-view.tsx — confirmed they used OLD lime/forest palette + bg-cream-gradient (no longer defined in globals.css). Rewrote all 3 to use ONLY bg-primary/text-primary-foreground/bg-card/bg-muted/border-border tokens from the new calm palette.
+- **OVERWROTE profile-view.tsx**: Card overflow-visible (FIXES avatar clip bug), banner div h-40 md:h-44 overflow-hidden rounded-t-2xl bg-primary solid petrol-teal (NO gradient) with subtle radial highlight + dotted pattern when no bannerUrl uploaded. UserAvatar size="2xl" (w-28 h-28) with gender prop, ring-4 ring-card — NO rounded-3xl override (keeps UserAvatar's natural rounded-full = perfect circle). Header shows name + gold verified badge + gender badge (مرد/زن) + bio + city + join date + phone (if visible). Action buttons: self → outline "ویرایش پروفایل"; other → ConnectionButton (دنبال کردن/در انتظار gold/متصل disabled/پذیرش درخواست) + outline "پیام" (POST /api/chat/start → if status="active" navigate chat with convId, else toast "درخواست پیام ارسال شد") + ghost "رزومه" (window.open resume URL). Clickable followers/following + post counts in text-primary. Tabs 3-col rounded-2xl bg-muted/60 with data-[state=active]:bg-primary text-primary-foreground. About tab: bioLong card + اطلاعات کلی card (gender/موقعیت/عضو از) + categories with CategoryIcon + Separator + skill badges. Resume tab: timeline border-r-2 border-primary/30 with primary dots, education timeline border-gold/40 with gold dots. Posts tab: PostCard list. Sidebar: QuickStatsCard 2x2 grid + categories card + quick-actions card. ProfileSkeleton with rounded-2xl + rounded-t-2xl banner. NotFound EmptyState kind="people" with primary CTA.
+- **OVERWROTE edit-profile-view.tsx**: 6 sections in order: PhotosBio (upload), Gender (NEW), Location, Categories/Skills, Experience, Education. NEW PhotosBioSection: avatar upload via POST /api/upload multipart with type="avatar" (hidden file input + "آپلود عکس" button with Loader2 spinner) + banner upload via POST /api/upload type="banner" + URL inputs as fallback + bioShort/bioLong with toFa() counters. NEW GenderSection: RadioGroup with 3 cards مرد/زن/نامشخص, each card has icon + label, active = border-primary bg-primary/5 shadow-sm + primary icon circle. Saves via PUT /api/profile/me with gender: "male"|"female"|null. Location: province/city chained Selects + phone-visible Switch in primary/8 card. Categories/Skills: per-category Card with CategoryIcon + lime→primary/10 tinted skill badges + X hover-rose delete + add-skill/add-category dialogs. Experience + Education: list items + add dialogs with primary submit buttons. SectionTitle helper: primary/10 icon chip + bold title. Section quick-nav chips: rounded-full bg-muted hover:bg-primary/15 hover:text-primary. Login prompt if !user with primary CTA.
+- **OVERWROTE chat-view.tsx**: This is the BIG rewrite with NEW message requests system. PageHeader: primary icon chip + "پیام‌ها جدید"/"درخواست" badges + outline "همکاران" button. ChatListPanel (right pane in RTL desktop, full-width on mobile): tabs "پیام‌ها" | "درخواست‌ها" with count badges (active=primary bg, requests=warning bg), search input, scrollable list. ConversationRow: UserAvatar with gender + unread count badge (primary bg) + name + last message preview + time; requests show inline "تأیید" (primary) + "رد" (outline rose) buttons. ChatThread: header bg-primary text-primary-foreground with ArrowRight back button (mobile) + UserAvatar (clickable to profile) + name + status badge BELOW name (active=✓ "دنبال‌شده"; pending+I'm initiator=Clock "در انتظار تأیید درخواست"; pending+I'm receiver=Bell "درخواست پیام جدید"). Messages area bg-background with own msgs=bg-primary text-primary-foreground rounded-tl-md (RIGHT), other msgs=bg-card border rounded-tr-md (LEFT). Auto-scroll, motion slide-in. Input area varies by status: active=Textarea + primary round send button (motion whileTap/whileHover, Send -scale-x-100); pending+my request=warning/10 card "در انتظار تأیید درخواست" no input; pending+their request="تأیید"/"رد" buttons. Accept → re-fetch messages + list. Reject → navigate back to chat. Socket.io PRESERVED EXACTLY: io("/", { path:"/", query:{ XTransformPort:"3003" }, auth:{ userId } }) with join/message/typing events, optimistic send, mark-read on view (POST /api/chat/conversations/[id]/read). On incoming message → if active conv → append + mark read; always refresh conversations list. Empty states kind="chat" with appropriate per-status title/description.
+- FIX: chat "no collaboration" bug — chat now works between accepted connections (status="active" → full chat with input) AND for non-connections (status="pending_request" → message request flow with accept/reject, no input until accepted). Socket.io uses XTransformPort=3003 query, path "/".
+- Ran `bun run lint` — 0 errors in any file (lint clean across entire project).
+- Ran `bunx tsc --noEmit` — 0 errors in my 3 files. (Pre-existing TS errors in api/admin, api/profile, api/tickets routes are out of scope per task constraints "Do NOT modify API routes".)
+- Checked dev.log — multiple "✓ Compiled in Xms" entries, NO errors, NO warnings, NO module-not-found. All API routes returning 200.
+
+Stage Summary:
+- 3 view files rebuilt to NEW calm petrol-teal palette (bg-primary/text-primary-foreground, gold for verified, rose for danger, warning for pending). NO gradients, NO neon, NO lime/forest (those classes no longer exist in globals.css).
+- profile-view: circular BIGGER avatar (size 2xl = w-28 h-28, perfect rounded-full), solid petrol-teal banner (h-40), banner-only overflow-hidden (FIXES avatar clip bug), gender badge, gender in About tab, clickable counts, primary CTAs, motion animations.
+- edit-profile: avatar upload (POST /api/upload type=avatar) + banner upload (POST /api/upload type=banner) with file inputs + Loader2 spinners + URL fallback inputs, NEW GenderSection (RadioGroup مرد/زن/نامشخص saved via PUT /api/profile/me gender), all 5 existing sections preserved with primary palette.
+- chat-view: TWO tabs (پیام‌ها + درخواست‌ها), requests section with تأیید/رد buttons, status header badge (active=دنبال‌شده green-implicit; my-pending=amber "در انتظار تأیید"; their-pending=amber "درخواست پیام جدید"), input area varies by conversation status (active=normal input; my-pending=message only; their-pending=accept/reject buttons), socket.io preserved with XTransformPort=3003 + path "/", mark-read on view, real-time message receive + auto-scroll.
+- All files use "use client" at top, framer-motion staggered entrances, mobile-first responsive (lg:grid-cols-[1fr_320px] for desktop, full-width stack on mobile with back button), toFa() Persian numerals, .slim-scroll for long lists, EmptyState kind="chat"/"people"/"posts" with appropriate actions.
+- No API routes modified, no app-shell/page.tsx/layout.tsx/admin files modified.
+
+---
+Task ID: V3-Final
+Agent: main
+Task: Major redesign — calm palette, iOS mobile UX, chat message requests, gender avatars, scroll-to-top, swipe dock
+
+Work Log:
+- New calm palette: deep petrol-teal primary, warm off-white bg. NO gradients, NO neon. Solid colors only.
+- Removed theme color picker from settings (now just light/dark/system mode + font)
+- Schema: added gender field to Profile, status/initiatorId to Conversation for message requests
+- Created /api/upload for avatar/banner photo upload (saves to /public/uploads)
+- Created /api/feed/home (3 sections: followed posts, relevant talents, same-skill people)
+- Created /api/feed/following (posts from followed users only)
+- Rewrote /api/chat/start: if connected → active conversation; if not → pending_request + message + notification
+- Created /api/chat/conversations/[id]/respond (accept/reject message requests)
+- Created /api/chat/conversations/[id]/read (mark messages read)
+- Updated /api/chat/conversations to return { conversations, requests, unreadCount }
+- New UserAvatar with gender prop: renders male (teal) or female (coral) default avatar
+- New AppShell: back button (top-right with margin, small), liquid-glass floating dock with blur, swipe-up dock (drag to reveal more items), scroll-to-top on navigation, iOS page animations, chat FAB with unread count badge
+- Added "following" route to nav + FollowingView
+- Delegated 6 core views (feed/landing/following/discover/talents/category) + 3 profile/chat views to 2 subagents
+
+Stage Summary:
+- All requested changes implemented
+- Calm professional palette (no neon, no gradients) — VLM: landing 8/10, profile 9/10, dock 8/10
+- Mobile-first iOS-quality: liquid glass dock, swipe-up, back button, scroll-to-top, page animations
+- Chat system fixed: message requests for non-connections, requests section, status header
+- Gender field + default male/female avatars + photo upload for avatar/banner
+- Home page has 3 sections (followed posts, relevant talents, same-skill people)
+- Following page with bottom nav button
+- Discover with strong filters + 2 sections (posts/users)
+- Talents with full-width stacked filters
+- Lint: 0 errors. Both servers running.
