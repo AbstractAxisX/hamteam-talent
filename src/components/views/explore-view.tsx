@@ -448,17 +448,13 @@ function ExplorePostTile({ post, index }: { post: ExplorePost; index: number }) 
 
       {/* Bottom overlay with poster info + counts */}
       <div className="absolute inset-x-0 bottom-0 bg-black/55 text-white px-2.5 py-2 flex items-center gap-2">
-        <div
-          className="rounded-full shrink-0"
-          style={{ boxShadow: `0 0 0 2.5px ${ringColor}` }}
-        >
-          <UserAvatar
-            name={post.user.name}
-            avatarUrl={post.user.avatarUrl}
-            gender={post.user.gender}
-            size="xs"
-          />
-        </div>
+        <UserAvatar
+          name={post.user.name}
+          avatarUrl={post.user.avatarUrl}
+          gender={post.user.gender}
+          ringColor={post.user.mainCategoryColor}
+          size="xs"
+        />
         <span className="flex-1 text-[11px] font-bold truncate">{post.user.name}</span>
         <div className="flex items-center gap-2 shrink-0">
           <span className="flex items-center gap-1 text-[10px] font-medium">
@@ -508,18 +504,14 @@ function PeopleTile({ person, index }: { person: ExplorePerson; index: number })
     >
       {/* Avatar with category color ring */}
       <div className="relative mb-3">
-        <div
-          className="rounded-full"
-          style={{ boxShadow: `0 0 0 3.5px ${ringColor}` }}
-        >
           <UserAvatar
             name={person.name}
             avatarUrl={person.avatarUrl}
             gender={person.gender}
             verified={person.isVerifiedBadge}
+            ringColor={person.mainCategoryColor}
             size="xl"
           />
-        </div>
         {person.isTopTalent && (
           <span className="absolute -top-1 -right-1 grid place-items-center w-6 h-6 rounded-full bg-gold text-white shadow-sm border-2 border-card">
             <Award className="w-3.5 h-3.5" />
@@ -872,18 +864,14 @@ export function PostDetailView({ id }: { id: string }) {
           className="shrink-0"
           aria-label={post.user.name}
         >
-          <div
-            className="rounded-full"
-            style={{ boxShadow: `0 0 0 2.5px ${ringColor}` }}
-          >
             <UserAvatar
               name={post.user.name}
               avatarUrl={post.user.avatarUrl}
               gender={post.user.gender}
               verified={post.user.isVerifiedBadge}
+              ringColor={post.user.mainCategoryColor}
               size="md"
             />
-          </div>
         </button>
 
         <div className="flex-1 min-w-0">
@@ -1185,17 +1173,12 @@ function CommentItem({
         className="shrink-0"
         aria-label={comment.user.name}
       >
-        <div
-          className="rounded-full"
-          style={{ boxShadow: `0 0 0 2px ${ringColor}` }}
-        >
-          <UserAvatar
-            name={comment.user.name}
-            avatarUrl={comment.user.avatarUrl}
-            gender={comment.user.gender}
-            size={isReply ? "xs" : "sm"}
-          />
-        </div>
+        <UserAvatar
+          name={comment.user.name}
+          avatarUrl={comment.user.avatarUrl}
+          gender={comment.user.gender}
+          size={isReply ? "xs" : "sm"}
+        />
       </button>
 
       {/* Body */}

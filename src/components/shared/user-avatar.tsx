@@ -13,7 +13,6 @@ function DefaultAvatarSVG({ gender }: { gender?: string | null; name: string }) 
       className="w-full h-full rounded-full grid place-items-center"
       style={{ backgroundColor: bg }}
     >
-      {/* Simple person silhouette — no letter */}
       <svg viewBox="0 0 40 40" className="w-3/5 h-3/5 opacity-25" fill="white">
         <circle cx="20" cy="14" r="7" />
         <path d="M6 38c0-7.7 6.3-14 14-14s14 6.3 14 14" />
@@ -27,6 +26,7 @@ export function UserAvatar({
   avatarUrl,
   verified,
   gender,
+  ringColor,
   size = "md",
   className,
 }: {
@@ -34,6 +34,8 @@ export function UserAvatar({
   avatarUrl?: string | null;
   verified?: boolean;
   gender?: string | null;
+  /** Category color for the ring around the avatar (hex or css color) */
+  ringColor?: string | null;
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
   className?: string;
 }) {
@@ -53,22 +55,38 @@ export function UserAvatar({
     xl: "w-6 h-6",
     "2xl": "w-7 h-7",
   }[size];
+  // Ring wrapper padding scales with avatar size
+  const ringPadding = {
+    xs: "p-0.5",
+    sm: "p-0.5",
+    md: "p-1",
+    lg: "p-1",
+    xl: "p-1.5",
+    "2xl": "p-2",
+  }[size];
+
   return (
     <div className={cn("relative inline-block shrink-0", className)}>
-      <div className={cn("relative rounded-full overflow-hidden ring-2 ring-background", sizeClass)}>
-        {avatarUrl ? (
-          <Avatar className="w-full h-full border-0">
-            <AvatarImage src={avatarUrl} />
-            <AvatarFallback>
-              <DefaultAvatarSVG gender={gender} name={name} />
-            </AvatarFallback>
-          </Avatar>
-        ) : (
-          <DefaultAvatarSVG gender={gender} name={name} />
-        )}
+      {/* Colored ring wrapper — div with padding + background-color = category color */}
+      <div
+        className={cn("rounded-full", ringPadding, !ringColor && "bg-transparent")}
+        style={ringColor ? { backgroundColor: ringColor } : undefined}
+      >
+        <div className={cn("relative rounded-full overflow-hidden ring-2 ring-card bg-card", sizeClass)}>
+          {avatarUrl ? (
+            <Avatar className="w-full h-full border-0">
+              <AvatarImage src={avatarUrl} />
+              <AvatarFallback>
+                <DefaultAvatarSVG gender={gender} name={name} />
+              </AvatarFallback>
+            </Avatar>
+          ) : (
+            <DefaultAvatarSVG gender={gender} name={name} />
+          )}
+        </div>
       </div>
       {verified && (
-        <span className="absolute -bottom-0.5 -left-0.5 grid place-items-center rounded-full bg-background p-0.5">
+        <span className="absolute -bottom-0.5 -left-0.5 grid place-items-center rounded-full bg-background p-0.5 z-10">
           <BadgeCheck className={cn(badgeSize, "text-gold fill-gold/15")} />
         </span>
       )}

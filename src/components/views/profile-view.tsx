@@ -277,11 +277,6 @@ function ProfileHeader({
   const mainCatColor = mainCatId ? colorMap.get(mainCatId) ?? null : null;
   const isTopTalent = meta?.isTopTalent ?? profile.isTopTalent ?? false;
 
-  // Inline ring style — solid colored ring around the avatar (no gradient)
-  const ringStyle = mainCatColor
-    ? { boxShadow: `0 0 0 4px ${mainCatColor}` }
-    : undefined;
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -332,21 +327,16 @@ function ProfileHeader({
         {/* Identity row */}
         <div className="px-4 md:px-6 pb-5">
           <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-14 md:-mt-16">
-            {/* Avatar with category color ring */}
+            {/* Avatar with category color ring (wrapper div approach) */}
             <div className="relative shrink-0">
-              <div
-                className="rounded-full"
-                style={ringStyle}
-                title={mainCatColor ? "دسته اصلی" : undefined}
-              >
                 <UserAvatar
                   name={profile.name}
                   avatarUrl={profile.avatarUrl}
                   verified={profile.isVerifiedBadge}
                   gender={profile.gender}
+                  ringColor={mainCatColor}
                   size="2xl"
                 />
-              </div>
               {/* Top-talent crown on the avatar (in addition to the banner badge) */}
               {isTopTalent && (
                 <span className="absolute -top-2 -right-2 grid place-items-center w-9 h-9 rounded-full bg-gold text-white shadow-md ring-2 ring-background">

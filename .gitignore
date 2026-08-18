@@ -19,8 +19,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# env files
-.env
+# env files (keep .env committed for dev config — it has no real secrets)
 .env*.local
 .env.production
 
