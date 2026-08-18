@@ -16,8 +16,9 @@ export async function GET() {
     posts: posts.map((p) => ({
       id: p.id,
       content: p.content,
+      isFeatured: p.isFeatured,
       createdAt: p.createdAt.toISOString(),
-      user: { name: p.user.name },
+      user: { name: p.user.name, isTopTalent: p.user.isTopTalent },
     })),
   });
 }

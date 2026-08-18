@@ -31,6 +31,7 @@ export async function GET(req: Request) {
       phone: u.phone,
       isVerifiedBadge: u.isVerifiedBadge,
       isBanned: u.isBanned,
+      isTopTalent: u.isTopTalent,
       avatarUrl: u.profile?.avatarUrl ?? null,
       createdAt: u.createdAt.toISOString(),
     })),
