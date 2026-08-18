@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api, apiPost, apiDelete, apiPut } from "@/lib/api-client";
 import { navigate } from "@/lib/nav";
@@ -51,6 +51,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
@@ -732,7 +733,6 @@ function SidebarContent({
 // ═══════════════════════════════════════════════════════════════════
 
 function PrimaryButton({
-  children,
   className,
   ...props
 }: React.ComponentProps<typeof Button>) {
@@ -749,7 +749,6 @@ function PrimaryButton({
 }
 
 function OutlineButton({
-  children,
   className,
   ...props
 }: React.ComponentProps<typeof Button>) {
@@ -1980,6 +1979,12 @@ function CategoriesTab() {
   const [newIcon, setNewIcon] = useState("");
   const [newColor, setNewColor] = useState<string>(PRESET_CATEGORY_COLORS[0]);
   const [adding, setAdding] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editCat, setEditCat] = useState<CategoryRow | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editIcon, setEditIcon] = useState("");
+  const [editColor, setEditColor] = useState<string>(PRESET_CATEGORY_COLORS[0]);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 250);
@@ -2087,6 +2092,33 @@ function CategoriesTab() {
     }
   }
 
+  function openEditDialog(c: CategoryRow) {
+    setEditCat(c);
+    setEditName(c.name);
+    setEditIcon(c.iconUrl || "");
+    setEditColor(c.color || PRESET_CATEGORY_COLORS[0]);
+    setEditDialogOpen(true);
+  }
+
+  async function saveEdit() {
+    if (!editCat || !editName.trim()) return;
+    setEditing(true);
+    try {
+      await apiPut(`/api/admin/categories/${editCat.id}`, {
+        name: editName.trim(),
+        iconUrl: editIcon.trim() || null,
+        color: editColor || null,
+      });
+      setEditDialogOpen(false);
+      toast({ title: "دسته‌بندی ویرایش شد" });
+      load();
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setEditing(false);
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -2144,9 +2176,8 @@ function CategoriesTab() {
                 filtered.map((c) => {
                   const isExpanded = expanded.has(c.id);
                   return (
-                    <>
+                    <Fragment key={c.id}>
                       <TableRow
-                        key={c.id}
                         className="hover:bg-gray-50/50 cursor-pointer"
                         onClick={() => toggleExpand(c.id)}
                       >
@@ -2195,6 +2226,15 @@ function CategoriesTab() {
                             <Button
                               size="sm"
                               variant="ghost"
+                              className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 text-gray-500"
+                              onClick={() => openEditDialog(c)}
+                              aria-label="ویرایش دسته"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 text-gray-500"
                               onClick={() => deleteCategory(c.id, c.name)}
                               aria-label="حذف دسته"
@@ -2205,7 +2245,7 @@ function CategoriesTab() {
                         </TableCell>
                       </TableRow>
                       {isExpanded && (
-                        <TableRow key={`${c.id}-sub`} className="bg-gray-50/30">
+                        <TableRow className="bg-gray-50/30">
                           <TableCell />
                           <TableCell colSpan={6} className="p-4">
                             <div className="space-y-3">
@@ -2269,7 +2309,7 @@ function CategoriesTab() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })
               )}
@@ -2385,6 +2425,75 @@ function CategoriesTab() {
                 <Plus className="w-4 h-4" />
               )}
               افزودن دسته
+            </PrimaryButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit category dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="rounded-xl">
+          <DialogHeader>
+            <DialogTitle>ویرایش دسته‌بندی</DialogTitle>
+            <DialogDescription>نام، آیکون و رنگ دسته‌بندی را تغییر دهید</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">نام دسته</Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className={cn("h-10 rounded-lg", TX.ringPrimary)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">آیکون (اموجی)</Label>
+              <Input
+                value={editIcon}
+                onChange={(e) => setEditIcon(e.target.value)}
+                placeholder="🎵"
+                className={cn("h-10 rounded-lg", TX.ringPrimary)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">رنگ دسته</Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                {PRESET_CATEGORY_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setEditColor(color)}
+                    className={cn(
+                      "w-9 h-9 rounded-full border-2 transition-all",
+                      editColor === color ? "border-gray-900 scale-110 shadow-md" : "border-gray-200"
+                    )}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+                <div className="relative">
+                  <input
+                    type="color"
+                    value={editColor}
+                    onChange={(e) => setEditColor(e.target.value)}
+                    className="w-9 h-9 rounded-full border-2 border-gray-200 cursor-pointer"
+                  />
+                </div>
+                <span className="text-[10px] text-gray-400 font-mono uppercase">{editColor}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <OutlineButton size="sm" onClick={() => setEditDialogOpen(false)} className="h-9">
+              انصراف
+            </OutlineButton>
+            <PrimaryButton
+              size="sm"
+              onClick={saveEdit}
+              disabled={editing || !editName.trim()}
+              className="gap-1.5 h-9"
+            >
+              {editing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
+              ذخیره تغییرات
             </PrimaryButton>
           </DialogFooter>
         </DialogContent>
