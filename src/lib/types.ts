@@ -130,6 +130,8 @@ export type ProfileDetail = {
   userId: string;
   name: string;
   isVerifiedBadge: boolean;
+  isTopTalent?: boolean; // true if user has an approved TopTalentRequest (may not be returned by older API)
+  mainCategoryId?: string | null; // user's chosen main category id (for avatar color ring)
   bioShort: string;
   bioLong: string;
   avatarUrl: string | null;
@@ -163,4 +165,17 @@ export type ProfileDetail = {
   followingCount: number;
   connectionStatus: "none" | "pending-sent" | "pending-received" | "accepted" | "self";
   isBanned: boolean;
+};
+
+// Profile meta — supplementary data not in the main GET /api/profile/[id] response
+export type ProfileMeta = {
+  mainCategoryId: string | null;
+  isTopTalent: boolean;
+};
+
+// Top Talent request status for the current user (auth required)
+export type TopTalentMyStatus = {
+  hasRequest: boolean;
+  status: "none" | "pending" | "approved" | "rejected";
+  rejectReason?: string | null;
 };

@@ -5,7 +5,12 @@ import { motion } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
-import type { ProfileDetail, PostWithRelations } from "@/lib/types";
+import type {
+  ProfileDetail,
+  ProfileMeta,
+  PostWithRelations,
+  CategoryWithSkills,
+} from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,11 +47,14 @@ import {
   Award,
   Star,
   VenusAndMars,
+  Crown,
 } from "lucide-react";
 
 export function ProfileView({ id }: { id: string }) {
   const { user: me } = useUser();
   const [profile, setProfile] = useState<ProfileDetail | null>(null);
+  const [cats, setCats] = useState<CategoryWithSkills[]>([]);
+  const [meta, setMeta] = useState<ProfileMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -54,8 +62,22 @@ export function ProfileView({ id }: { id: string }) {
     setLoading(true);
     setNotFound(false);
     try {
-      const data = await api<ProfileDetail>(`/api/profile/${id}`);
-      setProfile(data);
+      // Fetch the profile and the categories list in parallel; the meta call
+      // is best-effort (older API may not expose it, but our new endpoint
+      // returns it cleanly).
+      const [profileData, catsData] = await Promise.all([
+        api<ProfileDetail>(`/api/profile/${id}`),
+        api<{ categories: CategoryWithSkills[] }>("/api/categories").catch(
+          () => ({ categories: [] as CategoryWithSkills[] })
+        ),
+      ]);
+      setProfile(profileData);
+      setCats(catsData.categories);
+
+      // Best-effort meta fetch (supplementary: mainCategoryId + isTopTalent)
+      api<ProfileMeta>(`/api/profile/${id}/meta`)
+        .then(setMeta)
+        .catch(() => setMeta(null));
     } catch (e) {
       const msg = (e as Error).message;
       if (msg.includes("پیدا نشد") || msg.includes("404")) {
@@ -97,13 +119,19 @@ export function ProfileView({ id }: { id: string }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
       <div className="space-y-4 min-w-0">
-        <ProfileHeader profile={profile} isSelf={isSelf} onUpdated={load} />
+        <ProfileHeader
+          profile={profile}
+          meta={meta}
+          cats={cats}
+          isSelf={isSelf}
+          onUpdated={load}
+        />
         <ProfileTabs profile={profile} isSelf={isSelf} />
       </div>
 
       {/* Sidebar (desktop only, appears on the left in RTL = end side) */}
       <aside className="hidden lg:block lg:sticky lg:top-20 space-y-4">
-        <QuickStatsCard profile={profile} />
+        <QuickStatsCard profile={profile} meta={meta} />
 
         {profile.categories.length > 0 && (
           <motion.div
@@ -116,29 +144,39 @@ export function ProfileView({ id }: { id: string }) {
                 <Hash className="w-4 h-4 text-primary" /> تخصص‌ها
               </h3>
               <div className="space-y-3">
-                {profile.categories.map((c) => (
-                  <div key={c.id}>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <CategoryIcon emoji={c.iconUrl} className="w-6 h-6 text-sm" />
-                      <p className="text-xs font-bold text-foreground">{c.name}</p>
-                    </div>
-                    {c.skills.length > 0 ? (
-                      <div className="flex flex-wrap gap-1 pr-8">
-                        {c.skills.map((s) => (
-                          <Badge
-                            key={s.id}
-                            variant="secondary"
-                            className="text-[10px] h-5 rounded-md font-medium"
-                          >
-                            {s.name}
+                {profile.categories.map((c) => {
+                  const isMain =
+                    meta?.mainCategoryId === c.id ||
+                    (!meta?.mainCategoryId && c.id === profile.categories[0]?.id);
+                  return (
+                    <div key={c.id}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <CategoryIcon emoji={c.iconUrl} className="w-6 h-6 text-sm" />
+                        <p className="text-xs font-bold text-foreground">{c.name}</p>
+                        {isMain && (
+                          <Badge className="bg-primary/10 text-primary border border-primary/20 text-[9px] h-4 rounded-sm px-1 font-bold">
+                            اصلی
                           </Badge>
-                        ))}
+                        )}
                       </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground pr-8">مهارتی ثبت نشده</p>
-                    )}
-                  </div>
-                ))}
+                      {c.skills.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 pr-8">
+                          {c.skills.map((s) => (
+                            <Badge
+                              key={s.id}
+                              variant="secondary"
+                              className="text-[10px] h-5 rounded-md font-medium"
+                            >
+                              {s.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground pr-8">مهارتی ثبت نشده</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </Card>
           </motion.div>
@@ -209,16 +247,40 @@ export function ProfileView({ id }: { id: string }) {
 
 function ProfileHeader({
   profile,
+  meta,
+  cats,
   isSelf,
   onUpdated,
 }: {
   profile: ProfileDetail;
+  meta: ProfileMeta | null;
+  cats: CategoryWithSkills[];
   isSelf: boolean;
   onUpdated: () => void;
 }) {
   const provinceName = getProvinceName(profile.province);
   const genderLabel =
     profile.gender === "male" ? "مرد" : profile.gender === "female" ? "زن" : null;
+
+  // ─── Resolve the avatar ring color ─────────────────────────────────
+  // Build a Map<categoryId, color> from the categories endpoint (which now
+  // includes `color`). Then resolve the user's main category id: prefer
+  // meta.mainCategoryId, fall back to the first category id the user has.
+  const colorMap = new Map<string, string | null>();
+  for (const c of cats) colorMap.set(c.id, c.color ?? null);
+
+  const mainCatId =
+    meta?.mainCategoryId ??
+    profile.mainCategoryId ??
+    profile.categories[0]?.id ??
+    null;
+  const mainCatColor = mainCatId ? colorMap.get(mainCatId) ?? null : null;
+  const isTopTalent = meta?.isTopTalent ?? profile.isTopTalent ?? false;
+
+  // Inline ring style — solid colored ring around the avatar (no gradient)
+  const ringStyle = mainCatColor
+    ? { boxShadow: `0 0 0 4px ${mainCatColor}` }
+    : undefined;
 
   return (
     <motion.div
@@ -260,20 +322,38 @@ function ProfileHeader({
               <Award className="w-3.5 h-3.5" /> تأیید شده
             </div>
           )}
+          {isTopTalent && (
+            <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-gold/95 text-white text-[11px] font-bold flex items-center gap-1 shadow-md">
+              <Crown className="w-3.5 h-3.5" /> استعداد برتر
+            </div>
+          )}
         </div>
 
         {/* Identity row */}
         <div className="px-4 md:px-6 pb-5">
           <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-14 md:-mt-16">
-            {/* Avatar — circular and BIGGER (size 2xl = w-28 h-28) */}
-            {/* No rounded-3xl override — keeps UserAvatar's natural rounded-full */}
-            <UserAvatar
-              name={profile.name}
-              avatarUrl={profile.avatarUrl}
-              verified={profile.isVerifiedBadge}
-              gender={profile.gender}
-              size="2xl"
-            />
+            {/* Avatar with category color ring */}
+            <div className="relative shrink-0">
+              <div
+                className="rounded-full"
+                style={ringStyle}
+                title={mainCatColor ? "دسته اصلی" : undefined}
+              >
+                <UserAvatar
+                  name={profile.name}
+                  avatarUrl={profile.avatarUrl}
+                  verified={profile.isVerifiedBadge}
+                  gender={profile.gender}
+                  size="2xl"
+                />
+              </div>
+              {/* Top-talent crown on the avatar (in addition to the banner badge) */}
+              {isTopTalent && (
+                <span className="absolute -top-2 -right-2 grid place-items-center w-9 h-9 rounded-full bg-gold text-white shadow-md ring-2 ring-background">
+                  <Crown className="w-5 h-5" />
+                </span>
+              )}
+            </div>
 
             {/* Name + meta */}
             <div className="flex-1 min-w-0 md:pb-2">
@@ -284,6 +364,11 @@ function ProfileHeader({
                 {profile.isVerifiedBadge && (
                   <Badge className="bg-gold/15 text-gold border border-gold/30 rounded-md gap-1">
                     <Sparkles className="w-3 h-3" /> تأیید شده
+                  </Badge>
+                )}
+                {isTopTalent && (
+                  <Badge className="bg-gold/15 text-gold border border-gold/30 rounded-md gap-1">
+                    <Crown className="w-3 h-3" /> استعداد برتر
                   </Badge>
                 )}
                 {genderLabel && (
@@ -860,7 +945,14 @@ function PostsTab({ userId, isSelf }: { userId: string; isSelf: boolean }) {
   );
 }
 
-function QuickStatsCard({ profile }: { profile: ProfileDetail }) {
+function QuickStatsCard({
+  profile,
+  meta,
+}: {
+  profile: ProfileDetail;
+  meta: ProfileMeta | null;
+}) {
+  const isTopTalent = meta?.isTopTalent ?? profile.isTopTalent ?? false;
   const stats = [
     { label: "پست", value: profile.postCount, icon: FileText, tint: "bg-primary/10 text-primary" },
     { label: "دنبال‌کننده", value: profile.followersCount, icon: Users, tint: "bg-primary/10 text-primary" },
@@ -894,6 +986,18 @@ function QuickStatsCard({ profile }: { profile: ProfileDetail }) {
             );
           })}
         </div>
+
+        {isTopTalent && (
+          <div className="mt-3 p-3 rounded-2xl bg-gold/8 border border-gold/20 flex items-center gap-2">
+            <Crown className="w-4 h-4 text-gold shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-gold">استعداد برتر</p>
+              <p className="text-[10px] text-gold/80 mt-0.5 leading-4">
+                این کاربر توسط تیم همتیم تأیید شده است.
+              </p>
+            </div>
+          </div>
+        )}
       </Card>
     </motion.div>
   );

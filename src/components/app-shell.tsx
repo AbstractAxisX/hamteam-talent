@@ -21,6 +21,7 @@ import {
   X,
   ChevronRight,
   Briefcase,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/shared/illustrations";
@@ -30,6 +31,7 @@ import { FeedView } from "@/components/views/feed-view";
 import { DashboardView } from "@/components/views/dashboard-view";
 import { FollowingView } from "@/components/views/following-view";
 import { DiscoverView } from "@/components/views/discover-view";
+import { ExploreView, PostDetailView } from "@/components/views/explore-view";
 import { TalentsView } from "@/components/views/talents-view";
 import { NeedsView } from "@/components/views/needs-view";
 import { NeedDetailView } from "@/components/views/need-detail-view";
@@ -54,6 +56,8 @@ function renderView(route: Route) {
     case "dashboard": return <DashboardView />;
     case "following": return <FollowingView />;
     case "discover": return <DiscoverView />;
+    case "explore": return <ExploreView />;
+    case "post": return <PostDetailView id={route.id} />;
     case "talents": return <TalentsView />;
     case "needs": return <NeedsView />;
     case "need": return <NeedDetailView id={route.id} />;
@@ -78,12 +82,12 @@ function renderView(route: Route) {
 // Mobile bottom nav: Home, Discover, Talents, Needs
 const BOTTOM_NAV = [
   { key: "feed", label: "خانه", icon: Home },
+  { key: "explore", label: "استعدادهای برتر", icon: Sparkles },
   { key: "discover", label: "کشف", icon: Search },
-  { key: "talents", label: "استعدادها", icon: Sparkles },
-  { key: "needs", label: "نیازمندی", icon: Briefcase },
+  { key: "talents", label: "استعدادها", icon: Users },
 ] as const;
 
-const TOP_LEVEL = new Set(["feed", "discover", "talents", "needs", "following", "settings"]);
+const TOP_LEVEL = new Set(["feed", "explore", "discover", "talents", "needs", "following", "dashboard", "settings"]);
 
 export function AppShell({ children }: { children?: React.ReactNode }) {
   const route = useNav((s) => s.route);
@@ -278,8 +282,10 @@ function SwipeUpDock({
   const controls = useDragControls();
 
   const moreItems = [
+    { key: "dashboard", label: "داشبورد", icon: Home },
     { key: "chat", label: "چت", icon: MessageCircle, badge: chatUnread },
     { key: "following", label: "دنبال‌شده", icon: UserCheck },
+    { key: "needs", label: "نیازمندی‌ها", icon: Briefcase },
     { key: "my-needs", label: "نیازمندی‌های من", icon: Briefcase },
     { key: "connections", label: "ارتباطات", icon: UserPlus },
     { key: "notifications", label: "اعلان‌ها", icon: Bell, badge: unread },

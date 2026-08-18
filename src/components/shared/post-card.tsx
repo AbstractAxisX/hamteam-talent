@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { toast } from "@/hooks/use-toast";
-import { timeAgoFa, toFa, formatCount } from "@/lib/format";
+import { timeAgoFa, toFa, formatCount, formatFaDate } from "@/lib/format";
 import { Heart, Share2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -98,6 +98,10 @@ export function PostCard({ post, index = 0 }: { post: PostWithRelations; index?:
           <Button variant="ghost" size="sm" disabled className="gap-1.5 h-9 rounded-lg text-muted-foreground mr-auto">
             <Share2 className="w-[18px] h-[18px]" />
           </Button>
+        </div>
+        {/* Creation date — shown on ALL posts */}
+        <div className="px-3 pb-2 -mt-1 text-[11px] text-muted-foreground/70 border-t border-border/40 pt-1.5">
+          {timeAgoFa(post.createdAt)} · {formatFaDate(post.createdAt)}
         </div>
       </Card>
     </motion.div>

@@ -10,6 +10,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const name = String(body.name || "").trim();
   const iconUrl = body.iconUrl ? String(body.iconUrl) : "✨";
+  const color = body.color ? String(body.color) : null;
 
   if (name.length < 2) return NextResponse.json({ error: "نام دسته‌بندی را کامل وارد کنید" }, { status: 400 });
 
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
 
   const maxOrder = await db.category.aggregate({ _max: { order: true } });
   const cat = await db.category.create({
-    data: { name, iconUrl, order: (maxOrder._max.order || 0) + 1 },
+    data: { name, iconUrl, color, order: (maxOrder._max.order || 0) + 1 },
   });
   return NextResponse.json({ ok: true, id: cat.id, name: cat.name });
 }

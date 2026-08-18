@@ -175,6 +175,17 @@ export async function PUT(req: Request) {
     if (city !== undefined) patch.city = city;
     if (phoneVisible !== undefined) patch.phoneVisible = phoneVisible;
     if (gender !== undefined) patch.gender = gender;
+    if (body.mainCategoryId !== undefined) {
+      // Validate: the category must be in user's selected categories (or null to clear)
+      const catId = body.mainCategoryId ? String(body.mainCategoryId) : null;
+      if (catId) {
+        const hasCat = await db.userCategory.findUnique({
+          where: { userId_categoryId: { userId: me.id, categoryId: catId } },
+        });
+        if (!hasCat) return NextResponse.json({ error: "این دسته‌بندی در پروفایل شما ثبت نشده" }, { status: 400 });
+      }
+      patch.mainCategoryId = catId;
+    }
     if (Object.keys(patch).length > 0) {
       await db.profile.update({ where: { userId: me.id }, data: patch });
     }

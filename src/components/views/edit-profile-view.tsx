@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { api, apiPost, apiPut, apiDelete } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
-import type { ProfileDetail, CategoryWithSkills } from "@/lib/types";
+import type { ProfileDetail, CategoryWithSkills, ProfileMeta } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +54,8 @@ import {
   Upload,
   VenusAndMars,
   User,
+  Star,
+  CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +64,7 @@ const SECTIONS = [
   { key: "gender", label: "جنسیت" },
   { key: "location", label: "موقعیت" },
   { key: "categories", label: "دسته‌بندی و مهارت‌ها" },
+  { key: "main-category", label: "دسته اصلی" },
   { key: "experience", label: "سوابق کاری" },
   { key: "education", label: "تحصیلات" },
 ] as const;
@@ -71,6 +74,7 @@ export function EditProfileView() {
   const [profile, setProfile] = useState<ProfileDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [allCats, setAllCats] = useState<CategoryWithSkills[]>([]);
+  const [meta, setMeta] = useState<ProfileMeta | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,6 +85,10 @@ export function EditProfileView() {
       ]);
       setProfile(p);
       setAllCats(c.categories);
+      // Best-effort meta fetch (supplementary: mainCategoryId + isTopTalent)
+      api<ProfileMeta>("/api/profile/me/meta")
+        .then(setMeta)
+        .catch(() => setMeta(null));
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -196,6 +204,16 @@ export function EditProfileView() {
       <SectionWrapper id="section-categories" delay={0.15}>
         <CategoriesSection profile={profile} allCats={allCats} onUpdated={load} />
       </SectionWrapper>
+      {profile.categories.length > 1 && (
+        <SectionWrapper id="section-main-category" delay={0.18}>
+          <MainCategorySection
+            profile={profile}
+            allCats={allCats}
+            meta={meta}
+            onUpdated={load}
+          />
+        </SectionWrapper>
+      )}
       <SectionWrapper id="section-experience" delay={0.2}>
         <ExperienceSection profile={profile} allCats={allCats} onUpdated={load} />
       </SectionWrapper>
@@ -937,6 +955,164 @@ function CategoriesSection({
           )}
         </DialogContent>
       </Dialog>
+    </Card>
+  );
+}
+
+// ─── Section 4b: Main Category (color-ring source) ────────────────
+function MainCategorySection({
+  profile,
+  allCats,
+  meta,
+  onUpdated,
+}: {
+  profile: ProfileDetail;
+  allCats: CategoryWithSkills[];
+  meta: ProfileMeta | null;
+  onUpdated: () => void;
+}) {
+  // Resolve the currently-selected main category: prefer meta.mainCategoryId,
+  // fall back to the user's first category (default).
+  const currentMainId =
+    meta?.mainCategoryId ?? profile.categories[0]?.id ?? null;
+
+  const [selected, setSelected] = useState<string | null>(currentMainId);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setSelected(currentMainId);
+  }, [currentMainId]);
+
+  // Build a color lookup map from allCats (each category may have a `color`).
+  const colorMap = new Map<string, string | null>();
+  for (const c of allCats) colorMap.set(c.id, c.color ?? null);
+
+  async function select(id: string | null) {
+    setSelected(id);
+    setSaving(true);
+    try {
+      await apiPut("/api/profile/me", { mainCategoryId: id });
+      toast({
+        title: "دسته اصلی به‌روزرسانی شد ✅",
+        description: "رنگ حلقه‌ی آواتار پروفایل شما تغییر کرد.",
+      });
+      onUpdated();
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+      // Revert on failure
+      setSelected(currentMainId);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
+      <SectionTitle icon={Star} title="دسته اصلی" />
+      <p className="text-xs text-muted-foreground leading-5">
+        دسته اصلی، رنگ حلقه‌ی دور آواتار شما را در پروفایل تعیین می‌کند. از
+        بین تخصص‌های خود، یکی را به‌عنوان دسته اصلی انتخاب کنید.
+      </p>
+
+      <RadioGroup
+        value={selected ?? ""}
+        onValueChange={(v) => select(v || null)}
+        disabled={saving}
+        className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+      >
+        {profile.categories.map((c) => {
+          const cat = allCats.find((x) => x.id === c.id);
+          const color = cat?.color ?? null;
+          const active = selected === c.id;
+          return (
+            <Label
+              key={c.id}
+              htmlFor={`main-cat-${c.id}`}
+              className={cn(
+                "cursor-pointer flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all",
+                active
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-border/60 hover:border-primary/30 hover:bg-muted/40"
+              )}
+            >
+              <RadioGroupItem
+                id={`main-cat-${c.id}`}
+                value={c.id}
+                className="sr-only"
+              />
+              {/* Color swatch — uses the category's color, with neutral fallback */}
+              <span
+                className="grid place-items-center w-10 h-10 rounded-full shrink-0 ring-2 ring-background"
+                style={{
+                  backgroundColor: color ?? "oklch(0.85 0.05 200)",
+                  boxShadow: active ? `0 0 0 3px ${color ?? "oklch(0.5 0.09 200)"}` : undefined,
+                }}
+              >
+                <CategoryIcon emoji={c.iconUrl} className="w-6 h-6 text-sm" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className={cn("font-bold text-sm", active ? "text-primary" : "text-foreground")}>
+                  {c.name}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1 leading-4">
+                  {c.skills.length > 0
+                    ? `${toFa(c.skills.length)} مهارت`
+                    : "بدون مهارت"}
+                </p>
+              </div>
+              {active && (
+                <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+              )}
+            </Label>
+          );
+        })}
+      </RadioGroup>
+
+      {/* Clear main category */}
+      {selected && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => select(null)}
+          disabled={saving}
+          className="gap-1.5 rounded-2xl text-muted-foreground hover:text-rose font-semibold"
+        >
+          <X className="w-3.5 h-3.5" /> حذف انتخاب دسته اصلی
+        </Button>
+      )}
+
+      {saving && (
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+          <Loader2 className="w-3 h-3 animate-spin" /> در حال ذخیره...
+        </p>
+      )}
+
+      {/* Live avatar preview with the ring */}
+      <div className="mt-2 p-4 rounded-2xl bg-muted/40 border border-border/60 flex items-center gap-4">
+        <div
+          className="rounded-full"
+          style={{
+            boxShadow: selected
+              ? `0 0 0 4px ${colorMap.get(selected) ?? "oklch(0.5 0.09 200)"}`
+              : undefined,
+          }}
+        >
+          <UserAvatar
+            name={profile.name}
+            avatarUrl={profile.avatarUrl}
+            verified={profile.isVerifiedBadge}
+            gender={profile.gender}
+            size="xl"
+          />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-bold">پیش‌نمایش آواتار</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-5">
+            حلقه‌ی دور آواتار شما به رنگ دسته اصلی انتخاب شده خواهد بود.
+          </p>
+        </div>
+      </div>
     </Card>
   );
 }
