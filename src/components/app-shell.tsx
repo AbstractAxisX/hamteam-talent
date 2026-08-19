@@ -371,7 +371,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
             exit={{ opacity: 0, y: -10, scale: 0.985 }}
             transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
           >
-            {children ?? renderView(route)}
+            {renderView(route)}
           </motion.div>
         </AnimatePresence>
       </main>
