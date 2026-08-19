@@ -44,7 +44,7 @@ export const FONTS: { id: FontFamily; name: string; stack: string }[] = [
   { id: "system", name: "سیستم", stack: "ui-sans-serif, system-ui, -apple-system, sans-serif" },
 ];
 
-function applySettings(mode: ThemeMode, color: ThemeColor, font: FontFamily) {
+function applySettings(mode: ThemeMode, _color: ThemeColor, font: FontFamily) {
   const root = document.documentElement;
   // Theme mode
   const isDark =
@@ -52,15 +52,10 @@ function applySettings(mode: ThemeMode, color: ThemeColor, font: FontFamily) {
     (mode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   root.classList.toggle("dark", isDark);
 
-  // Color palette
-  const palette = COLOR_PALETTES[color];
-  root.style.setProperty("--primary", palette.primary);
-  root.style.setProperty("--ring", palette.primary);
-  root.style.setProperty("--sidebar-primary", palette.primary);
-  root.style.setProperty("--secondary", palette.secondary);
-  root.style.setProperty("--accent", palette.secondary);
-  // Recompute primary-foreground as white-ish
-  root.style.setProperty("--primary-foreground", "oklch(0.99 0.005 180)");
+  // NOTE: Theme color picker has been disabled — the Modern Indigo palette
+  // defined in globals.css is now the single source of truth for --primary,
+  // --ring, --accent, etc. We no longer override those CSS variables here so
+  // the locked palette is always used regardless of any persisted value.
 
   // Font
   const fontDef = FONTS.find((f) => f.id === font);

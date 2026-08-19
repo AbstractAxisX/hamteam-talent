@@ -6,29 +6,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { timeAgoFa, toFa } from "@/lib/format";
-import {
-  MessageCircle,
-  Send,
-  ArrowRight,
-  Users,
-  Lock,
-  Search,
-  Sparkles,
-  ChevronLeft,
-  Check,
-  CheckCheck,
-  X,
-  Clock,
-  UserCheck,
-  Bell,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ───────────────────────────── Types ───────────────────────────── */
@@ -130,8 +114,6 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   }, []);
 
   /* ── Silent poll for read-status / new messages from server ── */
-  // Replaces local messages with server truth, but preserves optimistic
-  // temp-* messages that haven't been confirmed by socket echo yet.
   const pollMessages = useCallback(async (id: string) => {
     try {
       const d = await api<ConversationDetail>(
@@ -143,7 +125,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
         return { ...d, messages: [...d.messages, ...pending] };
       });
     } catch {
-      /* ignore — polling is best-effort */
+      /* ignore */
     }
   }, []);
 
@@ -164,7 +146,6 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   useEffect(() => {
     if (conversationId && user) {
       loadMessages(conversationId);
-      // Mark messages as read on open
       apiPost(`/api/chat/conversations/${conversationId}/read`)
         .then(() => loadConversations())
         .catch(() => {});
@@ -210,14 +191,8 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
       if (msg.conversationId === activeId) {
         setActiveConv((prev) => {
           if (!prev) return prev;
-          // Dedupe by id (in case of duplicate delivery)
           if (prev.messages.some((m) => m.id === msg.id)) return prev;
 
-          // ── Bug fix: double-send ──
-          // If the message is from ME, it was already added optimistically
-          // with a temp-* id. Find that optimistic message (matching content,
-          // most-recent-first) and replace it with the real server message.
-          // This prevents the duplicate the sender previously saw.
           if (msg.senderId === myId) {
             const msgs = [...prev.messages];
             for (let i = msgs.length - 1; i >= 0; i--) {
@@ -228,23 +203,18 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
                 msgs[i] = msg;
                 return { ...prev, messages: msgs };
               }
+              // No temp message found (sent from another device) — append.
             }
-            // No temp message found (e.g. sent from another device) — append.
             return { ...prev, messages: [...msgs, msg] };
           }
 
-          // From the other user — just append.
           return { ...prev, messages: [...prev.messages, msg] };
         });
 
-        // Auto-scroll only if user is near the bottom (so we don't yank them
-        // up while they're reading older messages).
         if (isNearBottom()) {
           queueMicrotask(() => scrollToBottom());
         }
 
-        // If I'm the receiver, mark as read — this also sets readAt on the
-        // sender's messages which my polling will pick up.
         if (msg.senderId !== myId) {
           apiPost(`/api/chat/conversations/${msg.conversationId}/read`)
             .then(() => loadConversations())
@@ -252,8 +222,6 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
         }
       }
 
-      // Always refresh the conversation list so lastMessage preview + unread
-      // counts stay in sync.
       loadConversations();
     });
 
@@ -294,8 +262,6 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   }, [conversationId]);
 
   /* ── Poll for read-status every 5s while chat is open ── */
-  // This updates the sender's ticks from single (✓) to double (✓✓) once the
-  // other user reads the messages (their `read` API call sets `readAt`).
   useEffect(() => {
     if (!conversationId || !user) return;
     pollRef.current = setInterval(() => {
@@ -324,8 +290,6 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     });
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-    // Optimistic message with temp id — will be replaced when the socket
-    // echoes back the real, persisted message.
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const optimistic: ChatMessage = {
       id: tempId,
@@ -441,13 +405,13 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
           title="برای چت کردن وارد شوید"
           description="برای شروع گفتگو با همکاران، ابتدا وارد حساب کاربری خود شوید."
           action={
-            <Button
+            <button
               onClick={() => navigate({ view: "auth" })}
-              className="gap-1.5 rounded-2xl bg-primary text-primary-foreground font-bold hover:bg-primary/90"
+              className="inline-flex items-center gap-2 h-11 px-5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm shadow-lg shadow-primary/30 hover:bg-primary/90 transition-colors"
             >
-              <Lock className="w-4 h-4" />
+              <Icon name="lock" size={18} />
               ورود / ثبت‌نام
-            </Button>
+            </button>
           }
         />
       </div>
@@ -479,19 +443,15 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   };
 
   /* ── Full-screen mobile layout, 2-pane desktop layout ── */
-  // Mobile: covers entire viewport (incl. top floating pills + bottom dock)
-  //         via `fixed inset-0 z-50`. Shows list OR thread depending on conv.
-  // Desktop: fits inside <main> padding as a 2-column grid (list + thread).
   return (
     <div
       className={cn(
         "fixed inset-0 z-50 bg-background flex flex-col pt-safe pb-safe",
         "lg:static lg:z-auto lg:inset-auto lg:bg-transparent lg:p-0",
-        "lg:grid lg:grid-cols-[340px_1fr] lg:gap-4 lg:h-[calc(100vh-5rem)]"
+        "lg:grid lg:grid-cols-[360px_1fr] lg:gap-4 lg:h-[calc(100vh-5rem)]"
       )}
     >
       {/* ── List panel ── */}
-      {/* Mobile: shown only when no active conversation. Desktop: always shown. */}
       <div
         className={cn(
           "flex-1 min-h-0",
@@ -512,7 +472,6 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
       </div>
 
       {/* ── Thread panel ── */}
-      {/* Mobile: shown only when conversation is active. Desktop: always shown. */}
       <div
         className={cn(
           "flex-1 min-h-0",
@@ -535,20 +494,19 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
             onRespond={handleRespond}
           />
         ) : (
-          <div className="h-full flex items-center justify-center rounded-2xl border border-border/60 bg-muted/30 p-6">
+          <div className="h-full flex items-center justify-center rounded-3xl bg-card shadow-sm p-6">
             <EmptyState
               kind="chat"
               title="یک گفتگو را انتخاب کنید"
               description="از لیست کناری یک گفتگو را انتخاب کنید یا همکار جدیدی پیدا کنید."
               action={
-                <Button
-                  variant="outline"
+                <button
                   onClick={() => navigate({ view: "talents" })}
-                  className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5"
+                  className="inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-primary/30 text-primary font-bold text-sm hover:bg-primary/5 transition-colors"
                 >
-                  <Users className="w-4 h-4" />
+                  <Icon name="users" size={16} />
                   پیدا کردن همکار
-                </Button>
+                </button>
               }
             />
           </div>
@@ -587,16 +545,16 @@ function ChatListPanel({
   ];
 
   return (
-    <div className="h-full flex flex-col bg-card border-b border-border/60 lg:border lg:rounded-2xl lg:shadow-card overflow-hidden">
-      {/* Header with title + tabs + search */}
-      <div className="shrink-0 p-3 border-b border-border/60 space-y-3 bg-card lg:rounded-t-2xl">
+    <div className="h-full flex flex-col bg-card border-b border-border/60 lg:border lg:rounded-3xl lg:shadow-card overflow-hidden">
+      {/* Header */}
+      <div className="shrink-0 p-3 sm:p-4 border-b border-border/60 space-y-3 bg-card lg:rounded-t-3xl">
         {/* Mobile title (full-screen header) */}
         <div className="flex items-center gap-3 lg:hidden">
-          <div className="grid place-items-center w-10 h-10 rounded-2xl bg-primary text-primary-foreground shadow-md">
-            <MessageCircle className="w-5 h-5" />
+          <div className="grid place-items-center w-11 h-11 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30">
+            <Icon name="chat" size={22} />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-extrabold leading-tight tracking-tight">چت</h1>
+            <h1 className="text-xl font-black leading-tight tracking-tight">چت</h1>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               گفتگوی زنده با همکاران
             </p>
@@ -605,15 +563,31 @@ function ChatListPanel({
 
         {/* Tabs + find-coworkers button */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/60">
+          <div className="relative flex items-center gap-0.5 p-1 rounded-2xl bg-muted/60 flex-1">
+            <AnimatePresence>
+              {listTab === "messages" && (
+                <motion.div
+                  layoutId="list-tab-pill"
+                  className="absolute inset-y-1 right-1 w-[calc(50%-0.25rem)] rounded-xl bg-primary shadow-md shadow-primary/20"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                />
+              )}
+              {listTab === "requests" && (
+                <motion.div
+                  layoutId="list-tab-pill"
+                  className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-xl bg-primary shadow-md shadow-primary/20"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                />
+              )}
+            </AnimatePresence>
             {tabItems.map((t) => (
               <button
                 key={t.key}
                 onClick={() => onTabChange(t.key)}
                 className={cn(
-                  "relative px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5",
+                  "relative z-10 flex-1 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5",
                   listTab === t.key
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -621,7 +595,7 @@ function ChatListPanel({
                 {t.count > 0 && (
                   <span
                     className={cn(
-                      "text-[10px] px-1.5 py-0.5 rounded-full font-bold",
+                      "text-[10px] px-1.5 py-0.5 rounded-full font-bold tabular-nums",
                       listTab === t.key
                         ? "bg-primary-foreground/20 text-primary-foreground"
                         : t.key === "requests"
@@ -635,25 +609,27 @@ function ChatListPanel({
               </button>
             ))}
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 shrink-0 rounded-xl hover:bg-primary/5 text-primary"
+          <button
             onClick={() => navigate({ view: "talents" })}
+            className="shrink-0 grid place-items-center w-9 h-9 rounded-xl hover:bg-primary/5 text-primary transition-colors"
             aria-label="پیدا کردن همکار"
           >
-            <Users className="w-4 h-4" />
-          </Button>
+            <Icon name="users" size={18} />
+          </button>
         </div>
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+          <Icon
+            name="search"
+            size={14}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+          />
           <input
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="جست‌وجو در گفتگوها..."
-            className="w-full h-9 pr-8 pl-3 text-xs rounded-xl border border-input bg-muted/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-transparent transition-all"
+            className="w-full h-9 pr-9 pl-3 text-xs rounded-xl border border-input bg-muted/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-transparent transition-all"
           />
         </div>
       </div>
@@ -663,8 +639,8 @@ function ChatListPanel({
         {loading ? (
           <div className="p-3 space-y-2">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl">
-                <Skeleton className="w-11 h-11 rounded-full shrink-0" />
+              <div key={i} className="flex items-center gap-3 p-2.5 rounded-2xl">
+                <Skeleton className="w-12 h-12 rounded-full shrink-0" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-3.5 w-28 rounded" />
                   <Skeleton className="h-2.5 w-40 rounded" />
@@ -686,15 +662,13 @@ function ChatListPanel({
                 className="py-6"
                 action={
                   !search ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    <button
                       onClick={() => navigate({ view: "talents" })}
-                      className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5"
+                      className="inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-primary/30 text-primary font-bold text-sm hover:bg-primary/5 transition-colors"
                     >
-                      <Users className="w-4 h-4" />
+                      <Icon name="users" size={16} />
                       پیدا کردن همکار
-                    </Button>
+                    </button>
                   ) : undefined
                 }
               />
@@ -790,8 +764,8 @@ function ConversationRow({
             size="md"
           />
           {c.unreadCount > 0 && c.status === "active" && (
-            <span className="absolute -top-1 -left-1 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
-              {toFa(c.unreadCount > 9 ? "۹+" : c.unreadCount)}
+            <span className="absolute -top-1 -left-1 min-w-[20px] h-5 px-1 grid place-items-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold shadow-md shadow-primary/30 tabular-nums">
+              {c.unreadCount > 9 ? "۹+" : toFa(c.unreadCount)}
             </span>
           )}
         </div>
@@ -799,21 +773,21 @@ function ConversationRow({
           <div className="flex items-center justify-between gap-2">
             <span
               className={cn(
-                "text-xs truncate",
-                active ? "font-bold text-primary" : "font-semibold text-foreground"
+                "text-sm truncate",
+                active ? "font-bold text-primary" : "font-bold text-foreground"
               )}
             >
               {c.otherUser.name}
             </span>
             {c.lastMessage && (
-              <span className="text-[10px] text-muted-foreground shrink-0">
+              <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
                 {timeAgoFa(c.lastMessage.createdAt)}
               </span>
             )}
           </div>
           <p
             className={cn(
-              "text-[11px] line-clamp-1 mt-0.5 leading-5",
+              "text-xs line-clamp-1 mt-0.5 leading-5",
               active ? "text-primary/80" : "text-muted-foreground"
             )}
           >
@@ -825,8 +799,8 @@ function ConversationRow({
           </p>
         </div>
         {!showActions && c.status === "pending_request" && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-warning/15 text-warning text-[9px] font-bold flex items-center gap-0.5">
-            <Clock className="w-2.5 h-2.5" /> در انتظار
+          <span className="shrink-0 px-2 py-0.5 rounded-full bg-warning/15 text-warning text-[9px] font-bold flex items-center gap-0.5">
+            <Icon name="clock" size={10} /> در انتظار
           </span>
         )}
       </button>
@@ -834,25 +808,26 @@ function ConversationRow({
       {/* Accept / reject buttons for incoming requests */}
       {showActions && (
         <div className="px-3 pb-3 flex items-center gap-2">
-          <Button
-            size="sm"
+          <button
             onClick={() => handleRespond("accept")}
             disabled={busy}
-            className="gap-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold h-8 text-xs flex-1"
+            className="flex-1 h-9 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm shadow-primary/20"
           >
-            {busy ? <Skeleton className="w-3 h-3 rounded-full" /> : <Check className="w-3.5 h-3.5" />}
+            {busy ? (
+              <Icon name="loader" size={14} className="animate-spin" />
+            ) : (
+              <Icon name="checkSingle" size={14} />
+            )}
             تأیید
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
+          </button>
+          <button
             onClick={() => handleRespond("reject")}
             disabled={busy}
-            className="gap-1.5 rounded-xl border-rose/30 text-rose hover:bg-rose/5 font-semibold h-8 text-xs flex-1"
+            className="flex-1 h-9 rounded-xl border border-rose/30 text-rose hover:bg-rose/5 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
           >
-            <X className="w-3.5 h-3.5" />
+            <Icon name="x" size={14} />
             رد
-          </Button>
+          </button>
         </div>
       )}
     </motion.div>
@@ -908,20 +883,63 @@ function ChatThread({
     }
   }
 
+  // Status pill for header
+  const StatusPill = () => {
+    if (isTyping) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary-foreground/85">
+          <span className="flex gap-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground/70 animate-bounce [animation-delay:-0.3s]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground/70 animate-bounce [animation-delay:-0.15s]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground/70 animate-bounce" />
+          </span>
+          در حال تایپ...
+        </span>
+      );
+    }
+    if (status === "active") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] text-primary-foreground/70">
+          <Icon name="userCheck" size={12} />
+          دنبال‌شده
+        </span>
+      );
+    }
+    if (isMyRequestPending) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] text-primary-foreground/70">
+          <Icon name="clock" size={12} />
+          درخواست ارسال شد
+        </span>
+      );
+    }
+    if (isTheirRequestPending) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] text-primary-foreground/70">
+          <Icon name="bell" size={12} />
+          درخواست پیام جدید
+        </span>
+      );
+    }
+    return (
+      <span className="text-[11px] text-primary-foreground/70 truncate">
+        {other?.bioShort || "مشاهده پروفایل"}
+      </span>
+    );
+  };
+
   return (
-    <div className="h-full flex flex-col bg-background lg:rounded-2xl lg:border lg:border-border/60 lg:shadow-card overflow-hidden">
+    <div className="h-full flex flex-col bg-background lg:rounded-3xl lg:border lg:border-border/60 lg:shadow-card overflow-hidden">
       {/* ── Header ── */}
-      <div className="shrink-0 p-3 border-b border-border/60 flex items-center gap-3 bg-primary text-primary-foreground lg:rounded-t-2xl">
+      <div className="shrink-0 p-3 border-b border-border/60 flex items-center gap-3 bg-primary text-primary-foreground lg:rounded-t-3xl">
         {onBack && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 shrink-0 rounded-xl hover:bg-white/10 text-primary-foreground"
+          <button
             onClick={onBack}
+            className="shrink-0 grid place-items-center w-9 h-9 rounded-xl hover:bg-white/10 text-primary-foreground transition-colors"
             aria-label="بازگشت"
           >
-            <ArrowRight className="w-4 h-4" />
-          </Button>
+            <Icon name="chevronRight" size={20} />
+          </button>
         )}
         {other ? (
           <>
@@ -945,34 +963,11 @@ function ChatThread({
               >
                 {other.name}
               </button>
-              <p className="text-[11px] text-primary-foreground/70 flex items-center gap-1.5 h-4">
-                {isTyping ? (
-                  <span className="font-medium flex items-center gap-1.5">
-                    <span className="flex gap-0.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground animate-bounce [animation-delay:-0.3s]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground animate-bounce [animation-delay:-0.15s]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground animate-bounce" />
-                    </span>
-                    در حال تایپ...
-                  </span>
-                ) : status === "active" ? (
-                  <span className="truncate flex items-center gap-1">
-                    <UserCheck className="w-3 h-3" /> دنبال‌شده
-                  </span>
-                ) : isMyRequestPending ? (
-                  <span className="truncate flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> درخواست ارسال شد
-                  </span>
-                ) : isTheirRequestPending ? (
-                  <span className="truncate flex items-center gap-1">
-                    <Bell className="w-3 h-3" /> درخواست پیام جدید
-                  </span>
-                ) : (
-                  <span className="truncate">{other.bioShort || "مشاهده پروفایل"}</span>
-                )}
-              </p>
+              <div className="h-4 mt-0.5">
+                <StatusPill />
+              </div>
             </div>
-            <ChevronLeft className="w-4 h-4 text-primary-foreground/40 shrink-0" />
+            <Icon name="chevronLeft" size={16} className="text-primary-foreground/40 shrink-0" />
           </>
         ) : (
           <div className="flex-1">
@@ -985,7 +980,7 @@ function ChatThread({
       {/* ── Messages ── */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto slim-scroll p-4 space-y-3 bg-background min-h-0"
+        className="flex-1 overflow-y-auto slim-scroll p-4 space-y-2.5 bg-background min-h-0"
       >
         {loading ? (
           <div className="space-y-3">
@@ -1035,6 +1030,8 @@ function ChatThread({
               const showSender = !isMine && (!prev || prev.senderId !== m.senderId);
               const isPending = m.id.startsWith("temp-");
               const isRead = !!m.readAt;
+              const next = messages[idx + 1];
+              const isLastInGroup = !next || next.senderId !== m.senderId;
               return (
                 <motion.div
                   key={m.id}
@@ -1061,40 +1058,41 @@ function ChatThread({
                     )}
                   >
                     {m.content}
-                    <span className="flex items-center gap-1.5 mt-1 -mb-0.5">
-                      <span
-                        className={cn(
-                          "text-[9px]",
-                          isMine ? "text-primary-foreground/60" : "text-muted-foreground"
-                        )}
-                      >
-                        {timeAgoFa(m.createdAt)}
-                      </span>
-                      {/* ── Sent / Seen ticks (WhatsApp-style) ── */}
-                      {isMine && (
-                        <span className="mr-auto flex items-center">
-                          {isRead ? (
-                            // Seen — double tick, brighter (signifies read receipt)
-                            <CheckCheck className="w-3.5 h-3.5 text-primary-foreground" />
-                          ) : (
-                            // Sent (or pending) — single tick, slightly dimmer
-                            <Check
-                              className={cn(
-                                "w-3 h-3",
-                                isPending
-                                  ? "text-primary-foreground/40"
-                                  : "text-primary-foreground/70"
-                              )}
-                            />
+                    {isLastInGroup && (
+                      <span className="flex items-center gap-1.5 mt-1 -mb-0.5">
+                        <span
+                          className={cn(
+                            "text-[9px] tabular-nums",
+                            isMine ? "text-primary-foreground/60" : "text-muted-foreground"
                           )}
+                        >
+                          {timeAgoFa(m.createdAt)}
                         </span>
-                      )}
-                    </span>
+                        {/* ── Sent / Seen ticks (WhatsApp-style) ── */}
+                        {isMine && (
+                          <span className="mr-auto flex items-center">
+                            {isRead ? (
+                              <Icon name="checkCheck" size={14} className="text-primary-foreground" />
+                            ) : (
+                              <Icon
+                                name="checkSingle"
+                                size={12}
+                                className={cn(
+                                  isPending
+                                    ? "text-primary-foreground/40"
+                                    : "text-primary-foreground/70"
+                                )}
+                              />
+                            )}
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </div>
                 </motion.div>
               );
             })}
-            {/* Live typing indicator (other user is typing) */}
+            {/* Live typing indicator */}
             {isTyping && (
               <motion.div
                 key="typing-indicator"
@@ -1103,7 +1101,7 @@ function ChatThread({
                 exit={{ opacity: 0, y: -4 }}
                 className="flex items-start"
               >
-                <div className="bg-card border border-border/60 rounded-2xl rounded-tr-md px-4 py-3 flex gap-1">
+                <div className="bg-card border border-border/60 rounded-2xl rounded-tr-md px-4 py-3 flex gap-1 shadow-sm">
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.3s]" />
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.15s]" />
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" />
@@ -1115,7 +1113,7 @@ function ChatThread({
       </div>
 
       {/* ── Input area (varies by conversation status) ── */}
-      <div className="shrink-0 p-3 border-t border-border/60 bg-card lg:rounded-b-2xl">
+      <div className="shrink-0 p-3 border-t border-border/60 bg-card lg:rounded-b-3xl">
         {status === "active" ? (
           <>
             <div className="flex items-end gap-2">
@@ -1134,20 +1132,20 @@ function ChatThread({
                 whileHover={{ scale: 1.05 }}
                 onClick={onSend}
                 disabled={!draft.trim()}
-                className="h-11 w-11 p-0 shrink-0 rounded-full bg-primary text-primary-foreground grid place-items-center shadow-md disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed transition-shadow hover:shadow-lg"
+                className="h-11 w-11 p-0 shrink-0 rounded-full bg-primary text-primary-foreground grid place-items-center shadow-lg shadow-primary/30 disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed transition-shadow hover:shadow-xl"
                 aria-label="ارسال"
               >
-                <Send className="w-4 h-4 -scale-x-100" />
+                <Icon name="send" size={18} className="-scale-x-100" />
               </motion.button>
             </div>
             <p className="text-[10px] text-muted-foreground mt-1.5 px-2 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-gold/70" />
+              <Icon name="sparkles" size={11} className="text-gold/70" />
               Enter برای ارسال · Shift+Enter برای خط جدید
             </p>
           </>
         ) : isMyRequestPending ? (
           <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-warning/10 border border-warning/20">
-            <Clock className="w-4 h-4 text-warning" />
+            <Icon name="clock" size={16} className="text-warning" />
             <p className="text-xs font-medium text-warning">
               در انتظار تأیید درخواست — پس از پذیرش طرف مقابل می‌توانید پیام دهید.
             </p>
@@ -1157,29 +1155,26 @@ function ChatThread({
             <p className="text-xs text-muted-foreground flex-1 px-2">
               این کاربر می‌خواهد با شما گفتگو کند.
             </p>
-            <Button
-              size="sm"
+            <button
               onClick={() => handleRespond("accept")}
               disabled={busyRespond}
-              className="gap-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold h-10"
+              className="h-10 px-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-sm flex items-center gap-1.5 shadow-sm shadow-primary/20 transition-colors"
             >
               {busyRespond ? (
-                <Skeleton className="w-3.5 h-3.5 rounded-full" />
+                <Icon name="loader" size={16} className="animate-spin" />
               ) : (
-                <Check className="w-4 h-4" />
+                <Icon name="checkSingle" size={16} />
               )}
               تأیید
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
+            </button>
+            <button
               onClick={() => handleRespond("reject")}
               disabled={busyRespond}
-              className="gap-1.5 rounded-xl border-rose/30 text-rose hover:bg-rose/5 font-semibold h-10"
+              className="h-10 px-4 rounded-xl border border-rose/30 text-rose hover:bg-rose/5 font-semibold text-sm flex items-center gap-1.5 transition-colors"
             >
-              <X className="w-4 h-4" />
+              <Icon name="x" size={16} />
               رد
-            </Button>
+            </button>
           </div>
         ) : null}
       </div>

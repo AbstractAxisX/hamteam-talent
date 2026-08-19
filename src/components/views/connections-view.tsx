@@ -12,20 +12,30 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { timeAgoFa, toFa } from "@/lib/format";
-import {
-  Users,
-  UserCheck,
-  UserPlus,
-  Inbox,
-  Clock,
-  Lock,
-  Check,
-  X,
-  MessageCircle,
-  Loader2,
-} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+/* ── Small inline spinner (no lucide dependency) ───────────────── */
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg
+      className={cn("animate-spin", className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.2" strokeWidth="3" />
+      <path
+        d="M22 12a10 10 0 0 0-10-10"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 type OtherUser = {
   id: string;
@@ -75,15 +85,15 @@ export function ConnectionsView() {
   if (!userLoading && !user) {
     return (
       <div className="space-y-5 max-w-2xl mx-auto">
-        <Header />
+        <Header counts={null} />
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
         >
-          <Card className="p-8 text-center space-y-3 border-border/60 shadow-card rounded-2xl">
-            <div className="grid place-items-center w-14 h-14 rounded-2xl bg-forest/10 text-forest mx-auto">
-              <Lock className="w-6 h-6" />
+          <Card className="p-8 text-center space-y-3 shadow-card rounded-3xl">
+            <div className="grid place-items-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mx-auto">
+              <Icon name="shield" className="w-6 h-6" />
             </div>
             <h2 className="font-bold text-lg">برای مشاهده ارتباطات خود وارد شوید</h2>
             <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-6">
@@ -91,7 +101,7 @@ export function ConnectionsView() {
             </p>
             <Button
               onClick={() => navigate({ view: "auth" })}
-              className="gap-1.5 rounded-2xl bg-lime text-forest hover:bg-lime/90 font-bold mx-auto"
+              className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold mx-auto"
             >
               ورود / ثبت‌نام
             </Button>
@@ -137,39 +147,39 @@ export function ConnectionsView() {
 
   return (
     <div className="space-y-5 max-w-2xl mx-auto">
-      <Header />
+      <Header counts={counts} />
 
-      <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="w-full h-12 rounded-2xl bg-muted/60 p-1">
+      <Tabs defaultValue={counts.pending > 0 ? "pending" : "accepted"} className="w-full">
+        <TabsList className="w-full h-12 rounded-3xl bg-muted/60 p-1">
           <TabsTrigger
             value="pending"
-            className="gap-1.5 flex-1 rounded-xl font-bold text-xs sm:text-sm data-[state=active]:bg-lime data-[state=active]:text-forest"
+            className="gap-1.5 flex-1 rounded-2xl font-bold text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
-            <UserPlus className="w-4 h-4" />
+            <Icon name="userPlus" className="w-4 h-4" />
             دریافتی
             {counts.pending > 0 && (
-              <Badge className="ml-1 h-5 px-1.5 text-[10px] bg-gold/15 text-gold border border-gold/30">
+              <Badge className="ml-1 h-5 px-1.5 text-[10px] bg-amber-100 text-amber-600 border border-amber-200">
                 {toFa(counts.pending)}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger
             value="accepted"
-            className="gap-1.5 flex-1 rounded-xl font-bold text-xs sm:text-sm data-[state=active]:bg-lime data-[state=active]:text-forest"
+            className="gap-1.5 flex-1 rounded-2xl font-bold text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
-            <UserCheck className="w-4 h-4" />
+            <Icon name="userCheck" className="w-4 h-4" />
             ارتباطات
             {counts.accepted > 0 && (
-              <Badge className="ml-1 h-5 px-1.5 text-[10px] bg-forest/10 text-forest border border-forest/20">
+              <Badge className="ml-1 h-5 px-1.5 text-[10px] bg-primary/15 text-primary border border-primary/30">
                 {toFa(counts.accepted)}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger
             value="sent"
-            className="gap-1.5 flex-1 rounded-xl font-bold text-xs sm:text-sm data-[state=active]:bg-lime data-[state=active]:text-forest"
+            className="gap-1.5 flex-1 rounded-2xl font-bold text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
           >
-            <Inbox className="w-4 h-4" />
+            <Icon name="send" className="w-4 h-4" />
             ارسالی
             {counts.sent > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
@@ -192,9 +202,9 @@ export function ConnectionsView() {
                 <Button
                   variant="outline"
                   onClick={() => navigate({ view: "discover" })}
-                  className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
+                  className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
                 >
-                  <Users className="w-4 h-4" />
+                  <Icon name="users" className="w-4 h-4" />
                   کشف استعدادها
                 </Button>
               }
@@ -228,9 +238,9 @@ export function ConnectionsView() {
                 <Button
                   variant="outline"
                   onClick={() => navigate({ view: "discover" })}
-                  className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
+                  className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
                 >
-                  <Users className="w-4 h-4" />
+                  <Icon name="users" className="w-4 h-4" />
                   کشف استعدادها
                 </Button>
               }
@@ -257,9 +267,9 @@ export function ConnectionsView() {
                 <Button
                   variant="outline"
                   onClick={() => navigate({ view: "discover" })}
-                  className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
+                  className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
                 >
-                  <Users className="w-4 h-4" />
+                  <Icon name="users" className="w-4 h-4" />
                   کشف استعدادها
                 </Button>
               }
@@ -277,23 +287,54 @@ export function ConnectionsView() {
   );
 }
 
-function Header() {
+function Header({ counts }: { counts: { pending: number; sent: number; accepted: number } | null }) {
+  const total = counts ? counts.pending + counts.sent + counts.accepted : 0;
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="flex items-center gap-3"
+      className="space-y-3"
     >
-      <div className="grid place-items-center w-11 h-11 rounded-2xl bg-forest text-lime shadow-md">
-        <Users className="w-5 h-5" />
+      <div className="flex items-center gap-3">
+        <div className="grid place-items-center w-12 h-12 rounded-2xl bg-primary text-primary-foreground shadow-md">
+          <Icon name="users" className="w-5 h-5" />
+        </div>
+        <div>
+          <h1 className="text-xl font-extrabold leading-tight tracking-tight">ارتباطات</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            مدیریت درخواست‌ها و شبکه‌ی حرفه‌ای شما
+          </p>
+        </div>
       </div>
-      <div>
-        <h1 className="text-xl font-extrabold leading-tight tracking-tight">ارتباطات</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          مدیریت درخواست‌ها و شبکه‌ی حرفه‌ای شما
-        </p>
-      </div>
+
+      {/* Quick stats strip */}
+      {counts && (
+        <div className="grid grid-cols-3 gap-2">
+          <Card className="p-3 rounded-2xl shadow-card flex flex-col items-center text-center">
+            <span className="text-lg font-extrabold text-primary">{toFa(counts.accepted)}</span>
+            <span className="text-[11px] text-muted-foreground mt-0.5">ارتباطات</span>
+          </Card>
+          <Card className="p-3 rounded-2xl shadow-card flex flex-col items-center text-center">
+            <span className="text-lg font-extrabold text-amber-600">{toFa(counts.pending)}</span>
+            <span className="text-[11px] text-muted-foreground mt-0.5">دریافتی</span>
+          </Card>
+          <Card className="p-3 rounded-2xl shadow-card flex flex-col items-center text-center">
+            <span className="text-lg font-extrabold text-foreground">{toFa(counts.sent)}</span>
+            <span className="text-[11px] text-muted-foreground mt-0.5">ارسالی</span>
+          </Card>
+        </div>
+      )}
+      {counts === null && (
+        <div className="grid grid-cols-3 gap-2">
+          {[0, 1, 2].map((i) => (
+            <Card key={i} className="p-3 rounded-2xl shadow-card flex flex-col items-center">
+              <Skeleton className="h-5 w-8 rounded" />
+              <Skeleton className="h-3 w-12 rounded mt-1" />
+            </Card>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -313,7 +354,7 @@ function PersonRow({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3), ease: [0.16, 1, 0.3, 1] }}
     >
-      <Card className="p-4 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300 rounded-2xl">
+      <Card className="p-4 shadow-card hover:shadow-lift transition-shadow duration-300 rounded-3xl">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate({ view: "profile", id: item.otherUser.id })}
@@ -330,7 +371,7 @@ function PersonRow({
           <div className="flex-1 min-w-0">
             <button
               onClick={() => navigate({ view: "profile", id: item.otherUser.id })}
-              className="font-bold text-sm hover:text-forest transition-colors truncate block text-right"
+              className="font-bold text-sm hover:text-primary transition-colors truncate block text-right"
             >
               {item.otherUser.name}
             </button>
@@ -373,21 +414,21 @@ function PendingCard({
         <>
           <Button
             size="sm"
-            className="gap-1.5 h-8 rounded-xl bg-lime text-forest hover:bg-lime/90 font-bold"
+            className="gap-1.5 h-9 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
             disabled={acting}
             onClick={() => onAccept(item.id)}
           >
-            {acting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            {acting ? <Spinner className="w-3.5 h-3.5" /> : <Icon name="check" className="w-3.5 h-3.5" />}
             پذیرش
           </Button>
           <Button
             size="sm"
             variant="outline"
-            className="gap-1.5 h-8 rounded-xl font-semibold text-rose hover:text-rose border-rose/30 hover:border-rose/50 hover:bg-rose/5"
+            className="gap-1.5 h-9 rounded-2xl font-semibold text-rose hover:text-rose border-rose/30 hover:border-rose/50 hover:bg-rose/5"
             disabled={acting}
             onClick={() => onReject(item.id)}
           >
-            <X className="w-3.5 h-3.5" />
+            <Icon name="x" className="w-3.5 h-3.5" />
             رد
           </Button>
         </>
@@ -421,11 +462,11 @@ function AcceptedCard({ item, index }: { item: ConnItem; index: number }) {
         <Button
           size="sm"
           variant="outline"
-          className="gap-1.5 h-8 rounded-xl border-forest/30 text-forest hover:bg-forest/5 font-semibold"
+          className="gap-1.5 h-9 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
           onClick={startChat}
           disabled={starting}
         >
-          {starting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}
+          {starting ? <Spinner className="w-3.5 h-3.5" /> : <Icon name="chat" className="w-3.5 h-3.5" />}
           چت
         </Button>
       }
@@ -439,8 +480,8 @@ function SentCard({ item, index }: { item: ConnItem; index: number }) {
       item={item}
       index={index}
       actions={
-        <Badge className="gap-1 border border-gold/30 bg-gold/15 text-gold h-8 px-2.5 rounded-xl font-medium">
-          <Clock className="w-3 h-3" />
+        <Badge className="gap-1 border border-amber-300/50 bg-amber-100 text-amber-600 h-9 px-2.5 rounded-2xl font-medium">
+          <Icon name="calendar" className="w-3 h-3" />
           در انتظار پاسخ
         </Badge>
       }
@@ -452,7 +493,7 @@ function ListSkeleton() {
   return (
     <div className="space-y-3">
       {[...Array(4)].map((_, i) => (
-        <Card key={i} className="p-4 border-border/60 shadow-card rounded-2xl">
+        <Card key={i} className="p-4 shadow-card rounded-3xl">
           <div className="flex items-center gap-3">
             <Skeleton className="w-14 h-14 rounded-full" />
             <div className="flex-1 space-y-2">
@@ -461,8 +502,8 @@ function ListSkeleton() {
               <Skeleton className="h-2.5 w-16 rounded" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Skeleton className="h-8 w-20 rounded-xl" />
-              <Skeleton className="h-8 w-20 rounded-xl" />
+              <Skeleton className="h-9 w-20 rounded-2xl" />
+              <Skeleton className="h-9 w-20 rounded-2xl" />
             </div>
           </div>
         </Card>

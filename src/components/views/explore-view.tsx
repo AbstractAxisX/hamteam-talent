@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type PanInfo } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SearchableSelect } from "@/components/shared/searchable-select";
+import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, timeAgoFa, formatFaDate } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,23 +16,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { CategoryWithSkills } from "@/lib/types";
-import {
-  Heart,
-  ThumbsUp,
-  ThumbsDown,
-  MessageSquare,
-  Send,
-  X,
-  ChevronRight,
-  Sparkles,
-  BadgeCheck,
-  Award,
-  UserPlus,
-  Loader2,
-  Image as ImageIcon,
-  MessageCircle,
-  ArrowRight,
-} from "lucide-react";
 
 // ═════════════════════════════════════════════════════════════════
 // Types matching API responses
@@ -99,8 +83,7 @@ type Comment = {
 
 // Convert hex (#RRGGBB) to a soft tinted background using OKLCH chroma reduction
 function softTint(color: string | null | undefined): string {
-  if (!color) return "oklch(0.96 0.012 200)";
-  // Try to extract hue from common formats; fallback to a neutral tint
+  if (!color) return "oklch(0.96 0.012 270)";
   if (color.startsWith("#")) {
     const hex = color.slice(1);
     const r = parseInt(hex.slice(0, 2), 16) / 255;
@@ -108,7 +91,7 @@ function softTint(color: string | null | undefined): string {
     const b = parseInt(hex.slice(4, 6), 16) / 255;
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
-    let h = 200;
+    let h = 270;
     if (max !== min) {
       const d = max - min;
       if (max === r) h = ((g - b) / d) % 6;
@@ -117,9 +100,33 @@ function softTint(color: string | null | undefined): string {
       h = h * 60;
       if (h < 0) h += 360;
     }
-    return `oklch(0.96 0.02 ${h.toFixed(0)})`;
+    return `oklch(0.96 0.025 ${h.toFixed(0)})`;
   }
   return color;
+}
+
+// Subtle gradient tint for tile backgrounds (text-only posts)
+function softTintGradient(color: string | null | undefined): string {
+  if (!color) return "linear-gradient(135deg, oklch(0.97 0.012 270), oklch(0.94 0.018 270))";
+  if (color.startsWith("#")) {
+    const hex = color.slice(1);
+    const r = parseInt(hex.slice(0, 2), 16) / 255;
+    const g = parseInt(hex.slice(2, 4), 16) / 255;
+    const b = parseInt(hex.slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 270;
+    if (max !== min) {
+      const d = max - min;
+      if (max === r) h = ((g - b) / d) % 6;
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h = h * 60;
+      if (h < 0) h += 360;
+    }
+    return `linear-gradient(135deg, oklch(0.97 0.025 ${h.toFixed(0)}), oklch(0.93 0.04 ${h.toFixed(0)})`;
+  }
+  return `linear-gradient(135deg, ${color}, ${color})`;
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -187,25 +194,45 @@ export function ExploreView() {
   }
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto">
-      {/* ═══ Header ═══ */}
+    <div className="max-w-5xl mx-auto pb-2">
+      {/* ═══ Hero Header ═══ */}
       <motion.header
-        initial={{ opacity: 0, y: -8 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="flex items-center gap-3"
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="relative overflow-hidden rounded-3xl bg-card p-5 sm:p-6 shadow-[0_8px_30px_-12px_oklch(0.5_0.22_275/0.25)] mb-4"
       >
-        <div className="grid place-items-center w-12 h-12 rounded-2xl bg-primary text-primary-foreground shadow-sm shrink-0">
-          <Sparkles className="w-6 h-6" />
-        </div>
-        <div className="min-w-0">
-          <h1 className="text-2xl font-extrabold leading-tight">استعدادهای برتر</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">بهترین پست‌ها و افراد برتر همتیم</p>
+        {/* Decorative blobs */}
+        <div
+          className="absolute -top-16 -left-10 w-56 h-56 rounded-full opacity-25 blur-3xl pointer-events-none"
+          style={{ background: "oklch(0.6 0.22 275)" }}
+        />
+        <div
+          className="absolute -bottom-20 -right-12 w-64 h-64 rounded-full opacity-15 blur-3xl pointer-events-none"
+          style={{ background: "oklch(0.72 0.16 75)" }}
+        />
+        <div className="relative flex items-center gap-4">
+          <div className="grid place-items-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 shrink-0">
+            <Icon name="sparkles" size={30} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
+              استعدادهای برتر
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1 leading-6">
+              بهترین پست‌ها و افراد همتیم را کشف کنید
+            </p>
+          </div>
         </div>
       </motion.header>
 
       {/* ═══ Filters card ═══ */}
-      <div className="bg-card border border-border/60 rounded-2xl p-4 space-y-3 shadow-sm">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+        className="bg-card rounded-3xl p-4 sm:p-5 shadow-sm space-y-3 mb-4"
+      >
         <SearchableSelect
           label="دسته‌بندی"
           allLabel="همه دسته‌ها"
@@ -234,32 +261,35 @@ export function ExploreView() {
         {(categoryId || skillId) && (
           <button
             onClick={clearFilters}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+            className="h-9 px-3.5 inline-flex items-center gap-1.5 rounded-full bg-muted text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors text-xs font-bold"
           >
-            <X className="w-3.5 h-3.5" />
+            <Icon name="x" size={14} className="-rtl:scale-x-100" />
             حذف فیلترها
           </button>
         )}
-      </div>
+      </motion.div>
 
       {/* ═══ Segmented tabs ═══ */}
-      <div className="flex p-1 bg-muted/60 rounded-2xl gap-1">
-        <TabButton active={tab === "posts"} onClick={() => setTab("posts")}>
-          پست‌ها
-          {!loading && (
-            <span className="text-[10px] text-muted-foreground font-medium">
-              {toFa(posts.length)}
-            </span>
-          )}
-        </TabButton>
-        <TabButton active={tab === "people"} onClick={() => setTab("people")}>
-          افراد
-          {!loading && (
-            <span className="text-[10px] text-muted-foreground font-medium">
-              {toFa(people.length)}
-            </span>
-          )}
-        </TabButton>
+      <div className="sticky top-0 z-30 -mx-1 px-1 pb-3">
+        <div className="relative flex p-1 bg-card rounded-2xl shadow-sm gap-1">
+          <TabsIndicator activeKey={tab} />
+          <TabButton active={tab === "posts"} onClick={() => setTab("posts")}>
+            <span>پست‌ها</span>
+            {!loading && (
+              <span className="text-[10px] text-muted-foreground font-bold tabular-nums">
+                {toFa(posts.length)}
+              </span>
+            )}
+          </TabButton>
+          <TabButton active={tab === "people"} onClick={() => setTab("people")}>
+            <span>افراد</span>
+            {!loading && (
+              <span className="text-[10px] text-muted-foreground font-bold tabular-nums">
+                {toFa(people.length)}
+              </span>
+            )}
+          </TabButton>
+        </div>
       </div>
 
       {/* ═══ Content ═══ */}
@@ -279,7 +309,7 @@ export function ExploreView() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
             {posts.length === 0 ? (
               <EmptyState
@@ -307,7 +337,7 @@ export function ExploreView() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           >
             {people.length === 0 ? (
               <EmptyState
@@ -335,6 +365,20 @@ export function ExploreView() {
   );
 }
 
+// ── Tabs indicator (animated pill behind active tab) ──
+function TabsIndicator({ activeKey }: { activeKey: Tab }) {
+  return (
+    <motion.div
+      layout
+      transition={{ type: "spring", stiffness: 380, damping: 32 }}
+      className="absolute inset-y-1 w-[calc(50%-0.25rem)] rounded-xl bg-primary shadow-md shadow-primary/20"
+      style={{
+        right: activeKey === "posts" ? "calc(50% - 0.25rem)" : "0.25rem",
+      }}
+    />
+  );
+}
+
 // ── Tab button ──
 function TabButton({
   active,
@@ -349,9 +393,9 @@ function TabButton({
     <button
       onClick={onClick}
       className={cn(
-        "flex-1 h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all",
+        "relative z-10 flex-1 h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors",
         active
-          ? "bg-card shadow-sm text-foreground"
+          ? "text-primary-foreground"
           : "text-muted-foreground hover:text-foreground"
       )}
     >
@@ -366,7 +410,7 @@ function TabButton({
 
 function PostsGrid({ posts }: { posts: ExplorePost[] }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 sm:gap-2">
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 sm:gap-2.5">
       {posts.map((post, i) => (
         <ExplorePostTile key={post.id} post={post} index={i} />
       ))}
@@ -378,37 +422,39 @@ function ExplorePostTile({ post, index }: { post: ExplorePost; index: number }) 
   const hasMedia = post.media && post.media.length > 0;
   const firstMedia = hasMedia ? post.media[0] : null;
   const isVideo = firstMedia?.type === "video";
+  const bgColor = softTintGradient(post.categoryColor);
   const ringColor = post.user.mainCategoryColor || "var(--border)";
-  const bgColor = softTint(post.categoryColor);
+  // Show like/comment counts only when > 0
+  const showStats = post.likeCount > 0 || post.commentCount > 0;
 
   return (
     <motion.button
       type="button"
       onClick={() => navigate({ view: "post", id: post.id })}
-      initial={{ opacity: 0, scale: 0.92 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0, scale: 0.9, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{
-        duration: 0.35,
-        delay: Math.min(index * 0.04, 0.4),
+        duration: 0.4,
+        delay: Math.min(index * 0.05, 0.4),
         ease: [0.16, 1, 0.3, 1],
       }}
-      whileHover={{ y: -2 }}
+      whileHover={{ y: -3 }}
       whileTap={{ scale: 0.97 }}
-      className="group relative aspect-square overflow-hidden rounded-xl sm:rounded-2xl border border-border/50 bg-card shadow-sm hover:shadow-md transition-shadow text-right block"
+      className="group relative aspect-square overflow-hidden rounded-2xl sm:rounded-3xl bg-card shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-shadow duration-300 text-right block"
       aria-label={`پست ${post.user.name}`}
     >
       {/* Media or text-content background */}
       {firstMedia ? (
         isVideo ? (
-          <div className="absolute inset-0 bg-muted grid place-items-center">
+          <div className="absolute inset-0 bg-muted grid place-items-center overflow-hidden">
             <video
               src={firstMedia.url}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               muted
               playsInline
               preload="metadata"
             />
-            <div className="absolute top-2 left-2 grid place-items-center w-7 h-7 rounded-full bg-black/60 text-white">
+            <div className="absolute top-2 left-2 grid place-items-center w-7 h-7 rounded-full bg-black/65 text-white backdrop-blur-sm">
               <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor">
                 <path d="M8 5v14l11-7z" />
               </svg>
@@ -424,30 +470,57 @@ function ExplorePostTile({ post, index }: { post: ExplorePost; index: number }) 
         )
       ) : (
         <div
-          className="absolute inset-0 p-3 flex items-center"
-          style={{ backgroundColor: bgColor }}
+          className="absolute inset-0 p-3.5 flex flex-col justify-between"
+          style={{ background: bgColor }}
         >
+          {/* Top: category chip */}
+          <div className="flex items-start justify-between gap-1.5">
+            {post.categoryName ? (
+              <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full bg-card/85 backdrop-blur-sm text-foreground text-[10px] font-bold shadow-sm">
+                {post.categoryIcon ? <span>{post.categoryIcon}</span> : null}
+                <span className="truncate max-w-[80px]">{post.categoryName}</span>
+              </span>
+            ) : (
+              <span />
+            )}
+            {post.skillName && (
+              <span className="hidden sm:inline-flex items-center h-6 px-2 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
+                {post.skillName}
+              </span>
+            )}
+          </div>
+          {/* Middle: content */}
           <p className={cn(
-            "text-foreground/80 leading-6 line-clamp-6",
-            post.content.length > 100 ? "text-xs" : "text-sm font-medium"
+            "text-foreground/85 leading-6 line-clamp-6 sm:line-clamp-7 drop-shadow-sm",
+            post.content.length > 120 ? "text-[11px] sm:text-xs" : "text-xs sm:text-sm font-medium"
           )}>
             {post.content}
           </p>
+          {/* Bottom: spacer */}
+          <div className="h-4" />
         </div>
       )}
 
-      {/* Top-left category chip (if any) */}
-      {post.categoryName && (
+      {/* Top-right category chip (when media) */}
+      {firstMedia && post.categoryName && (
         <div className="absolute top-2 right-2 z-10 max-w-[70%]">
           <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full bg-black/55 text-white text-[10px] font-bold backdrop-blur-[2px]">
-            {post.categoryIcon ? post.categoryIcon : null}
+            {post.categoryIcon ? <span>{post.categoryIcon}</span> : null}
             <span className="truncate">{post.categoryName}</span>
           </span>
         </div>
       )}
 
+      {/* Hover overlay (desktop) */}
+      <div className="hidden lg:block absolute inset-0 bg-gradient-to-t from-black/0 via-black/0 to-black/0 group-hover:from-black/40 transition-colors duration-300" />
+
       {/* Bottom overlay with poster info + counts */}
-      <div className="absolute inset-x-0 bottom-0 bg-black/55 text-white px-2.5 py-2 flex items-center gap-2">
+      <div
+        className={cn(
+          "absolute inset-x-0 bottom-0 px-2.5 py-2 flex items-center gap-2 transition-colors",
+          firstMedia ? "bg-gradient-to-t from-black/85 via-black/55 to-transparent text-white" : "bg-gradient-to-t from-card/95 to-card/0 text-foreground"
+        )}
+      >
         <UserAvatar
           name={post.user.name}
           avatarUrl={post.user.avatarUrl}
@@ -455,17 +528,34 @@ function ExplorePostTile({ post, index }: { post: ExplorePost; index: number }) 
           ringColor={post.user.mainCategoryColor}
           size="xs"
         />
-        <span className="flex-1 text-[11px] font-bold truncate">{post.user.name}</span>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="flex items-center gap-1 text-[10px] font-medium">
-            <Heart className="w-3 h-3" />
-            {formatCount(post.likeCount)}
-          </span>
-          <span className="flex items-center gap-1 text-[10px] font-medium">
-            <MessageSquare className="w-3 h-3" />
-            {formatCount(post.commentCount)}
-          </span>
-        </div>
+        <span className={cn(
+          "flex-1 text-[11px] font-bold truncate",
+          firstMedia ? "text-white" : "text-foreground"
+        )}>
+          {post.user.name}
+        </span>
+        {showStats && (
+          <div className="flex items-center gap-2 shrink-0">
+            {post.likeCount > 0 && (
+              <span className={cn(
+                "flex items-center gap-0.5 text-[10px] font-bold",
+                firstMedia ? "text-white" : "text-rose"
+              )}>
+                <Icon name="heart" size={12} className={post.likedByMe ? "fill-current" : ""} />
+                {formatCount(post.likeCount)}
+              </span>
+            )}
+            {post.commentCount > 0 && (
+              <span className={cn(
+                "flex items-center gap-0.5 text-[10px] font-bold",
+                firstMedia ? "text-white" : "text-muted-foreground"
+              )}>
+                <Icon name="comment" size={12} />
+                {formatCount(post.commentCount)}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </motion.button>
   );
@@ -477,7 +567,7 @@ function ExplorePostTile({ post, index }: { post: ExplorePost; index: number }) 
 
 function PeopleGrid({ people }: { people: ExplorePerson[] }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
       {people.map((person, i) => (
         <PeopleTile key={person.id} person={person} index={i} />
       ))}
@@ -486,7 +576,6 @@ function PeopleGrid({ people }: { people: ExplorePerson[] }) {
 }
 
 function PeopleTile({ person, index }: { person: ExplorePerson; index: number }) {
-  const ringColor = person.mainCategoryColor || "var(--border)";
   return (
     <motion.button
       type="button"
@@ -495,26 +584,32 @@ function PeopleTile({ person, index }: { person: ExplorePerson; index: number })
       animate={{ opacity: 1, y: 0 }}
       transition={{
         duration: 0.4,
-        delay: Math.min(index * 0.04, 0.4),
+        delay: Math.min(index * 0.05, 0.4),
         ease: [0.16, 1, 0.3, 1],
       }}
       whileHover={{ y: -3 }}
       whileTap={{ scale: 0.98 }}
-      className="group bg-card border border-border/60 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center text-right"
+      className="group relative bg-card rounded-3xl p-4 sm:p-5 shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-shadow duration-300 flex flex-col items-center text-center text-right overflow-hidden"
     >
+      {/* Decorative corner glow */}
+      <div
+        className="absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-15 blur-2xl pointer-events-none"
+        style={{ backgroundColor: person.mainCategoryColor || "var(--primary)" }}
+      />
+
       {/* Avatar with category color ring */}
       <div className="relative mb-3">
-          <UserAvatar
-            name={person.name}
-            avatarUrl={person.avatarUrl}
-            gender={person.gender}
-            verified={person.isVerifiedBadge}
-            ringColor={person.mainCategoryColor}
-            size="xl"
-          />
+        <UserAvatar
+          name={person.name}
+          avatarUrl={person.avatarUrl}
+          gender={person.gender}
+          verified={person.isVerifiedBadge}
+          ringColor={person.mainCategoryColor}
+          size="xl"
+        />
         {person.isTopTalent && (
-          <span className="absolute -top-1 -right-1 grid place-items-center w-6 h-6 rounded-full bg-gold text-white shadow-sm border-2 border-card">
-            <Award className="w-3.5 h-3.5" />
+          <span className="absolute -top-1 -right-1 grid place-items-center w-7 h-7 rounded-full bg-gold text-white shadow-md ring-2 ring-card">
+            <Icon name="crown" size={14} />
           </span>
         )}
       </div>
@@ -522,9 +617,6 @@ function PeopleTile({ person, index }: { person: ExplorePerson; index: number })
       {/* Name + verified */}
       <div className="flex items-center justify-center gap-1 mb-1 min-w-0 w-full">
         <h3 className="font-bold text-sm truncate">{person.name}</h3>
-        {person.isVerifiedBadge && (
-          <BadgeCheck className="w-4 h-4 text-gold fill-gold/15 shrink-0" />
-        )}
       </div>
 
       {/* Bio */}
@@ -545,14 +637,14 @@ function PeopleTile({ person, index }: { person: ExplorePerson; index: number })
             <Badge
               key={c.id}
               variant="secondary"
-              className="text-[10px] py-0 h-5 rounded-md font-medium"
+              className="text-[10px] py-0 h-5 rounded-full font-medium"
             >
               {c.iconUrl ? `${c.iconUrl} ` : ""}
               {c.name}
             </Badge>
           ))}
           {person.categories.length > 2 && (
-            <Badge variant="outline" className="text-[10px] py-0 h-5 rounded-md font-medium">
+            <Badge variant="outline" className="text-[10px] py-0 h-5 rounded-full font-medium">
               +{toFa(person.categories.length - 2)}
             </Badge>
           )}
@@ -560,9 +652,11 @@ function PeopleTile({ person, index }: { person: ExplorePerson; index: number })
       )}
 
       {/* Followers count */}
-      <div className="mt-auto flex items-center gap-1 text-xs text-muted-foreground pt-1">
-        <UserPlus className="w-3.5 h-3.5" />
-        <span className="font-bold text-foreground">{formatCount(person.followersCount)}</span>
+      <div className="mt-auto flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
+        <Icon name="userPlus" size={13} />
+        <span className="font-bold text-foreground tabular-nums">
+          {formatCount(person.followersCount)}
+        </span>
         <span>دنبال‌کننده</span>
       </div>
     </motion.button>
@@ -575,9 +669,9 @@ function PeopleTile({ person, index }: { person: ExplorePerson; index: number })
 
 function PostsGridSkeleton() {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 sm:gap-2">
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 sm:gap-2.5">
       {Array.from({ length: 9 }).map((_, i) => (
-        <Skeleton key={i} className="aspect-square rounded-xl sm:rounded-2xl" />
+        <Skeleton key={i} className="aspect-square rounded-2xl sm:rounded-3xl" />
       ))}
     </div>
   );
@@ -585,16 +679,16 @@ function PostsGridSkeleton() {
 
 function PeopleGridSkeleton() {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
-          className="bg-card border border-border/60 rounded-2xl p-4 flex flex-col items-center gap-3"
+          className="bg-card rounded-3xl p-4 sm:p-5 flex flex-col items-center gap-3 shadow-sm"
         >
           <Skeleton className="w-20 h-20 rounded-full" />
           <Skeleton className="w-24 h-4 rounded" />
           <Skeleton className="w-full h-3 rounded" />
-          <Skeleton className="w-16 h-5 rounded" />
+          <Skeleton className="w-16 h-5 rounded-full" />
         </div>
       ))}
     </div>
@@ -612,6 +706,9 @@ export function PostDetailView({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  // Sheet drag-to-close on mobile
+  const [sheetY, setSheetY] = useState(0);
+
   // Like state (local)
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -622,7 +719,7 @@ export function PostDetailView({ id }: { id: string }) {
   const [sendingComment, setSendingComment] = useState(false);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Reply state — which comment we're replying to (its id), and the reply text
+  // Reply state
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyInput, setReplyInput] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
@@ -761,19 +858,15 @@ export function PostDetailView({ id }: { id: string }) {
       navigate({ view: "auth" });
       return;
     }
-    // Capture snapshot for clean rollback on failure
     const snapshot = comments;
-    // Optimistic update
     setComments(updateCommentReaction(comments, commentId, type));
     try {
       const res = await apiPost<{ reaction: "like" | "dislike" | null }>(
         `/api/comments/${commentId}/like`,
         { type }
       );
-      // Sync to server result
       setComments((prev) => syncCommentReaction(prev, commentId, res.reaction));
     } catch (e) {
-      // Rollback to snapshot captured before optimistic update
       setComments(snapshot);
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
     }
@@ -811,43 +904,66 @@ export function PostDetailView({ id }: { id: string }) {
     if (typeof window !== "undefined") window.history.back();
   }
 
+  // ── Drag-to-close on mobile (only when at top of scroll) ──
+  function onDragEnd(_: unknown, info: PanInfo) {
+    if (info.offset.y > 120) {
+      goBack();
+    }
+    setSheetY(0);
+  }
+
   // ── Loading state ──
   if (loading) return <PostDetailSkeleton />;
 
   // ── Not found ──
   if (notFound || !post) {
     return (
-      <EmptyState
-        kind="generic"
-        title="پست پیدا نشد"
-        description="ممکن است این پست حذف شده باشد یا دیگر برجسته نباشد."
-        action={
-          <button
-            onClick={() => navigate({ view: "explore" })}
-            className="h-10 px-5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors"
-          >
-            بازگشت به استعدادها
-          </button>
-        }
-      />
+      <div className="lg:p-4 pt-safe pb-safe">
+        <EmptyState
+          kind="generic"
+          title="پست پیدا نشد"
+          description="ممکن است این پست حذف شده باشد یا دیگر برجسته نباشد."
+          action={
+            <button
+              onClick={() => navigate({ view: "explore" })}
+              className="h-10 px-5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors"
+            >
+              بازگشت به استعدادها
+            </button>
+          }
+        />
+      </div>
     );
   }
 
-  const ringColor = post.user.mainCategoryColor || "var(--border)";
   const isOwner = me?.id === post.user.id;
   const commentCount = comments.length;
-  // Count replies too
   const totalReplies = comments.reduce((acc, c) => acc + (c.replies?.length || 0), 0);
   const totalComments = commentCount + totalReplies;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col pt-safe pb-safe lg:static lg:z-auto lg:inset-auto lg:pt-0 lg:pb-0">
+    <motion.div
+      initial={{ y: "100%" }}
+      animate={{ y: sheetY }}
+      transition={{ type: "spring", stiffness: 320, damping: 36 }}
+      drag="y"
+      dragConstraints={{ top: 0, bottom: 0 }}
+      dragElastic={0.4}
+      onDragEnd={onDragEnd}
+      className="fixed inset-0 z-50 bg-background flex flex-col pt-safe pb-safe lg:static lg:z-auto lg:inset-auto lg:pt-0 lg:pb-0 lg:cursor-default"
+      style={{ touchAction: "none" }}
+    >
+      {/* Drag handle (mobile only) */}
+      <div className="lg:hidden shrink-0 pt-2 pb-1 flex justify-center bg-card/95 lg:bg-transparent">
+        <div className="w-10 h-1.5 rounded-full bg-foreground/20" />
+      </div>
+
       {/* ═══ Header ═══ */}
       <motion.header
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-        className="shrink-0 flex items-center gap-3 p-3 border-b border-border/60 bg-card/95 lg:bg-card lg:rounded-2xl lg:border"
+        className="shrink-0 flex items-center gap-3 p-3 border-b border-border/60 bg-card/95 lg:bg-card lg:rounded-2xl lg:border lg:m-1 lg:shadow-sm"
       >
         {/* Back / Close button */}
         <button
@@ -855,7 +971,7 @@ export function PostDetailView({ id }: { id: string }) {
           className="shrink-0 grid place-items-center w-10 h-10 rounded-full hover:bg-foreground/5 active:scale-90 transition-all"
           aria-label="بستن"
         >
-          <ChevronRight className="w-5 h-5" />
+          <Icon name="chevronRight" size={22} />
         </button>
 
         {/* Poster avatar with category ring */}
@@ -864,14 +980,14 @@ export function PostDetailView({ id }: { id: string }) {
           className="shrink-0"
           aria-label={post.user.name}
         >
-            <UserAvatar
-              name={post.user.name}
-              avatarUrl={post.user.avatarUrl}
-              gender={post.user.gender}
-              verified={post.user.isVerifiedBadge}
-              ringColor={post.user.mainCategoryColor}
-              size="md"
-            />
+          <UserAvatar
+            name={post.user.name}
+            avatarUrl={post.user.avatarUrl}
+            gender={post.user.gender}
+            verified={post.user.isVerifiedBadge}
+            ringColor={post.user.mainCategoryColor}
+            size="md"
+          />
         </button>
 
         <div className="flex-1 min-w-0">
@@ -880,12 +996,9 @@ export function PostDetailView({ id }: { id: string }) {
             className="flex items-center gap-1 hover:opacity-80 transition-opacity"
           >
             <span className="font-bold text-sm truncate">{post.user.name}</span>
-            {post.user.isVerifiedBadge && (
-              <BadgeCheck className="w-4 h-4 text-gold fill-gold/15 shrink-0" />
-            )}
             {post.user.isTopTalent && (
               <span className="inline-flex items-center gap-0.5 h-4 px-1.5 rounded-full bg-gold/15 text-gold text-[9px] font-bold shrink-0">
-                <Award className="w-2.5 h-2.5" />
+                <Icon name="award" size={10} />
                 استعداد برتر
               </span>
             )}
@@ -904,20 +1017,20 @@ export function PostDetailView({ id }: { id: string }) {
               "shrink-0 h-9 px-4 rounded-full font-bold text-xs transition-all flex items-center gap-1.5",
               following
                 ? "bg-muted text-muted-foreground border border-border"
-                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
+                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20",
               followingBusy && "opacity-70"
             )}
           >
             {followingBusy ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <Icon name="loader" size={14} className="animate-spin" />
             ) : following ? (
               <>
-                <UserCheck2 className="w-3.5 h-3.5" />
+                <Icon name="userCheck" size={14} />
                 دنبال‌شده
               </>
             ) : (
               <>
-                <UserPlus className="w-3.5 h-3.5" />
+                <Icon name="userPlus" size={14} />
                 دنبال کردن
               </>
             )}
@@ -926,7 +1039,10 @@ export function PostDetailView({ id }: { id: string }) {
       </motion.header>
 
       {/* ═══ Scrollable body ═══ */}
-      <div className="flex-1 overflow-y-auto slim-scroll lg:overflow-visible">
+      <div
+        className="flex-1 overflow-y-auto slim-scroll lg:overflow-visible"
+        style={{ touchAction: "pan-y" }}
+      >
         <div className="max-w-2xl mx-auto px-3 py-4 sm:px-4 sm:py-5 space-y-5">
           {/* Category + skill badges */}
           {(post.categoryName || post.skillName) && (
@@ -962,13 +1078,13 @@ export function PostDetailView({ id }: { id: string }) {
           {/* Media */}
           {post.media.length > 0 && (
             <div className="space-y-2">
-              {post.media.map((m) => (
+              {post.media.map((m, i) => (
                 <motion.div
                   key={m.id}
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                  className="relative overflow-hidden rounded-2xl border border-border/60 bg-card"
+                  transition={{ duration: 0.4, delay: 0.04 * i, ease: [0.16, 1, 0.3, 1] }}
+                  className="relative overflow-hidden rounded-2xl bg-card shadow-sm"
                 >
                   {m.type === "video" ? (
                     <video
@@ -994,31 +1110,31 @@ export function PostDetailView({ id }: { id: string }) {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.32, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
-            className="flex items-center gap-3 py-2"
+            className="flex items-center gap-3 py-1"
           >
             <button
               onClick={toggleLike}
               disabled={liking}
               className={cn(
-                "flex items-center gap-2 h-11 px-4 rounded-full font-bold text-sm transition-all active:scale-95",
+                "flex items-center gap-2 h-11 px-4 rounded-full font-bold text-sm transition-all active:scale-95 shadow-sm",
                 liked
-                  ? "bg-rose/10 text-rose"
+                  ? "bg-rose/10 text-rose shadow-rose/10"
                   : "bg-muted text-muted-foreground hover:bg-rose/5 hover:text-rose"
               )}
             >
               <motion.span
                 key={liked ? "liked" : "unliked"}
                 initial={{ scale: 1 }}
-                whileTap={{ scale: 1.35 }}
-                transition={{ type: "spring", stiffness: 500, damping: 12 }}
+                whileTap={{ scale: 1.4 }}
+                transition={{ type: "spring", stiffness: 500, damping: 10 }}
               >
-                <Heart className={cn("w-5 h-5", liked && "fill-current")} />
+                <Icon name="heart" size={20} className={liked ? "fill-current" : ""} />
               </motion.span>
-              <span>{formatCount(likeCount)} لایک</span>
+              <span className="tabular-nums">{formatCount(likeCount)} لایک</span>
             </button>
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <MessageCircle className="w-4 h-4" />
-              <span>{formatCount(totalComments)} کامنت</span>
+              <Icon name="comment" size={16} />
+              <span className="tabular-nums">{formatCount(totalComments)} کامنت</span>
             </div>
           </motion.div>
 
@@ -1028,16 +1144,18 @@ export function PostDetailView({ id }: { id: string }) {
           {/* ═══ Comments section ═══ */}
           <section className="space-y-3">
             <h3 className="font-bold text-base flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-primary" />
+              <Icon name="comment" size={18} className="text-primary" />
               کامنت‌ها
-              <span className="text-xs text-muted-foreground font-normal">
+              <span className="text-xs text-muted-foreground font-normal tabular-nums">
                 ({toFa(commentCount)})
               </span>
             </h3>
 
             {comments.length === 0 ? (
               <div className="text-center py-8 text-sm text-muted-foreground">
-                <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <div className="grid place-items-center w-12 h-12 mx-auto mb-2 rounded-full bg-muted">
+                  <Icon name="comment" size={20} className="opacity-50" />
+                </div>
                 <p>اولین نفر باشید که کامنت می‌گذارد.</p>
               </div>
             ) : (
@@ -1072,7 +1190,7 @@ export function PostDetailView({ id }: { id: string }) {
       </div>
 
       {/* ═══ Sticky comment input ═══ */}
-      <div className="shrink-0 border-t border-border/60 bg-card/95 lg:bg-card lg:border lg:rounded-2xl lg:m-3 p-3 lg:shadow-sm">
+      <div className="shrink-0 border-t border-border/60 bg-card/95 lg:bg-card lg:border lg:rounded-2xl lg:m-1 p-3 lg:shadow-sm">
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <Textarea
             ref={commentInputRef}
@@ -1094,26 +1212,21 @@ export function PostDetailView({ id }: { id: string }) {
             className={cn(
               "shrink-0 grid place-items-center w-11 h-11 rounded-xl transition-all active:scale-90",
               commentInput.trim() && !sendingComment
-                ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:bg-primary/90"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
             )}
             aria-label="ارسال"
           >
             {sendingComment ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Icon name="loader" size={20} className="animate-spin" />
             ) : (
-              <Send className="w-5 h-5" />
+              <Icon name="send" size={20} className="-scale-x-100" />
             )}
           </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
-}
-
-// ── UserCheck2 (not in our imports) — use BadgeCheck replacement ──
-function UserCheck2({ className }: { className?: string }) {
-  return <BadgeCheck className={className} />;
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -1151,7 +1264,6 @@ function CommentItem({
 }) {
   const isReply = depth > 0;
   const isReplyingHere = replyingTo === comment.id;
-  const ringColor = "var(--border)"; // comments don't carry mainCategoryColor, use neutral
 
   return (
     <motion.div
@@ -1194,7 +1306,7 @@ function CommentItem({
             </button>
             {comment.user.isTopTalent && (
               <span className="inline-flex items-center gap-0.5 h-3.5 px-1 rounded-full bg-gold/15 text-gold text-[9px] font-bold">
-                <Award className="w-2 h-2" />
+                <Icon name="award" size={9} />
               </span>
             )}
           </div>
@@ -1221,11 +1333,15 @@ function CommentItem({
               whileTap={{ scale: 1.3 }}
               transition={{ type: "spring", stiffness: 500, damping: 12 }}
             >
-              <ThumbsUp
-                className={cn("w-3.5 h-3.5", comment.myReaction === "like" && "fill-current")}
+              <Icon
+                name="thumbsUp"
+                size={14}
+                className={comment.myReaction === "like" ? "fill-current" : ""}
               />
             </motion.span>
-            {comment.likeCount > 0 && <span>{toFa(comment.likeCount)}</span>}
+            {comment.likeCount > 0 && (
+              <span className="tabular-nums">{toFa(comment.likeCount)}</span>
+            )}
           </button>
 
           {/* Dislike */}
@@ -1242,8 +1358,10 @@ function CommentItem({
               whileTap={{ scale: 1.3 }}
               transition={{ type: "spring", stiffness: 500, damping: 12 }}
             >
-              <ThumbsDown
-                className={cn("w-3.5 h-3.5", comment.myReaction === "dislike" && "fill-current")}
+              <Icon
+                name="thumbsDown"
+                size={14}
+                className={comment.myReaction === "dislike" ? "fill-current" : ""}
               />
             </motion.span>
           </button>
@@ -1297,9 +1415,9 @@ function CommentItem({
                   aria-label="ارسال پاسخ"
                 >
                   {sendingReply ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Icon name="loader" size={16} className="animate-spin" />
                   ) : (
-                    <Send className="w-4 h-4" />
+                    <Icon name="send" size={16} className="-scale-x-100" />
                   )}
                 </button>
                 <button
@@ -1307,7 +1425,7 @@ function CommentItem({
                   className="shrink-0 grid place-items-center w-10 h-10 rounded-xl text-muted-foreground hover:bg-foreground/5 active:scale-90 transition-all"
                   aria-label="انصراف"
                 >
-                  <X className="w-4 h-4" />
+                  <Icon name="x" size={16} />
                 </button>
               </div>
             </motion.div>
@@ -1396,18 +1514,15 @@ function updateCommentReaction(
 function applyOptimisticReaction(c: Comment, type: "like" | "dislike"): Comment {
   const prev = c.myReaction;
   if (prev === type) {
-    // Remove reaction (and decrement if it was a like)
     return {
       ...c,
       myReaction: null,
       likeCount: type === "like" ? Math.max(0, c.likeCount - 1) : c.likeCount,
     };
   }
-  // Switching to type
   return {
     ...c,
     myReaction: type,
-    // If previously liked, decrement
     likeCount:
       prev === "like"
         ? Math.max(0, c.likeCount - 1)
@@ -1424,8 +1539,6 @@ function syncCommentReaction(
 ): Comment[] {
   return comments.map((c) => {
     if (c.id === commentId) {
-      // We don't fully know server-side likeCount delta without re-fetching;
-      // the optimistic update is close enough; just sync myReaction.
       return { ...c, myReaction: serverReaction };
     }
     if (c.replies && c.replies.length > 0) {
@@ -1434,16 +1547,3 @@ function syncCommentReaction(
     return c;
   });
 }
-
-function rollbackCommentReaction(
-  _comments: Comment[],
-  _commentId: string,
-  _type: "like" | "dislike"
-): Comment[] {
-  // Retained for API symmetry with updateCommentReaction / syncCommentReaction.
-  // toggleCommentReaction captures a snapshot before the optimistic update and
-  // restores it on failure (cleaner than computing the inverse of
-  // applyOptimisticReaction across nested reply trees).
-  return _comments;
-}
-

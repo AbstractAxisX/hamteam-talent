@@ -34,32 +34,34 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { CategoryIcon } from "@/components/shared/illustrations";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { PROVINCES } from "@/lib/geo";
 import { toFa } from "@/lib/format";
-import {
-  Loader2,
-  Plus,
-  X,
-  Briefcase,
-  GraduationCap,
-  Hash,
-  MapPin,
-  Image as ImageIcon,
-  Save,
-  Phone,
-  Trash2,
-  Lock,
-  ChevronLeft,
-  Upload,
-  VenusAndMars,
-  User,
-  Star,
-  CheckCircle2,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/* ── Small inline spinner (no lucide dependency) ───────────────── */
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg
+      className={cn("animate-spin", className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.2" strokeWidth="3" />
+      <path
+        d="M22 12a10 10 0 0 0-10-10"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 const SECTIONS = [
+  { key: "username", label: "نام کاربری" },
   { key: "photos", label: "عکس‌ها و بیو" },
   { key: "gender", label: "جنسیت" },
   { key: "location", label: "موقعیت" },
@@ -85,7 +87,6 @@ export function EditProfileView() {
       ]);
       setProfile(p);
       setAllCats(c.categories);
-      // Best-effort meta fetch (supplementary: mainCategoryId + isTopTalent)
       api<ProfileMeta>("/api/profile/me/meta")
         .then(setMeta)
         .catch(() => setMeta(null));
@@ -110,9 +111,9 @@ export function EditProfileView() {
   if (!user) {
     return (
       <div className="max-w-3xl mx-auto">
-        <Card className="p-8 text-center space-y-3 border-border/60 shadow-card rounded-2xl">
+        <Card className="p-8 text-center space-y-3 rounded-3xl shadow-card">
           <div className="grid place-items-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mx-auto">
-            <Lock className="w-6 h-6" />
+            <Icon name="shield" className="w-6 h-6" />
           </div>
           <h2 className="font-bold text-lg">برای ویرایش پروفایل وارد شوید</h2>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-6">
@@ -171,11 +172,11 @@ export function EditProfileView() {
           className="rounded-2xl gap-1.5 font-semibold"
         >
           مشاهده پروفایل
-          <ChevronLeft className="w-4 h-4" />
+          <Icon name="chevronRight" className="w-4 h-4" />
         </Button>
       </motion.div>
 
-      {/* Section quick-nav (mobile-friendly chips) */}
+      {/* Section quick-nav */}
       <div className="flex flex-wrap gap-2">
         {SECTIONS.map((s) => (
           <a
@@ -183,7 +184,9 @@ export function EditProfileView() {
             href={`#section-${s.key}`}
             onClick={(e) => {
               e.preventDefault();
-              document.getElementById(`section-${s.key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              document
+                .getElementById(`section-${s.key}`)
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
             className="text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/15 hover:text-primary transition-colors font-medium"
           >
@@ -192,13 +195,16 @@ export function EditProfileView() {
         ))}
       </div>
 
-      <SectionWrapper id="section-photos" delay={0.05}>
+      <SectionWrapper id="section-username" delay={0.05}>
+        <UsernameSection profile={profile} onUpdated={load} />
+      </SectionWrapper>
+      <SectionWrapper id="section-photos" delay={0.08}>
         <PhotosBioSection profile={profile} onUpdated={load} />
       </SectionWrapper>
-      <SectionWrapper id="section-gender" delay={0.08}>
+      <SectionWrapper id="section-gender" delay={0.1}>
         <GenderSection profile={profile} onUpdated={load} />
       </SectionWrapper>
-      <SectionWrapper id="section-location" delay={0.1}>
+      <SectionWrapper id="section-location" delay={0.12}>
         <LocationSection profile={profile} onUpdated={load} />
       </SectionWrapper>
       <SectionWrapper id="section-categories" delay={0.15}>
@@ -245,7 +251,100 @@ function SectionWrapper({
   );
 }
 
-// ─── Section 1: Photos + Bio (with avatar/banner upload) ─────────
+/* ─── Section 0: Username ────────────────────────────────────────── */
+function UsernameSection({
+  profile,
+  onUpdated,
+}: {
+  profile: ProfileDetail;
+  onUpdated: () => void;
+}) {
+  const [username, setUsername] = useState(profile.username ?? "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setUsername(profile.username ?? "");
+  }, [profile]);
+
+  const valid = /^[a-z0-9_]{3,20}$/.test(username);
+  const dirty = username !== (profile.username ?? "");
+
+  async function save() {
+    if (!valid || !dirty) return;
+    setSaving(true);
+    try {
+      await apiPost("/api/username/set", { username });
+      toast({ title: "نام کاربری ذخیره شد ✅" });
+      onUpdated();
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
+      <SectionTitle icon="userPlus" title="نام کاربری" />
+
+      <div className="flex items-center gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/10">
+        <div className="grid place-items-center w-11 h-11 rounded-full bg-primary/10 text-primary shrink-0 text-lg font-bold" dir="ltr">
+          @
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-muted-foreground">نام کاربری فعلی</p>
+          <p className="font-bold text-sm truncate" dir="ltr">
+            {profile.username ? `@${profile.username}` : "بدون نام کاربری"}
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="username-input">نام کاربری جدید</Label>
+        <div className="relative">
+          <span
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold"
+            dir="ltr"
+          >
+            @
+          </span>
+          <Input
+            id="username-input"
+            placeholder="your_name"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+            dir="ltr"
+            maxLength={20}
+            className="rounded-2xl pr-8"
+          />
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-5">
+          فقط حروف انگلیسی کوچک، اعداد و زیرخط (_). بین ۳ تا ۲۰ کاراکتر. نام کاربری در
+          پروفایل شما به‌صورت @username نمایش داده می‌شود.
+        </p>
+        {dirty && username.length > 0 && !valid && (
+          <p className="text-[11px] text-rose flex items-center gap-1">
+            <Icon name="alert" className="w-3 h-3" />
+            نام کاربری نامعتبر است.
+          </p>
+        )}
+      </div>
+
+      <div className="flex justify-end pt-1">
+        <Button
+          onClick={save}
+          disabled={saving || !valid || !dirty}
+          className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
+        >
+          {saving ? <Spinner className="w-4 h-4" /> : <Icon name="check" className="w-4 h-4" />}
+          ذخیره نام کاربری
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+/* ─── Section 1: Photos + Bio ───────────────────────────────────── */
 function PhotosBioSection({
   profile,
   onUpdated,
@@ -271,7 +370,6 @@ function PhotosBioSection({
     setBioLong(profile.bioLong);
   }, [profile]);
 
-  // Avatar upload — POST /api/upload multipart with type=avatar
   async function handleAvatarUpload(file: File) {
     setUploadingAvatar(true);
     try {
@@ -293,7 +391,6 @@ function PhotosBioSection({
     }
   }
 
-  // Banner upload — POST /api/upload multipart with type=banner
   async function handleBannerUpload(file: File) {
     setUploadingBanner(true);
     try {
@@ -334,8 +431,8 @@ function PhotosBioSection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-5 border-border/60 shadow-card rounded-2xl">
-      <SectionTitle icon={ImageIcon} title="عکس‌ها و بیو" />
+    <Card className="p-5 md:p-6 space-y-5 rounded-3xl shadow-card">
+      <SectionTitle icon="image" title="عکس‌ها و بیو" />
 
       {/* Banner preview + upload */}
       <div className="space-y-2">
@@ -376,7 +473,7 @@ function PhotosBioSection({
             disabled={uploadingBanner}
             className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
           >
-            {uploadingBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            {uploadingBanner ? <Spinner className="w-4 h-4" /> : <Icon name="upload" className="w-4 h-4" />}
             آپلود بنر
           </Button>
           {bannerUrl && !bannerUrl.startsWith("default") && (
@@ -387,12 +484,12 @@ function PhotosBioSection({
               onClick={() => setBannerUrl("")}
               className="gap-1.5 rounded-2xl text-muted-foreground hover:text-rose"
             >
-              <X className="w-3.5 h-3.5" /> حذف
+              <Icon name="x" className="w-3.5 h-3.5" /> حذف
             </Button>
           )}
         </div>
         <p className="text-[11px] text-muted-foreground leading-5">
-          عکس با ابعاد ۱۲۰۰×۴۰۰ پیکسل بهترین نتیجه را می‌دهد. حداکثر ۵ مگابایت.
+          عکس با ابعاد ۱۱۰۰×۴۰۰ پیکسل بهترین نتیجه را می‌دهد. حداکثر ۵ مگابایت.
         </p>
       </div>
 
@@ -430,7 +527,7 @@ function PhotosBioSection({
               disabled={uploadingAvatar}
               className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
             >
-              {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {uploadingAvatar ? <Spinner className="w-4 h-4" /> : <Icon name="upload" className="w-4 h-4" />}
               آپلود عکس
             </Button>
             {avatarUrl && (
@@ -441,7 +538,7 @@ function PhotosBioSection({
                 onClick={() => setAvatarUrl("")}
                 className="gap-1.5 rounded-2xl text-muted-foreground hover:text-rose"
               >
-                <X className="w-3.5 h-3.5" /> حذف
+                <Icon name="x" className="w-3.5 h-3.5" /> حذف
               </Button>
             )}
           </div>
@@ -498,7 +595,7 @@ function PhotosBioSection({
           disabled={saving}
           className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
         >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {saving ? <Spinner className="w-4 h-4" /> : <Icon name="check" className="w-4 h-4" />}
           ذخیره
         </Button>
       </div>
@@ -506,7 +603,7 @@ function PhotosBioSection({
   );
 }
 
-// ─── Section 2: Gender ─────────────────────────────────────────────
+/* ─── Section 2: Gender ─────────────────────────────────────────── */
 function GenderSection({
   profile,
   onUpdated,
@@ -524,8 +621,7 @@ function GenderSection({
   async function save(value: string) {
     setSaving(true);
     try {
-      const payload =
-        value === "male" || value === "female" ? value : null;
+      const payload = value === "male" || value === "female" ? value : null;
       await apiPut("/api/profile/me", { gender: payload });
       setGender(value);
       toast({ title: "ذخیره شد ✅" });
@@ -538,13 +634,13 @@ function GenderSection({
   }
 
   const options = [
-    { value: "male", label: "مرد", icon: User },
-    { value: "female", label: "زن", icon: User },
+    { value: "male", label: "مرد" },
+    { value: "female", label: "زن" },
   ];
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
-      <SectionTitle icon={VenusAndMars} title="جنسیت" />
+    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
+      <SectionTitle icon="user" title="جنسیت" />
       <p className="text-xs text-muted-foreground leading-5">
         جنسیت برای نمایش آواتار پیش‌فرض و در پروفایل عمومی شما استفاده می‌شود. این اطلاعات اختیاری است.
       </p>
@@ -555,7 +651,6 @@ function GenderSection({
         className="grid grid-cols-1 sm:grid-cols-3 gap-3"
       >
         {options.map((opt) => {
-          const Icon = opt.icon;
           const active = gender === opt.value;
           return (
             <Label
@@ -575,7 +670,7 @@ function GenderSection({
                   active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                 )}
               >
-                <Icon className="w-4 h-4" />
+                <Icon name="user" className="w-4 h-4" />
               </div>
               <span className={cn("font-bold text-sm", active ? "text-primary" : "text-foreground")}>
                 {opt.label}
@@ -599,7 +694,7 @@ function GenderSection({
               gender === "none" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
             )}
           >
-            <X className="w-4 h-4" />
+            <Icon name="x" className="w-4 h-4" />
           </div>
           <span
             className={cn(
@@ -613,14 +708,14 @@ function GenderSection({
       </RadioGroup>
       {saving && (
         <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-          <Loader2 className="w-3 h-3 animate-spin" /> در حال ذخیره...
+          <Spinner className="w-3 h-3" /> در حال ذخیره...
         </p>
       )}
     </Card>
   );
 }
 
-// ─── Section 3: Location ────────────────────────────────────────────
+/* ─── Section 3: Location ───────────────────────────────────────── */
 function LocationSection({
   profile,
   onUpdated,
@@ -660,8 +755,8 @@ function LocationSection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
-      <SectionTitle icon={MapPin} title="موقعیت و تماس" />
+    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
+      <SectionTitle icon="mapPin" title="موقعیت و تماس" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -705,7 +800,7 @@ function LocationSection({
       <div className="flex items-start justify-between gap-3 rounded-2xl bg-primary/8 p-4 border border-primary/15">
         <div className="flex items-start gap-2.5">
           <div className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary shrink-0">
-            <Phone className="w-4 h-4" />
+            <Icon name="chat" className="w-4 h-4" />
           </div>
           <div>
             <p className="text-sm font-bold">نمایش شماره تلفن</p>
@@ -725,7 +820,7 @@ function LocationSection({
           disabled={saving}
           className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
         >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {saving ? <Spinner className="w-4 h-4" /> : <Icon name="check" className="w-4 h-4" />}
           ذخیره
         </Button>
       </div>
@@ -733,7 +828,7 @@ function LocationSection({
   );
 }
 
-// ─── Section 4: Categories & Skills ───────────────────────────────
+/* ─── Section 4: Categories & Skills ────────────────────────────── */
 function CategoriesSection({
   profile,
   allCats,
@@ -813,9 +908,9 @@ function CategoriesSection({
   );
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
+    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
       <div className="flex items-center justify-between gap-2">
-        <SectionTitle icon={Hash} title="دسته‌بندی و مهارت‌ها" />
+        <SectionTitle icon="spark" title="دسته‌بندی و مهارت‌ها" />
         <Dialog open={addCatOpen} onOpenChange={setAddCatOpen}>
           <DialogTrigger asChild>
             <Button
@@ -824,7 +919,7 @@ function CategoriesSection({
               className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
               disabled={availableCats.length === 0}
             >
-              <Plus className="w-4 h-4" /> افزودن دسته‌بندی
+              <Icon name="plus" className="w-4 h-4" /> افزودن دسته‌بندی
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -846,7 +941,7 @@ function CategoriesSection({
                     <CategoryIcon emoji={c.iconUrl} className="w-7 h-7 text-base" />
                     {c.name}
                   </span>
-                  <Plus className="w-4 h-4 text-primary" />
+                  <Icon name="plus" className="w-4 h-4 text-primary" />
                 </button>
               ))}
             </div>
@@ -862,68 +957,78 @@ function CategoriesSection({
         />
       ) : (
         <div className="space-y-3">
-          {profile.categories.map((c, i) => (
-            <motion.div
-              key={c.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: i * 0.05 }}
-            >
-              <Card className="p-4 border-border/60 shadow-card hover:shadow-lift transition-shadow rounded-2xl">
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <h4 className="font-bold text-sm flex items-center gap-2">
-                    <CategoryIcon emoji={c.iconUrl} className="w-7 h-7 text-base" />
-                    {c.name}
-                  </h4>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 gap-1 text-xs rounded-xl font-semibold text-primary hover:bg-primary/10"
-                      onClick={() => setAddSkillCatId(c.id)}
-                      disabled={busy}
-                    >
-                      <Plus className="w-3.5 h-3.5" /> مهارت
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-muted-foreground hover:text-rose hover:bg-rose/10 rounded-xl"
-                      onClick={() => removeCategory(c.id)}
-                      disabled={busy}
-                      aria-label="حذف دسته‌بندی"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </div>
-                {c.skills.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {c.skills.map((s) => (
-                      <Badge
-                        key={s.id}
-                        className="bg-primary/10 text-primary border border-primary/20 gap-1 pr-1 pl-2.5 py-1 rounded-lg text-xs font-medium hover:bg-primary/20"
+          {profile.categories.map((c, i) => {
+            const catMeta = allCats.find((x) => x.id === c.id);
+            return (
+              <motion.div
+                key={c.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: i * 0.05 }}
+              >
+                <Card className="p-4 rounded-2xl shadow-card hover:shadow-lift transition-shadow">
+                  {/* Color stripe */}
+                  {catMeta?.color && (
+                    <div
+                      className="h-1 w-full rounded-full mb-3"
+                      style={{ backgroundColor: catMeta.color }}
+                    />
+                  )}
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <h4 className="font-bold text-sm flex items-center gap-2">
+                      <CategoryIcon emoji={c.iconUrl} className="w-7 h-7 text-base" />
+                      {c.name}
+                    </h4>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 gap-1 text-xs rounded-xl font-semibold text-primary hover:bg-primary/10"
+                        onClick={() => setAddSkillCatId(c.id)}
+                        disabled={busy}
                       >
-                        {s.name}
-                        <button
-                          onClick={() => removeSkill(s.id)}
-                          disabled={busy}
-                          className="grid place-items-center w-4 h-4 rounded-full hover:bg-rose/20 hover:text-rose transition-colors"
-                          aria-label={`حذف ${s.name}`}
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
+                        <Icon name="plus" className="w-3.5 h-3.5" /> مهارت
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-rose hover:bg-rose/10 rounded-xl"
+                        onClick={() => removeCategory(c.id)}
+                        disabled={busy}
+                        aria-label="حذف دسته‌بندی"
+                      >
+                        <Icon name="trash" className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    هنوز مهارتی اضافه نشده. روی «مهارت» بزنید.
-                  </p>
-                )}
-              </Card>
-            </motion.div>
-          ))}
+                  {c.skills.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {c.skills.map((s) => (
+                        <Badge
+                          key={s.id}
+                          className="bg-primary/10 text-primary border border-primary/20 gap-1 pr-1 pl-2.5 py-1 rounded-lg text-xs font-medium hover:bg-primary/20"
+                        >
+                          {s.name}
+                          <button
+                            onClick={() => removeSkill(s.id)}
+                            disabled={busy}
+                            className="grid place-items-center w-4 h-4 rounded-full hover:bg-rose/20 hover:text-rose transition-colors"
+                            aria-label={`حذف ${s.name}`}
+                          >
+                            <Icon name="x" className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      هنوز مهارتی اضافه نشده. روی «مهارت» بزنید.
+                    </p>
+                  )}
+                </Card>
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
@@ -948,7 +1053,7 @@ function CategoriesSection({
                   className="w-full text-right px-3 py-2 rounded-xl hover:bg-primary/10 text-sm flex items-center justify-between transition-colors"
                 >
                   <span>{s.name}</span>
-                  <Plus className="w-4 h-4 text-primary" />
+                  <Icon name="plus" className="w-4 h-4 text-primary" />
                 </button>
               ))}
             </div>
@@ -959,7 +1064,7 @@ function CategoriesSection({
   );
 }
 
-// ─── Section 4b: Main Category (color-ring source) ────────────────
+/* ─── Section 4b: Main Category (color-ring source) ────────────── */
 function MainCategorySection({
   profile,
   allCats,
@@ -971,8 +1076,6 @@ function MainCategorySection({
   meta: ProfileMeta | null;
   onUpdated: () => void;
 }) {
-  // Resolve the currently-selected main category: prefer meta.mainCategoryId,
-  // fall back to the user's first category (default).
   const currentMainId =
     meta?.mainCategoryId ?? profile.categories[0]?.id ?? null;
 
@@ -983,7 +1086,6 @@ function MainCategorySection({
     setSelected(currentMainId);
   }, [currentMainId]);
 
-  // Build a color lookup map from allCats (each category may have a `color`).
   const colorMap = new Map<string, string | null>();
   for (const c of allCats) colorMap.set(c.id, c.color ?? null);
 
@@ -999,7 +1101,6 @@ function MainCategorySection({
       onUpdated();
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
-      // Revert on failure
       setSelected(currentMainId);
     } finally {
       setSaving(false);
@@ -1007,8 +1108,8 @@ function MainCategorySection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
-      <SectionTitle icon={Star} title="دسته اصلی" />
+    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
+      <SectionTitle icon="spark" title="دسته اصلی" />
       <p className="text-xs text-muted-foreground leading-5">
         دسته اصلی، رنگ حلقه‌ی دور آواتار شما را در پروفایل تعیین می‌کند. از
         بین تخصص‌های خود، یکی را به‌عنوان دسته اصلی انتخاب کنید.
@@ -1040,7 +1141,6 @@ function MainCategorySection({
                 value={c.id}
                 className="sr-only"
               />
-              {/* Color swatch — uses the category's color, with neutral fallback */}
               <span
                 className="grid place-items-center w-10 h-10 rounded-full shrink-0 ring-2 ring-background"
                 style={{
@@ -1061,14 +1161,13 @@ function MainCategorySection({
                 </p>
               </div>
               {active && (
-                <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                <Icon name="check" className="w-5 h-5 text-primary shrink-0" />
               )}
             </Label>
           );
         })}
       </RadioGroup>
 
-      {/* Clear main category */}
       {selected && (
         <Button
           type="button"
@@ -1078,24 +1177,22 @@ function MainCategorySection({
           disabled={saving}
           className="gap-1.5 rounded-2xl text-muted-foreground hover:text-rose font-semibold"
         >
-          <X className="w-3.5 h-3.5" /> حذف انتخاب دسته اصلی
+          <Icon name="x" className="w-3.5 h-3.5" /> حذف انتخاب دسته اصلی
         </Button>
       )}
 
       {saving && (
         <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-          <Loader2 className="w-3 h-3 animate-spin" /> در حال ذخیره...
+          <Spinner className="w-3 h-3" /> در حال ذخیره...
         </p>
       )}
 
       {/* Live avatar preview with the ring */}
       <div className="mt-2 p-4 rounded-2xl bg-muted/40 border border-border/60 flex items-center gap-4">
         <div
-          className="rounded-full"
+          className="rounded-full p-1.5"
           style={{
-            boxShadow: selected
-              ? `0 0 0 4px ${colorMap.get(selected) ?? "oklch(0.5 0.09 200)"}`
-              : undefined,
+            backgroundColor: selected ? colorMap.get(selected) ?? undefined : undefined,
           }}
         >
           <UserAvatar
@@ -1117,7 +1214,7 @@ function MainCategorySection({
   );
 }
 
-// ─── Section 5: Experience ────────────────────────────────────────
+/* ─── Section 5: Experience ─────────────────────────────────────── */
 function ExperienceSection({
   profile,
   allCats,
@@ -1192,16 +1289,16 @@ function ExperienceSection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
+    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
       <div className="flex items-center justify-between gap-2">
-        <SectionTitle icon={Briefcase} title="سوابق کاری" />
+        <SectionTitle icon="briefcase" title="سوابق کاری" />
         <Button
           size="sm"
           variant="outline"
           className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
           onClick={() => setOpen(true)}
         >
-          <Plus className="w-4 h-4" /> افزودن
+          <Icon name="plus" className="w-4 h-4" /> افزودن
         </Button>
       </div>
 
@@ -1224,7 +1321,7 @@ function ExperienceSection({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <div className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary shrink-0">
-                    <Briefcase className="w-4 h-4" />
+                    <Icon name="briefcase" className="w-4 h-4" />
                   </div>
                   <p className="font-bold text-sm">
                     {e.jobTitle}{" "}
@@ -1232,15 +1329,17 @@ function ExperienceSection({
                   </p>
                 </div>
                 {(e.startDate || e.endDate) && (
-                  <p className="text-[11px] text-muted-foreground mt-1.5" dir="ltr">
+                  <p className="text-[11px] text-muted-foreground mt-1.5 pr-10" dir="ltr">
                     {toFa([e.startDate, e.endDate || "تاکنون"].filter(Boolean).join(" — "))}
                   </p>
                 )}
                 {e.description && (
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-5">{e.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-5 pr-10">
+                    {e.description}
+                  </p>
                 )}
                 {(e.categoryName || e.skillName) && (
-                  <div className="flex items-center gap-1 mt-2 flex-wrap">
+                  <div className="flex items-center gap-1 mt-2 pr-10 flex-wrap">
                     {e.categoryName && (
                       <Badge variant="secondary" className="text-[10px] h-5 rounded-md">
                         {e.categoryName}
@@ -1262,7 +1361,7 @@ function ExperienceSection({
                 disabled={busy}
                 aria-label="حذف"
               >
-                <Trash2 className="w-4 h-4" />
+                <Icon name="trash" className="w-4 h-4" />
               </Button>
             </motion.div>
           ))}
@@ -1300,7 +1399,7 @@ function ExperienceSection({
               <div className="space-y-2">
                 <Label>تاریخ شروع</Label>
                 <Input
-                  placeholder="مثلاً: ۱۴۰۲/۰۳"
+                  placeholder="مثلاً: 1402/03"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   dir="ltr"
@@ -1367,7 +1466,7 @@ function ExperienceSection({
               disabled={busy}
               className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
             >
-              {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+              {busy && <Spinner className="w-4 h-4" />}
               افزودن
             </Button>
           </DialogFooter>
@@ -1377,7 +1476,7 @@ function ExperienceSection({
   );
 }
 
-// ─── Section 6: Education ─────────────────────────────────────────
+/* ─── Section 6: Education ─────────────────────────────────────── */
 function EducationSection({
   profile,
   onUpdated,
@@ -1438,16 +1537,16 @@ function EducationSection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
+    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
       <div className="flex items-center justify-between gap-2">
-        <SectionTitle icon={GraduationCap} title="تحصیلات" />
+        <SectionTitle icon="award" title="تحصیلات" />
         <Button
           size="sm"
           variant="outline"
           className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
           onClick={() => setOpen(true)}
         >
-          <Plus className="w-4 h-4" /> افزودن
+          <Icon name="plus" className="w-4 h-4" /> افزودن
         </Button>
       </div>
 
@@ -1469,8 +1568,8 @@ function EducationSection({
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <div className="grid place-items-center w-8 h-8 rounded-xl bg-gold/15 text-gold shrink-0">
-                    <GraduationCap className="w-4 h-4" />
+                  <div className="grid place-items-center w-8 h-8 rounded-xl bg-amber-100 text-amber-600 shrink-0">
+                    <Icon name="award" className="w-4 h-4" />
                   </div>
                   <p className="font-bold text-sm">{e.degree}</p>
                 </div>
@@ -1490,7 +1589,7 @@ function EducationSection({
                 disabled={busy}
                 aria-label="حذف"
               >
-                <Trash2 className="w-4 h-4" />
+                <Icon name="trash" className="w-4 h-4" />
               </Button>
             </motion.div>
           ))}
@@ -1525,7 +1624,7 @@ function EducationSection({
             <div className="space-y-2">
               <Label>سال فارغ‌التحصیلی</Label>
               <Input
-                placeholder="مثلاً: ۱۴۰۲"
+                placeholder="مثلاً: 1402"
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
                 dir="ltr"
@@ -1550,7 +1649,7 @@ function EducationSection({
               disabled={busy}
               className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
             >
-              {busy && <Loader2 className="w-4 h-4 animate-spin" />}
+              {busy && <Spinner className="w-4 h-4" />}
               افزودن
             </Button>
           </DialogFooter>
@@ -1560,18 +1659,18 @@ function EducationSection({
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────
+/* ─── Helpers ────────────────────────────────────────────────────── */
 function SectionTitle({
-  icon: Icon,
+  icon,
   title,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: string;
   title: string;
 }) {
   return (
     <h2 className="text-sm font-bold flex items-center gap-2">
-      <span className="grid place-items-center w-7 h-7 rounded-xl bg-primary/10 text-primary">
-        <Icon className="w-4 h-4" />
+      <span className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary">
+        <Icon name={icon} className="w-4 h-4" />
       </span>
       {title}
     </h2>
@@ -1585,7 +1684,7 @@ function EditSkeleton() {
         <Skeleton className="h-8 w-48 rounded" />
         <Skeleton className="h-8 w-32 rounded" />
       </div>
-      <Card className="p-6 space-y-4 border-border/60 shadow-card rounded-2xl">
+      <Card className="p-6 space-y-4 rounded-3xl shadow-card">
         <Skeleton className="h-32 w-full rounded-2xl" />
         <div className="flex items-center gap-4">
           <Skeleton className="w-20 h-20 rounded-full" />
@@ -1597,7 +1696,7 @@ function EditSkeleton() {
         <Skeleton className="h-24 w-full rounded-2xl" />
         <Skeleton className="h-9 w-32 rounded-2xl" />
       </Card>
-      <Card className="p-6 space-y-3 border-border/60 shadow-card rounded-2xl">
+      <Card className="p-6 space-y-3 rounded-3xl shadow-card">
         <Skeleton className="h-5 w-32 rounded" />
         <Skeleton className="h-9 w-full rounded-2xl" />
         <Skeleton className="h-9 w-full rounded-2xl" />

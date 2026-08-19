@@ -5,29 +5,13 @@ import { motion } from "framer-motion";
 import { navigate } from "@/lib/nav";
 import { useUser } from "@/lib/use-user";
 import { api } from "@/lib/api-client";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { PostCard } from "@/components/shared/post-card";
 import { EmptyState } from "@/components/shared/empty-state";
-import { toFa, timeAgoFa, formatCount } from "@/lib/format";
-import {
-  Sparkles,
-  Briefcase,
-  Search,
-  UserCheck,
-  MessageCircle,
-  Bell,
-  Ticket,
-  Settings,
-  Plus,
-  ArrowLeft,
-  TrendingUp,
-  Users,
-  FileText,
-  ChevronLeft,
-} from "lucide-react";
+import { Icon } from "@/components/shared/icon";
+import { toFa, formatCount, formatFaDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { PostWithRelations, TalentListItem } from "@/lib/types";
 
 type HomeData = {
@@ -51,67 +35,141 @@ export function DashboardView() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto space-y-4">
-        <Skeleton className="h-32 rounded-2xl" />
-        <Skeleton className="h-24 rounded-2xl" />
-        <Skeleton className="h-48 rounded-2xl" />
+      <div className="max-w-3xl mx-auto space-y-4">
+        <Skeleton className="h-36 rounded-3xl" />
+        <Skeleton className="h-24 rounded-3xl" />
+        <Skeleton className="h-48 rounded-3xl" />
       </div>
     );
   }
 
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 5 ? "شب بخیر" :
+    hour < 12 ? "صبح بخیر" :
+    hour < 17 ? "ظهر بخیر" :
+    hour < 20 ? "عصر بخیر" : "شب بخیر";
+
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
-      {/* Greeting */}
+    <div className="max-w-3xl mx-auto space-y-5 pb-2">
+      {/* ═══ Hero Greeting ═══ */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="relative overflow-hidden rounded-3xl bg-card p-5 sm:p-6 shadow-[0_8px_30px_-12px_oklch(0.5_0.22_275/0.25)]"
       >
-        <div>
-          <p className="text-sm text-muted-foreground">سلام 👋</p>
-          <h1 className="text-xl font-extrabold">{user?.name}</h1>
+        {/* Decorative blobs */}
+        <div
+          className="absolute -top-16 -left-12 w-56 h-56 rounded-full opacity-25 blur-3xl pointer-events-none"
+          style={{ background: "oklch(0.5 0.22 275)" }}
+        />
+        <div
+          className="absolute -bottom-20 -right-12 w-64 h-64 rounded-full opacity-15 blur-3xl pointer-events-none"
+          style={{ background: "oklch(0.72 0.16 75)" }}
+        />
+        <div className="relative flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <button
+              onClick={() => navigate({ view: "my-profile" })}
+              className="shrink-0 hover:opacity-90 transition-opacity"
+              aria-label="پروفایل من"
+            >
+              <UserAvatar
+                name={user?.name || ""}
+                avatarUrl={user?.profile?.avatarUrl || null}
+                verified={user?.isVerifiedBadge}
+                gender={user?.profile?.gender}
+                size="lg"
+                ringColor="var(--primary)"
+              />
+            </button>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-muted-foreground font-medium">
+                {greeting} 👋
+              </p>
+              <h1 className="text-xl sm:text-2xl font-black truncate mt-0.5 leading-tight">
+                {user?.name}
+              </h1>
+              <p className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                {formatFaDate(new Date())}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate({ view: "create-need" })}
+            className="shrink-0 inline-flex items-center gap-1.5 h-10 sm:h-11 px-3.5 sm:px-4 rounded-2xl bg-primary text-primary-foreground font-bold text-sm shadow-lg shadow-primary/30 hover:bg-primary/90 transition-colors active:scale-95"
+          >
+            <Icon name="plus" size={16} />
+            <span className="hidden sm:inline">ثبت نیازمندی</span>
+            <span className="sm:hidden">نیازمندی</span>
+          </button>
         </div>
-        <Button
-          size="sm"
-          onClick={() => navigate({ view: "create-need" })}
-          className="gap-1.5 rounded-xl"
-        >
-          <Plus className="w-4 h-4" /> ثبت نیازمندی
-        </Button>
       </motion.div>
 
-      {/* Quick actions grid */}
+      {/* ═══ Quick actions grid ═══ */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="grid grid-cols-4 gap-2"
+        transition={{ duration: 0.4, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
+        className="grid grid-cols-4 gap-2 sm:gap-3"
       >
-        <QuickAction icon={Search} label="کشف" onClick={() => navigate({ view: "discover" })} />
-        <QuickAction icon={Sparkles} label="استعدادها" onClick={() => navigate({ view: "talents" })} />
-        <QuickAction icon={Briefcase} label="نیازمندی" onClick={() => navigate({ view: "needs" })} />
-        <QuickAction icon={UserCheck} label="دنبال‌شده" onClick={() => navigate({ view: "following" })} />
+        <QuickAction
+          name="search"
+          label="کشف"
+          onClick={() => navigate({ view: "discover" })}
+        />
+        <QuickAction
+          name="sparkles"
+          label="استعدادها"
+          onClick={() => navigate({ view: "explore" })}
+        />
+        <QuickAction
+          name="briefcase"
+          label="نیازمندی"
+          onClick={() => navigate({ view: "needs" })}
+        />
+        <QuickAction
+          name="userCheck"
+          label="دنبال‌شده"
+          onClick={() => navigate({ view: "following" })}
+        />
       </motion.div>
 
-      {/* Stats row */}
+      {/* ═══ Stats row ═══ */}
       {data && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-3 gap-2"
+          transition={{ duration: 0.4, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
+          className="grid grid-cols-3 gap-2 sm:gap-3"
         >
-          <StatCard icon={UserCheck} label="دنبال‌شده" value={data.followingCount} />
-          <StatCard icon={TrendingUp} label="استعداد مرتبط" value={data.relevantTalents.length} />
-          <StatCard icon={Users} label="هم‌مهارت" value={data.sameSkillPeople.length} />
+          <StatCard
+            name="userCheck"
+            label="دنبال‌شده"
+            value={data.followingCount}
+            delay={0.14}
+          />
+          <StatCard
+            name="trendingUp"
+            label="استعداد مرتبط"
+            value={data.relevantTalents.length}
+            delay={0.18}
+          />
+          <StatCard
+            name="users"
+            label="هم‌مهارت"
+            value={data.sameSkillPeople.length}
+            delay={0.22}
+          />
         </motion.div>
       )}
 
-      {/* Followed posts */}
+      {/* ═══ Followed posts ═══ */}
       <Section
         title="پست‌های دنبال‌شوندگان"
         onMore={() => navigate({ view: "following" })}
-        delay={0.15}
+        delay={0.26}
       >
         {data && data.followedPosts.length > 0 ? (
           <div className="space-y-3">
@@ -125,96 +183,149 @@ export function DashboardView() {
             title="هنوز پستی نیست"
             description="برای دیدن پست‌های دنبال‌شوندگان، ابتدا کسی را دنبال کنید."
             action={
-              <Button size="sm" variant="outline" onClick={() => navigate({ view: "discover" })}>
+              <button
+                onClick={() => navigate({ view: "discover" })}
+                className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl border border-primary/30 text-primary font-bold text-sm hover:bg-primary/5 transition-colors"
+              >
+                <Icon name="search" size={16} />
                 کشف استعدادها
-              </Button>
+              </button>
             }
             className="py-6"
           />
         )}
       </Section>
 
-      {/* Relevant talents */}
+      {/* ═══ Relevant talents ═══ */}
       {data && data.relevantTalents.length > 0 && (
-        <Section title="استعدادهای مرتبط" delay={0.2}>
+        <Section title="استعدادهای مرتبط" delay={0.32}>
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
             {data.relevantTalents.map((t, i) => (
-              <TalentMiniCard key={t.id} talent={t} />
+              <TalentMiniCard key={t.id} talent={t} index={i} />
             ))}
           </div>
         </Section>
       )}
 
-      {/* Same-skill people */}
+      {/* ═══ Same-skill people ═══ */}
       {data && data.sameSkillPeople.length > 0 && (
-        <Section title="افراد هم‌مهارت" delay={0.25}>
-          <div className="grid grid-cols-2 gap-2">
-            {data.sameSkillPeople.slice(0, 4).map((t) => (
-              <TalentGridCard key={t.id} talent={t} />
+        <Section title="افراد هم‌مهارت" delay={0.38}>
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            {data.sameSkillPeople.slice(0, 4).map((t, i) => (
+              <TalentGridCard key={t.id} talent={t} index={i} />
             ))}
           </div>
         </Section>
       )}
 
-      {/* More actions */}
+      {/* ═══ More actions ═══ */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="grid grid-cols-2 gap-2"
+        transition={{ duration: 0.4, delay: 0.42, ease: [0.16, 1, 0.3, 1] }}
       >
-        <MoreCard icon={MessageCircle} label="چت‌ها" onClick={() => navigate({ view: "chat" })} />
-        <MoreCard icon={Bell} label="اعلان‌ها" onClick={() => navigate({ view: "notifications" })} />
-        <MoreCard icon={Briefcase} label="نیازمندی‌های من" onClick={() => navigate({ view: "my-needs" })} />
-        <MoreCard icon={Ticket} label="تیکت‌ها" onClick={() => navigate({ view: "tickets" })} />
-        <MoreCard icon={Settings} label="ویرایش پروفایل" onClick={() => navigate({ view: "edit-profile" })} />
-        <MoreCard icon={Settings} label="تنظیمات" onClick={() => navigate({ view: "settings" })} />
+        <h2 className="font-bold text-base mb-2.5">بیشتر</h2>
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <MoreCard
+            name="chat"
+            label="چت‌ها"
+            onClick={() => navigate({ view: "chat" })}
+          />
+          <MoreCard
+            name="bell"
+            label="اعلان‌ها"
+            onClick={() => navigate({ view: "notifications" })}
+          />
+          <MoreCard
+            name="briefcase"
+            label="نیازمندی‌های من"
+            onClick={() => navigate({ view: "my-needs" })}
+          />
+          <MoreCard
+            name="ticket"
+            label="تیکت‌ها"
+            onClick={() => navigate({ view: "tickets" })}
+          />
+          <MoreCard
+            name="pencil"
+            label="ویرایش پروفایل"
+            onClick={() => navigate({ view: "edit-profile" })}
+          />
+          <MoreCard
+            name="settings"
+            label="تنظیمات"
+            onClick={() => navigate({ view: "settings" })}
+          />
+        </div>
       </motion.div>
     </div>
   );
 }
 
+// ───────────────────────────── Quick Action ─────────────────────────────
+
 function QuickAction({
-  icon: Icon,
+  name,
   label,
   onClick,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  name: string;
   label: string;
   onClick: () => void;
 }) {
   return (
-    <button
+    <motion.button
       onClick={onClick}
-      className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-card border border-border hover:border-foreground/15 transition-all active:scale-95"
+      whileTap={{ scale: 0.95 }}
+      whileHover={{ y: -2 }}
+      className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-2xl bg-card shadow-sm hover:shadow-md transition-shadow"
     >
-      <span className="grid place-items-center w-10 h-10 rounded-xl bg-primary/8 text-primary">
-        <Icon className="w-5 h-5" />
+      <span className="grid place-items-center w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-primary/10 text-primary">
+        <Icon name={name} size={22} />
       </span>
-      <span className="text-[11px] font-bold text-muted-foreground">{label}</span>
-    </button>
+      <span className="text-[11px] sm:text-xs font-bold text-muted-foreground">
+        {label}
+      </span>
+    </motion.button>
   );
 }
 
+// ───────────────────────────── Stat Card ─────────────────────────────
+
 function StatCard({
-  icon: Icon,
+  name,
   label,
   value,
+  delay,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  name: string;
   label: string;
   value: number;
+  delay: number;
 }) {
   return (
-    <Card className="p-3 border-border/60">
-      <div className="flex items-center gap-1.5 mb-1">
-        <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-        <span className="text-[10px] text-muted-foreground font-medium">{label}</span>
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.4, delay, ease: [0.16, 1, 0.3, 1] }}
+      className="relative overflow-hidden p-3 sm:p-4 rounded-2xl bg-card shadow-sm"
+    >
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className="grid place-items-center w-6 h-6 rounded-lg bg-primary/10 text-primary">
+          <Icon name={name} size={13} />
+        </span>
+        <span className="text-[10px] text-muted-foreground font-bold truncate">
+          {label}
+        </span>
       </div>
-      <p className="text-xl font-extrabold nums-fa">{toFa(value)}</p>
-    </Card>
+      <p className="text-xl sm:text-2xl font-black nums-fa tabular-nums">
+        {formatCount(value)}
+      </p>
+    </motion.div>
   );
 }
+
+// ───────────────────────────── Section ─────────────────────────────
 
 function Section({
   title,
@@ -228,12 +339,20 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay, ease: [0.16, 1, 0.3, 1] }}
+    >
       <div className="flex items-center justify-between mb-2.5">
-        <h2 className="font-bold text-base">{title}</h2>
+        <h2 className="font-bold text-base sm:text-lg">{title}</h2>
         {onMore && (
-          <button onClick={onMore} className="flex items-center gap-0.5 text-xs text-primary font-bold">
-            همه <ChevronLeft className="w-3.5 h-3.5" />
+          <button
+            onClick={onMore}
+            className="flex items-center gap-0.5 text-xs text-primary font-bold hover:text-primary/80 transition-colors"
+          >
+            همه
+            <Icon name="chevronLeft" size={14} />
           </button>
         )}
       </div>
@@ -242,11 +361,23 @@ function Section({
   );
 }
 
-function TalentMiniCard({ talent }: { talent: TalentListItem }) {
+// ───────────────────────────── Talent Mini Card (horizontal scroll) ─────────────────────────────
+
+function TalentMiniCard({
+  talent,
+  index,
+}: {
+  talent: TalentListItem;
+  index: number;
+}) {
   return (
-    <button
+    <motion.button
       onClick={() => navigate({ view: "profile", id: talent.id })}
-      className="shrink-0 w-36 p-3 rounded-2xl bg-card border border-border hover:border-foreground/15 transition-all active:scale-95 text-right"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.3) }}
+      whileTap={{ scale: 0.97 }}
+      className="shrink-0 w-36 sm:w-40 p-3 rounded-2xl bg-card shadow-sm hover:shadow-md transition-shadow text-right"
     >
       <UserAvatar
         name={talent.name}
@@ -256,17 +387,40 @@ function TalentMiniCard({ talent }: { talent: TalentListItem }) {
         size="md"
       />
       <p className="font-bold text-sm mt-2 truncate">{talent.name}</p>
-      <p className="text-xs text-muted-foreground truncate mt-0.5">{talent.bioShort}</p>
-      {talent.city && <p className="text-[10px] text-muted-foreground mt-1">{talent.city}</p>}
-    </button>
+      <p className="text-xs text-muted-foreground truncate mt-0.5 line-clamp-1">
+        {talent.bioShort}
+      </p>
+      {talent.city && (
+        <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-0.5">
+          <Icon name="mapPin" size={10} />
+          {talent.city}
+        </p>
+      )}
+    </motion.button>
   );
 }
 
-function TalentGridCard({ talent }: { talent: TalentListItem }) {
+// ───────────────────────────── Talent Grid Card (2-col) ─────────────────────────────
+
+function TalentGridCard({
+  talent,
+  index,
+}: {
+  talent: TalentListItem;
+  index: number;
+}) {
   return (
-    <button
+    <motion.button
       onClick={() => navigate({ view: "profile", id: talent.id })}
-      className="p-3 rounded-2xl bg-card border border-border hover:border-foreground/15 transition-all active:scale-95 text-right"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.35,
+        delay: Math.min(index * 0.04, 0.3),
+        ease: [0.16, 1, 0.3, 1],
+      }}
+      whileTap={{ scale: 0.97 }}
+      className="p-3 rounded-2xl bg-card shadow-sm hover:shadow-md transition-shadow text-right"
     >
       <div className="flex items-center gap-2.5">
         <UserAvatar
@@ -278,32 +432,40 @@ function TalentGridCard({ talent }: { talent: TalentListItem }) {
         />
         <div className="flex-1 min-w-0">
           <p className="font-bold text-xs truncate">{talent.name}</p>
-          <p className="text-[10px] text-muted-foreground truncate">{talent.bioShort}</p>
+          <p className="text-[10px] text-muted-foreground truncate line-clamp-1">
+            {talent.bioShort}
+          </p>
         </div>
       </div>
-    </button>
+    </motion.button>
   );
 }
 
+// ───────────────────────────── More Card ─────────────────────────────
+
 function MoreCard({
-  icon: Icon,
+  name,
   label,
   onClick,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  name: string;
   label: string;
   onClick: () => void;
 }) {
   return (
-    <button
+    <motion.button
       onClick={onClick}
-      className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-card border border-border hover:border-foreground/15 transition-all active:scale-95"
+      whileTap={{ scale: 0.97 }}
+      whileHover={{ x: -2 }}
+      className={cn(
+        "flex items-center gap-2.5 p-3.5 rounded-2xl bg-card shadow-sm hover:shadow-md transition-shadow"
+      )}
     >
       <span className="grid place-items-center w-9 h-9 rounded-xl bg-muted text-muted-foreground">
-        <Icon className="w-4 h-4" />
+        <Icon name={name} size={18} />
       </span>
-      <span className="font-bold text-sm">{label}</span>
-      <ChevronLeft className="w-4 h-4 text-muted-foreground mr-auto" />
-    </button>
+      <span className="font-bold text-sm flex-1 text-right">{label}</span>
+      <Icon name="chevronLeft" size={16} className="text-muted-foreground" />
+    </motion.button>
   );
 }

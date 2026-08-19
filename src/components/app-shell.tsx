@@ -5,25 +5,7 @@ import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import { useNav, navigate, type Route } from "@/lib/nav";
 import { useUser } from "@/lib/use-user";
 import { cn } from "@/lib/utils";
-import {
-  Home,
-  Search,
-  Sparkles,
-  UserCheck,
-  ChevronUp,
-  Bell,
-  MessageCircle,
-  User as UserIcon,
-  UserPlus,
-  Ticket,
-  LogOut,
-  Settings,
-  X,
-  ChevronRight,
-  Briefcase,
-  Users,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/shared/icon";
 import { LogoMark } from "@/components/shared/illustrations";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { AuthView } from "@/components/views/auth-view";
@@ -50,6 +32,7 @@ import { OnboardingView } from "@/components/views/onboarding-view";
 import { AdminView } from "@/components/views/admin-view";
 import { apiPost } from "@/lib/api-client";
 import { toast } from "@/hooks/use-toast";
+import { toFa } from "@/lib/format";
 
 function renderView(route: Route) {
   switch (route.view) {
@@ -81,15 +64,21 @@ function renderView(route: Route) {
   }
 }
 
-// Mobile bottom nav: Home, Discover, Talents, Needs
+// Mobile floating bottom nav: Home, Explore, Discover, Talents + More
 const BOTTOM_NAV = [
-  { key: "feed", label: "خانه", icon: Home },
-  { key: "explore", label: "استعدادهای برتر", icon: Sparkles },
-  { key: "discover", label: "کشف", icon: Search },
-  { key: "talents", label: "استعدادها", icon: Users },
+  { key: "feed", label: "خانه", icon: "home" as const },
+  { key: "explore", label: "استعدادهای برتر", icon: "sparkles" as const },
+  { key: "discover", label: "کشف", icon: "compass" as const },
+  { key: "talents", label: "استعدادها", icon: "users" as const },
 ] as const;
 
-const TOP_LEVEL = new Set(["feed", "explore", "discover", "talents", "needs", "following", "dashboard", "settings"]);
+const TOP_LEVEL = new Set([
+  "feed", "explore", "discover", "talents", "needs", "following", "dashboard", "settings",
+]);
+
+// Soft premium shadow — diffuse, no border
+const SOFT_SHADOW = "shadow-[0_4px_24px_rgba(20,20,40,0.08)]";
+const FLOAT_SHADOW = "shadow-[0_8px_32px_rgba(20,20,40,0.12)]";
 
 export function AppShell({ children }: { children?: React.ReactNode }) {
   const route = useNav((s) => s.route);
@@ -138,7 +127,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [route.view, (route as any).id, (route as any).conversationId]);
 
-  // Auth / Onboarding = full screen
+  // Auth / Onboarding = full screen, no chrome
   if (route.view === "auth" || route.view === "onboarding") {
     return (
       <div className="min-h-screen flex flex-col">
@@ -147,7 +136,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
     );
   }
 
-  // Admin = full screen
+  // Admin = full screen, no chrome
   if (route.view === "admin") {
     return <div className="min-h-screen"><main>{renderView(route)}</main></div>;
   }
@@ -159,43 +148,82 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
     if (typeof window !== "undefined") window.history.back();
   }
 
+  // Route key for transitions
+  const routeKey =
+    route.view +
+    (route.view === "profile" ? route.id : "") +
+    (route.view === "category" ? route.id : "") +
+    (route.view === "ticket" ? route.id : "") +
+    (route.view === "chat" ? route.conversationId || "" : "");
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* ═══ Mobile floating pills (top) ═══ */}
-      <div className="md:hidden fixed top-0 inset-x-0 z-30 px-4 pt-3 pt-safe pointer-events-none">
-        <div className="flex items-center justify-between">
-          {/* Right pill (RTL start) = Back button (small, with margin) */}
+      {/* ═══ Mobile floating top pills ═══ */}
+      <div className="md:hidden fixed top-0 inset-x-0 z-30 px-4 pt-4 pt-safe pointer-events-none">
+        <div className="flex items-center justify-between gap-2">
+          {/* Right (RTL start) = Back button — small circular pill */}
           {showBack ? (
             <motion.button
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, x: 20, scale: 0.8 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 20, scale: 0.8 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
               onClick={goBack}
-              className="pointer-events-auto grid place-items-center w-10 h-10 rounded-full glass shadow-sm text-foreground active:scale-90 transition-transform"
+              whileTap={{ scale: 0.88 }}
+              className={cn(
+                "pointer-events-auto grid place-items-center w-11 h-11 rounded-full bg-card",
+                SOFT_SHADOW
+              )}
               aria-label="بازگشت"
             >
-              <ChevronRight className="w-5 h-5" />
+              <Icon name="chevronRight" className="text-foreground" size={22} strokeWidth={2.4} />
             </motion.button>
-          ) : null}
+          ) : (
+            // When no back, show a small logo mark pill on the right (RTL start)
+            <motion.button
+              initial={{ opacity: 0, x: 20, scale: 0.8 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              whileTap={{ scale: 0.88 }}
+              onClick={() => navigate({ view: "feed" })}
+              className={cn(
+                "pointer-events-auto grid place-items-center w-11 h-11 rounded-full bg-card",
+                SOFT_SHADOW
+              )}
+              aria-label="همتیم"
+            >
+              <LogoMark className="w-7 h-7" />
+            </motion.button>
+          )}
 
-          {/* Left pill (RTL end) = Profile/Login + Notifications */}
-          <div className="flex items-center gap-2 mr-auto ">
+          {/* Left (RTL end) = Notifications + Profile/Login */}
+          <div className="flex items-center gap-2 mr-auto">
             {user ? (
               <>
-                <button
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileTap={{ scale: 0.88 }}
                   onClick={() => navigate({ view: "notifications" })}
-                  className="pointer-events-auto relative grid place-items-center w-10 h-10 rounded-full glass shadow-sm active:scale-90 transition-transform"
+                  className={cn(
+                    "pointer-events-auto relative grid place-items-center w-11 h-11 rounded-full bg-card",
+                    SOFT_SHADOW
+                  )}
                   aria-label="اعلان‌ها"
                 >
-                  <Bell className="w-[18px] h-[18px]" />
+                  <Icon name="bell" className="text-foreground" size={20} strokeWidth={2.2} />
                   {unread > 0 && (
-                    <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 grid place-items-center rounded-full bg-rose text-white text-[9px] font-bold animate-bounce-small">
-                      {unread > 9 ? "۹+" : unread}
+                    <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-extrabold">
+                      {unread > 9 ? toFa(9) + "+" : toFa(unread)}
                     </span>
                   )}
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileTap={{ scale: 0.88 }}
                   onClick={() => navigate({ view: "my-profile" })}
-                  className="pointer-events-auto active:scale-90 transition-transform"
+                  className="pointer-events-auto"
                   aria-label="پروفایل"
                 >
                   <UserAvatar
@@ -204,40 +232,151 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
                     verified={user.isVerifiedBadge}
                     gender={user.profile?.gender}
                     size="md"
-                    className="pt-2"
+                    className="ring-2 ring-card"
                   />
-                </button>
+                </motion.button>
               </>
             ) : (
               !loading && (
-                <button
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileTap={{ scale: 0.92 }}
                   onClick={() => navigate({ view: "auth" })}
-                  className="pointer-events-auto h-10 px-5 rounded-full glass shadow-sm font-bold text-sm active:scale-95 transition-transform mt-2"
+                  className={cn(
+                    "pointer-events-auto h-11 px-5 rounded-full bg-card font-extrabold text-sm",
+                    SOFT_SHADOW
+                  )}
                 >
                   ورود
-                </button>
+                </motion.button>
               )
             )}
           </div>
         </div>
       </div>
 
+      {/* ═══ Desktop floating top bar ═══ */}
+      <div className="hidden md:block fixed top-4 inset-x-4 z-30">
+        <div className={cn("mx-auto max-w-6xl rounded-full bg-card px-5 py-2.5", FLOAT_SHADOW)}>
+          <div className="flex items-center justify-between gap-4">
+            {/* Right (RTL start) = logo + primary nav */}
+            <div className="flex items-center gap-6">
+              <button onClick={() => navigate({ view: "feed" })} className="flex items-center gap-2 shrink-0">
+                <LogoMark className="w-9 h-9" />
+                <span className="text-xl font-extrabold tracking-tight">همتیم</span>
+              </button>
+              <nav className="flex items-center gap-1">
+                {BOTTOM_NAV.map((item) => {
+                  const active = activeView === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => navigate({ view: item.key as Route["view"] } as Route)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3.5 h-10 rounded-full text-sm font-bold transition-all",
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      )}
+                    >
+                      <Icon name={item.icon} size={18} strokeWidth={active ? 2.6 : 2.2} />
+                      <span className="hidden lg:inline">{item.label}</span>
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => navigate({ view: "needs" } as Route)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3.5 h-10 rounded-full text-sm font-bold transition-all",
+                    activeView === "needs" || activeView === "my-needs" || activeView === "create-need"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  <Icon name="briefcase" size={18} strokeWidth={activeView === "needs" ? 2.6 : 2.2} />
+                  <span className="hidden lg:inline">نیازمندی‌ها</span>
+                </button>
+              </nav>
+            </div>
+
+            {/* Left (RTL end) = actions */}
+            <div className="flex items-center gap-2">
+              {user ? (
+                <>
+                  <button
+                    onClick={() => navigate({ view: "chat" })}
+                    className="relative grid place-items-center w-10 h-10 rounded-full hover:bg-muted transition-colors"
+                    aria-label="چت"
+                  >
+                    <Icon name="chat" size={20} className="text-foreground" strokeWidth={2.2} />
+                    {chatUnread > 0 && (
+                      <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-extrabold">
+                        {chatUnread > 9 ? toFa(9) + "+" : toFa(chatUnread)}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => navigate({ view: "notifications" })}
+                    className="relative grid place-items-center w-10 h-10 rounded-full hover:bg-muted transition-colors"
+                    aria-label="اعلان‌ها"
+                  >
+                    <Icon name="bell" size={20} className="text-foreground" strokeWidth={2.2} />
+                    {unread > 0 && (
+                      <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-extrabold">
+                        {unread > 9 ? toFa(9) + "+" : toFa(unread)}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => navigate({ view: "my-profile" })}
+                    className="ms-1"
+                    aria-label="پروفایل من"
+                  >
+                    <UserAvatar
+                      name={user.name}
+                      avatarUrl={user.profile?.avatarUrl}
+                      verified={user.isVerifiedBadge}
+                      gender={user.profile?.gender}
+                      size="sm"
+                      className="ring-2 ring-card"
+                    />
+                  </button>
+                </>
+              ) : (
+                !loading && (
+                  <button
+                    onClick={() => navigate({ view: "auth" })}
+                    className="h-10 px-6 rounded-full bg-primary text-primary-foreground font-extrabold text-sm hover:bg-primary/90 transition-colors"
+                  >
+                    ورود / ثبت‌نام
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ═══ Main Content ═══ */}
-      <main ref={mainRef} className="flex-1 mx-auto w-full max-w-6xl px-4 md:px-6 pt-16 md:pt-8 pb-32 md:pb-12">
+      <main
+        ref={mainRef}
+        className="flex-1 mx-auto w-full max-w-6xl px-4 md:px-6 pt-20 md:pt-24 pb-36 md:pb-16"
+      >
         <AnimatePresence mode="wait">
           <motion.div
-            key={route.view + (route.view === "profile" ? route.id : "") + (route.view === "category" ? route.id : "") + (route.view === "ticket" ? route.id : "") + (route.view === "chat" ? route.conversationId || "" : "")}
-            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            key={routeKey}
+            initial={{ opacity: 0, y: 14, scale: 0.985 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.98 }}
-            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, y: -10, scale: 0.985 }}
+            transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
           >
-            {renderView(route)}
+            {children ?? renderView(route)}
           </motion.div>
         </AnimatePresence>
       </main>
 
-      {/* ═══ Mobile Bottom Dock — iOS liquid glass, floating with margin, swipe-up ═══ */}
+      {/* ═══ Mobile floating pill bottom nav + swipe-up dock ═══ */}
       <SwipeUpDock
         activeView={activeView}
         unread={unread}
@@ -245,21 +384,22 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
         user={user}
       />
 
-      {/* ═══ Floating Chat FAB (with unread badge) ═══ */}
+      {/* ═══ Mobile floating chat FAB (bottom-left, primary color) ═══ */}
       {user && activeView !== "chat" && (
         <motion.button
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 500, damping: 25 }}
+          transition={{ type: "spring", stiffness: 500, damping: 25, delay: 0.15 }}
+          whileTap={{ scale: 0.88 }}
           onClick={() => navigate({ view: "chat" })}
-          className="md:hidden fixed bottom-24 left-4 z-30 grid place-items-center w-13 h-13 rounded-full bg-primary text-primary-foreground shadow-lg active:scale-90 transition-transform"
-          style={{ width: "52px", height: "52px" }}
+          className="md:hidden fixed bottom-28 left-4 z-30 grid place-items-center rounded-full bg-primary text-primary-foreground"
+          style={{ width: "56px", height: "56px", boxShadow: "0 10px 30px rgba(79, 56, 165, 0.35)" }}
           aria-label="چت"
         >
-          <MessageCircle className="w-5 h-5" />
+          <Icon name="chat" size={24} className="text-primary-foreground" strokeWidth={2.4} />
           {chatUnread > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-bold animate-bounce-small">
-              {chatUnread > 9 ? "۹+" : chatUnread}
+            <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1.5 grid place-items-center rounded-full bg-rose text-white text-[11px] font-extrabold ring-2 ring-primary-foreground">
+              {chatUnread > 9 ? toFa(9) + "+" : toFa(chatUnread)}
             </span>
           )}
         </motion.button>
@@ -268,7 +408,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
   );
 }
 
-// ── Swipe-up dock (iOS-style) ──
+// ── Premium iOS-style swipe-up dock ──
 function SwipeUpDock({
   activeView,
   unread,
@@ -284,21 +424,21 @@ function SwipeUpDock({
   const controls = useDragControls();
 
   const moreItems = [
-    { key: "dashboard", label: "داشبورد", icon: Home },
-    { key: "chat", label: "چت", icon: MessageCircle, badge: chatUnread },
-    { key: "following", label: "دنبال‌شده", icon: UserCheck },
-    { key: "needs", label: "نیازمندی‌ها", icon: Briefcase },
-    { key: "my-needs", label: "نیازمندی‌های من", icon: Briefcase },
-    { key: "connections", label: "ارتباطات", icon: UserPlus },
-    { key: "notifications", label: "اعلان‌ها", icon: Bell, badge: unread },
-    { key: "edit-profile", label: "ویرایش", icon: UserIcon },
-    { key: "tickets", label: "تیکت‌ها", icon: Ticket },
-    { key: "settings", label: "تنظیمات", icon: Settings },
+    { key: "dashboard", label: "داشبورد", icon: "grid" as const },
+    { key: "chat", label: "چت", icon: "chat" as const, badge: chatUnread },
+    { key: "following", label: "دنبال‌شده", icon: "userCheck" as const },
+    { key: "needs", label: "نیازمندی‌ها", icon: "briefcase" as const },
+    { key: "my-needs", label: "نیازمندی‌های من", icon: "briefcase" as const },
+    { key: "connections", label: "ارتباطات", icon: "userPlus" as const },
+    { key: "notifications", label: "اعلان‌ها", icon: "bell" as const, badge: unread },
+    { key: "edit-profile", label: "ویرایش", icon: "pencil" as const },
+    { key: "tickets", label: "تیکت‌ها", icon: "ticket" as const },
+    { key: "settings", label: "تنظیمات", icon: "settings" as const },
   ];
 
   return (
     <>
-      {/* Expanded overlay */}
+      {/* Expanded overlay + sheet */}
       <AnimatePresence>
         {expanded && (
           <>
@@ -307,13 +447,13 @@ function SwipeUpDock({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setExpanded(false)}
-              className="md:hidden fixed inset-0 z-30 bg-black/30"
+              className="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
             />
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+              transition={{ type: "spring", stiffness: 380, damping: 32 }}
               drag="y"
               dragControls={controls}
               dragListener={false}
@@ -322,39 +462,47 @@ function SwipeUpDock({
               onDragEnd={(_, info) => {
                 if (info.offset.y > 100) setExpanded(false);
               }}
-              className="md:hidden fixed bottom-0 inset-x-0 z-40 pb-safe"
+              className="md:hidden fixed bottom-0 inset-x-0 z-50 pb-safe"
             >
-              <div className="glass-strong rounded-t-3xl border-t border-border/30 shadow-2xl overflow-hidden">
+              <div className="bg-card rounded-t-[28px] overflow-hidden" style={{ boxShadow: "0 -8px 40px rgba(20,20,40,0.18)" }}>
                 {/* Drag handle */}
-                <div className="pt-2.5 pb-1 grid place-items-center cursor-grab active:cursor-grabbing" onPointerDown={(e) => controls.start(e)}>
-                  <div className="w-10 h-1 rounded-full bg-foreground/20" />
+                <div
+                  className="pt-3 pb-1.5 grid place-items-center cursor-grab active:cursor-grabbing"
+                  onPointerDown={(e) => controls.start(e)}
+                >
+                  <div className="w-10 h-1.5 rounded-full bg-foreground/20" />
+                </div>
+                {/* Title */}
+                <div className="px-5 pb-3 pt-1">
+                  <p className="text-sm font-extrabold text-foreground">بیشتر</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">سایر بخش‌های همتیم</p>
                 </div>
                 {/* More items grid */}
-                <div className="px-4 pb-5 pt-2">
+                <div className="px-4 pb-6 pt-1">
                   <div className="grid grid-cols-3 gap-2">
-                    {moreItems.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <button
-                          key={item.key}
-                          onClick={() => {
-                            navigate({ view: item.key as Route["view"] } as Route);
-                            setExpanded(false);
-                          }}
-                          className="flex flex-col items-center gap-1.5 p-3 rounded-2xl hover:bg-foreground/5 transition-colors active:scale-95 relative"
-                        >
-                          <div className="relative grid place-items-center w-12 h-12 rounded-2xl bg-primary/8 text-primary">
-                            <Icon className="w-5 h-5" />
-                            {item.badge ? (
-                              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-bold">
-                                {item.badge > 9 ? "۹+" : item.badge}
-                              </span>
-                            ) : null}
-                          </div>
-                          <span className="text-[11px] font-medium">{item.label}</span>
-                        </button>
-                      );
-                    })}
+                    {moreItems.map((item, i) => (
+                      <motion.button
+                        key={item.key}
+                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ delay: 0.04 + i * 0.03 }}
+                        onClick={() => {
+                          navigate({ view: item.key as Route["view"] } as Route);
+                          setExpanded(false);
+                        }}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-2xl hover:bg-muted/60 transition-colors active:scale-95 relative"
+                      >
+                        <div className="relative grid place-items-center w-12 h-12 rounded-2xl bg-primary/10 text-primary">
+                          <Icon name={item.icon} size={22} strokeWidth={2.2} />
+                          {item.badge ? (
+                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-extrabold ring-2 ring-card">
+                              {item.badge > 9 ? toFa(9) + "+" : toFa(item.badge)}
+                            </span>
+                          ) : null}
+                        </div>
+                        <span className="text-[11px] font-bold text-foreground leading-tight text-center">{item.label}</span>
+                      </motion.button>
+                    ))}
                     {user && (
                       <button
                         onClick={async () => {
@@ -366,10 +514,10 @@ function SwipeUpDock({
                         }}
                         className="flex flex-col items-center gap-1.5 p-3 rounded-2xl hover:bg-rose/5 transition-colors active:scale-95"
                       >
-                        <div className="grid place-items-center w-12 h-12 rounded-2xl bg-rose/8 text-rose">
-                          <LogOut className="w-5 h-5" />
+                        <div className="grid place-items-center w-12 h-12 rounded-2xl bg-rose/10 text-rose">
+                          <Icon name="logout" size={22} strokeWidth={2.2} className="text-rose" />
                         </div>
-                        <span className="text-[11px] font-medium text-rose">خروج</span>
+                        <span className="text-[11px] font-bold text-rose leading-tight">خروج</span>
                       </button>
                     )}
                   </div>
@@ -380,43 +528,55 @@ function SwipeUpDock({
         )}
       </AnimatePresence>
 
-      {/* The dock itself — floating, liquid glass */}
-      <nav className="md:hidden fixed bottom-3 inset-x-3 z-30">
-        <div className="glass rounded-full shadow-lg border border-white/20 px-2 py-1.5">
-          <div className="grid grid-cols-5 gap-1">
+      {/* The dock itself — floating pill, NOT edge-to-edge */}
+      <nav className="md:hidden fixed bottom-4 inset-x-4 z-30">
+        <div
+          className={cn("rounded-full bg-card px-2 py-1.5", FLOAT_SHADOW)}
+        >
+          <div className="grid grid-cols-5 gap-0.5">
             {BOTTOM_NAV.map((item) => {
-              const Icon = item.icon;
               const active = activeView === item.key;
               return (
                 <button
                   key={item.key}
                   onClick={() => navigate({ view: item.key as Route["view"] } as Route)}
-                  className="relative flex flex-col items-center justify-center gap-0.5 h-11 transition-colors"
+                  className="relative flex flex-col items-center justify-center gap-0.5 h-12 transition-colors"
                 >
-                  <div className={cn(
-                    "grid place-items-center w-9 h-8 rounded-full transition-all",
-                    active ? "bg-primary text-primary-foreground scale-105" : "text-muted-foreground"
-                  )}>
-                    <Icon className="w-[21px] h-[21px]" strokeWidth={active ? 2.5 : 2} />
-                  </div>
-                  <span className={cn(
-                    "text-[9px] font-bold transition-colors leading-none",
-                    active ? "text-primary" : "text-muted-foreground"
-                  )}>
+                  <motion.div
+                    initial={false}
+                    animate={{
+                      scale: active ? 1.05 : 1,
+                      backgroundColor: active ? "var(--primary)" : "rgba(0,0,0,0)",
+                    }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    className={cn(
+                      "grid place-items-center w-10 h-8 rounded-full",
+                      active ? "text-primary-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    <Icon name={item.icon} size={22} strokeWidth={active ? 2.6 : 2.2} />
+                  </motion.div>
+                  <span
+                    className={cn(
+                      "text-[9px] font-extrabold leading-none transition-colors",
+                      active ? "text-primary" : "text-muted-foreground"
+                    )}
+                  >
                     {item.label}
                   </span>
                 </button>
               );
             })}
-            {/* More button — swipe up indicator */}
+            {/* More button — chevron up indicator */}
             <button
               onClick={() => setExpanded(true)}
-              className="flex flex-col items-center justify-center gap-0.5 h-11 transition-colors"
+              className="flex flex-col items-center justify-center gap-0.5 h-12 transition-colors"
+              aria-label="بیشتر"
             >
-              <div className="grid place-items-center w-9 h-8 rounded-full text-muted-foreground active:scale-90 transition-transform">
-                <ChevronUp className="w-5 h-5" />
+              <div className="grid place-items-center w-10 h-8 rounded-full text-muted-foreground active:scale-90 transition-transform">
+                <Icon name="chevronUp" size={22} strokeWidth={2.4} />
               </div>
-              <span className="text-[9px] font-bold text-muted-foreground leading-none">بیشتر</span>
+              <span className="text-[9px] font-extrabold text-muted-foreground leading-none">بیشتر</span>
             </button>
           </div>
         </div>

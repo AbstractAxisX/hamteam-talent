@@ -21,34 +21,31 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PostCard } from "@/components/shared/post-card";
 import { CategoryIcon } from "@/components/shared/illustrations";
+import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, formatFaDate } from "@/lib/format";
 import { getProvinceName } from "@/lib/geo";
-import {
-  MapPin,
-  Pencil,
-  UserPlus,
-  UserCheck,
-  Clock,
-  MessageCircle,
-  FileText,
-  Users,
-  FileSignature,
-  GraduationCap,
-  Briefcase,
-  Sparkles,
-  Hash,
-  Phone,
-  CalendarDays,
-  Loader2,
-  Download,
-  AlertTriangle,
-  Heart,
-  Award,
-  Star,
-  VenusAndMars,
-  Crown,
-} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+/* ── Small inline spinner (no lucide dependency) ───────────────── */
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg
+      className={cn("animate-spin", className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.2" strokeWidth="3" />
+      <path
+        d="M22 12a10 10 0 0 0-10-10"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 export function ProfileView({ id }: { id: string }) {
   const { user: me } = useUser();
@@ -62,9 +59,6 @@ export function ProfileView({ id }: { id: string }) {
     setLoading(true);
     setNotFound(false);
     try {
-      // Fetch the profile and the categories list in parallel; the meta call
-      // is best-effort (older API may not expose it, but our new endpoint
-      // returns it cleanly).
       const [profileData, catsData] = await Promise.all([
         api<ProfileDetail>(`/api/profile/${id}`),
         api<{ categories: CategoryWithSkills[] }>("/api/categories").catch(
@@ -74,7 +68,6 @@ export function ProfileView({ id }: { id: string }) {
       setProfile(profileData);
       setCats(catsData.categories);
 
-      // Best-effort meta fetch (supplementary: mainCategoryId + isTopTalent)
       api<ProfileMeta>(`/api/profile/${id}/meta`)
         .then(setMeta)
         .catch(() => setMeta(null));
@@ -117,8 +110,8 @@ export function ProfileView({ id }: { id: string }) {
   const isSelf = me?.id === profile.userId;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
-      <div className="space-y-4 min-w-0">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+      <div className="space-y-5 min-w-0">
         <ProfileHeader
           profile={profile}
           meta={meta}
@@ -129,7 +122,7 @@ export function ProfileView({ id }: { id: string }) {
         <ProfileTabs profile={profile} isSelf={isSelf} />
       </div>
 
-      {/* Sidebar (desktop only, appears on the left in RTL = end side) */}
+      {/* Desktop sidebar (sticky) */}
       <aside className="hidden lg:block lg:sticky lg:top-20 space-y-4">
         <QuickStatsCard profile={profile} meta={meta} />
 
@@ -139,28 +132,29 @@ export function ProfileView({ id }: { id: string }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
           >
-            <Card className="p-5 border-border/60 shadow-card">
+            <Card className="p-5 rounded-3xl shadow-card">
               <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
-                <Hash className="w-4 h-4 text-primary" /> تخصص‌ها
+                <Icon name="spark" className="w-4 h-4 text-primary" /> تخصص‌ها
               </h3>
               <div className="space-y-3">
                 {profile.categories.map((c) => {
+                  const catMeta = cats.find((x) => x.id === c.id);
                   const isMain =
                     meta?.mainCategoryId === c.id ||
                     (!meta?.mainCategoryId && c.id === profile.categories[0]?.id);
                   return (
                     <div key={c.id}>
                       <div className="flex items-center gap-2 mb-1.5">
-                        <CategoryIcon emoji={c.iconUrl} className="w-6 h-6 text-sm" />
+                        <CategoryIcon emoji={c.iconUrl} className="w-7 h-7 text-sm" />
                         <p className="text-xs font-bold text-foreground">{c.name}</p>
                         {isMain && (
-                          <Badge className="bg-primary/10 text-primary border border-primary/20 text-[9px] h-4 rounded-sm px-1 font-bold">
+                          <Badge className="bg-primary/10 text-primary border border-primary/20 text-[9px] h-4 rounded-md px-1 font-bold">
                             اصلی
                           </Badge>
                         )}
                       </div>
                       {c.skills.length > 0 ? (
-                        <div className="flex flex-wrap gap-1 pr-8">
+                        <div className="flex flex-wrap gap-1 pr-9">
                           {c.skills.map((s) => (
                             <Badge
                               key={s.id}
@@ -172,7 +166,13 @@ export function ProfileView({ id }: { id: string }) {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-xs text-muted-foreground pr-8">مهارتی ثبت نشده</p>
+                        <p className="text-xs text-muted-foreground pr-9">مهارتی ثبت نشده</p>
+                      )}
+                      {catMeta?.color && (
+                        <div
+                          className="mt-2 mr-9 h-1 w-10 rounded-full"
+                          style={{ backgroundColor: catMeta.color }}
+                        />
                       )}
                     </div>
                   );
@@ -187,7 +187,7 @@ export function ProfileView({ id }: { id: string }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
         >
-          <Card className="p-5 border-border/60 shadow-card space-y-2">
+          <Card className="p-5 rounded-3xl shadow-card space-y-2">
             <h3 className="text-sm font-bold mb-2">دسترسی سریع</h3>
             {isSelf ? (
               <Button
@@ -195,7 +195,7 @@ export function ProfileView({ id }: { id: string }) {
                 className="w-full justify-start gap-2 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
                 onClick={() => navigate({ view: "edit-profile" })}
               >
-                <Pencil className="w-4 h-4" /> ویرایش پروفایل
+                <Icon name="pencil" className="w-4 h-4" /> ویرایش پروفایل
               </Button>
             ) : (
               <>
@@ -226,7 +226,7 @@ export function ProfileView({ id }: { id: string }) {
                     }
                   }}
                 >
-                  <MessageCircle className="w-4 h-4" /> شروع گفتگو
+                  <Icon name="chat" className="w-4 h-4" /> شروع گفتگو
                 </Button>
                 <Button
                   variant="ghost"
@@ -234,7 +234,7 @@ export function ProfileView({ id }: { id: string }) {
                   className="w-full justify-start gap-2 rounded-2xl font-semibold text-muted-foreground"
                   onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
                 >
-                  <Download className="w-4 h-4" /> دانلود رزومه PDF
+                  <Icon name="upload" className="w-4 h-4" /> دانلود رزومه PDF
                 </Button>
               </>
             )}
@@ -245,6 +245,9 @@ export function ProfileView({ id }: { id: string }) {
   );
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Hero header — solid color background, avatar breaks the boundary
+   ────────────────────────────────────────────────────────────────── */
 function ProfileHeader({
   profile,
   meta,
@@ -262,10 +265,7 @@ function ProfileHeader({
   const genderLabel =
     profile.gender === "male" ? "مرد" : profile.gender === "female" ? "زن" : null;
 
-  // ─── Resolve the avatar ring color ─────────────────────────────────
-  // Build a Map<categoryId, color> from the categories endpoint (which now
-  // includes `color`). Then resolve the user's main category id: prefer
-  // meta.mainCategoryId, fall back to the first category id the user has.
+  // Build a Map<categoryId, color> from categories endpoint
   const colorMap = new Map<string, string | null>();
   for (const c of cats) colorMap.set(c.id, c.color ?? null);
 
@@ -277,16 +277,23 @@ function ProfileHeader({
   const mainCatColor = mainCatId ? colorMap.get(mainCatId) ?? null : null;
   const isTopTalent = meta?.isTopTalent ?? profile.isTopTalent ?? false;
 
+  // Hero background: use main category color tinted, or solid primary
+  const heroBg = mainCatColor
+    ? `linear-gradient(135deg, ${mainCatColor} 0%, color-mix(in oklch, ${mainCatColor} 70%, black) 100%)`
+    : "linear-gradient(135deg, var(--primary) 0%, color-mix(in oklch, var(--primary) 75%, black) 100%)";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
     >
-      {/* overflow-visible on Card so avatar can overlap banner; banner div clips itself */}
-      <Card className="p-0 border-border/60 shadow-card overflow-visible rounded-2xl">
-        {/* Banner — solid petrol-teal color OR uploaded image */}
-        <div className="relative h-40 md:h-44 w-full rounded-t-2xl overflow-hidden bg-primary">
+      <Card className="p-0 shadow-card overflow-visible rounded-3xl">
+        {/* ── Banner ──────────────────────────────────────────────── */}
+        <div
+          className="relative h-44 md:h-56 w-full rounded-t-3xl overflow-hidden"
+          style={{ background: heroBg }}
+        >
           {profile.bannerUrl && !profile.bannerUrl.startsWith("default") ? (
             <img
               src={profile.bannerUrl}
@@ -295,116 +302,141 @@ function ProfileHeader({
             />
           ) : (
             <>
-              {/* Subtle radial highlight (not a gradient) */}
-              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_20%,white_0%,transparent_50%)]" />
+              {/* Subtle radial highlight */}
+              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_20%,white_0%,transparent_55%)]" />
               {/* Dotted pattern */}
               <div
                 className="absolute inset-0 opacity-10"
                 style={{
                   backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
-                  backgroundSize: "24px 24px",
+                  backgroundSize: "28px 28px",
                 }}
               />
+              {/* Soft glow on the right (RTL: leading edge) */}
+              <div className="absolute -bottom-20 -right-10 w-56 h-56 rounded-full bg-white/8 blur-3xl" />
             </>
           )}
-          {profile.isBanned && (
-            <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-rose/90 text-white text-xs font-bold flex items-center gap-1">
-              <AlertTriangle className="w-3.5 h-3.5" /> حساب مسدود
-            </div>
-          )}
-          {profile.isVerifiedBadge && (
-            <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-gold/95 text-white text-[11px] font-bold flex items-center gap-1 shadow-md">
-              <Award className="w-3.5 h-3.5" /> تأیید شده
-            </div>
-          )}
-          {isTopTalent && (
-            <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-gold/95 text-white text-[11px] font-bold flex items-center gap-1 shadow-md">
-              <Crown className="w-3.5 h-3.5" /> استعداد برتر
-            </div>
-          )}
+
+          {/* Top badges row */}
+          <div className="absolute top-4 right-4 left-4 flex justify-between items-start gap-2 flex-wrap">
+            {isTopTalent && (
+              <div className="px-3 py-1.5 rounded-full bg-white/95 text-amber-600 text-xs font-bold flex items-center gap-1.5 shadow-md backdrop-blur-sm">
+                <Icon name="crown" className="w-3.5 h-3.5" />
+                استعداد برتر
+              </div>
+            )}
+            {profile.isVerifiedBadge && !isTopTalent && (
+              <div className="px-3 py-1.5 rounded-full bg-white/95 text-amber-600 text-xs font-bold flex items-center gap-1.5 shadow-md backdrop-blur-sm">
+                <Icon name="shield" className="w-3.5 h-3.5" />
+                تأیید شده
+              </div>
+            )}
+            {profile.isBanned && (
+              <div className="px-3 py-1.5 rounded-full bg-rose/95 text-white text-xs font-bold flex items-center gap-1.5 shadow-md">
+                <Icon name="alert" className="w-3.5 h-3.5" />
+                حساب مسدود
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Identity row */}
-        <div className="px-4 md:px-6 pb-5">
-          <div className="flex flex-col md:flex-row md:items-end gap-4 -mt-14 md:-mt-16">
-            {/* Avatar with category color ring (wrapper div approach) */}
+        {/* ── Identity row ─────────────────────────────────────────── */}
+        <div className="px-5 md:px-8 pb-6">
+          <div className="flex flex-col md:flex-row md:items-end gap-5 -mt-16 md:-mt-20">
+            {/* Avatar — overlapping the header boundary */}
             <div className="relative shrink-0">
-                <UserAvatar
-                  name={profile.name}
-                  avatarUrl={profile.avatarUrl}
-                  verified={profile.isVerifiedBadge}
-                  gender={profile.gender}
-                  ringColor={mainCatColor}
-                  size="2xl"
-                />
-              {/* Top-talent crown on the avatar (in addition to the banner badge) */}
+              <div
+                className="rounded-full ring-4 ring-card shadow-lg"
+                style={{ backgroundColor: mainCatColor ?? "var(--primary)" }}
+              >
+                <div className="p-1.5">
+                  <UserAvatar
+                    name={profile.name}
+                    avatarUrl={profile.avatarUrl}
+                    verified={profile.isVerifiedBadge}
+                    gender={profile.gender}
+                    size="2xl"
+                  />
+                </div>
+              </div>
               {isTopTalent && (
-                <span className="absolute -top-2 -right-2 grid place-items-center w-9 h-9 rounded-full bg-gold text-white shadow-md ring-2 ring-background">
-                  <Crown className="w-5 h-5" />
+                <span className="absolute -top-1.5 -right-1.5 grid place-items-center w-10 h-10 rounded-full bg-amber-400 text-white shadow-lg ring-2 ring-card">
+                  <Icon name="crown" className="w-5 h-5" />
                 </span>
               )}
             </div>
 
-            {/* Name + meta */}
-            <div className="flex-1 min-w-0 md:pb-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">
-                  {profile.name}
-                </h1>
-                {profile.isVerifiedBadge && (
-                  <Badge className="bg-gold/15 text-gold border border-gold/30 rounded-md gap-1">
-                    <Sparkles className="w-3 h-3" /> تأیید شده
-                  </Badge>
+            {/* Name + meta + actions */}
+            <div className="flex-1 min-w-0 md:pb-3">
+              <motion.div
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.35, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+                    {profile.name}
+                  </h1>
+                  {profile.isVerifiedBadge && (
+                    <Badge className="bg-amber-50 text-amber-600 border border-amber-200 rounded-lg gap-1">
+                      <Icon name="shield" className="w-3 h-3" /> تأیید شده
+                    </Badge>
+                  )}
+                  {isTopTalent && (
+                    <Badge className="bg-amber-50 text-amber-600 border border-amber-200 rounded-lg gap-1">
+                      <Icon name="crown" className="w-3 h-3" /> استعداد برتر
+                    </Badge>
+                  )}
+                  {genderLabel && (
+                    <Badge
+                      variant="outline"
+                      className="rounded-lg gap-1 border-primary/25 text-primary font-medium"
+                    >
+                      <Icon name="user" className="w-3 h-3" />
+                      {genderLabel}
+                    </Badge>
+                  )}
+                </div>
+                {profile.username && (
+                  <p className="text-sm text-muted-foreground mt-1" dir="ltr">
+                    @{profile.username}
+                  </p>
                 )}
-                {isTopTalent && (
-                  <Badge className="bg-gold/15 text-gold border border-gold/30 rounded-md gap-1">
-                    <Crown className="w-3 h-3" /> استعداد برتر
-                  </Badge>
+                {profile.bioShort && (
+                  <p className="text-sm text-muted-foreground mt-2 line-clamp-2 leading-6 max-w-xl">
+                    {profile.bioShort}
+                  </p>
                 )}
-                {genderLabel && (
-                  <Badge
-                    variant="outline"
-                    className="rounded-md gap-1 border-primary/25 text-primary font-medium"
-                  >
-                    <VenusAndMars className="w-3 h-3" />
-                    {genderLabel}
-                  </Badge>
-                )}
-              </div>
-              {profile.bioShort && (
-                <p className="text-sm text-muted-foreground mt-1 line-clamp-2 leading-6">
-                  {profile.bioShort}
-                </p>
-              )}
-              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
-                {(provinceName || profile.city) && (
+                <div className="flex items-center gap-3 mt-2.5 text-xs text-muted-foreground flex-wrap">
+                  {(provinceName || profile.city) && (
+                    <span className="inline-flex items-center gap-1">
+                      <Icon name="mapPin" className="w-3.5 h-3.5 text-primary" />
+                      {[provinceName, profile.city].filter(Boolean).join("، ")}
+                    </span>
+                  )}
                   <span className="inline-flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-primary" />
-                    {[provinceName, profile.city].filter(Boolean).join("، ")}
+                    <Icon name="calendar" className="w-3.5 h-3.5 text-primary" />
+                    عضو از {formatFaDate(profile.createdAt)}
                   </span>
-                )}
-                <span className="inline-flex items-center gap-1">
-                  <CalendarDays className="w-3.5 h-3.5 text-primary" />
-                  عضو از {formatFaDate(profile.createdAt)}
-                </span>
-                {profile.phoneVisible && profile.phone && (
-                  <span className="inline-flex items-center gap-1" dir="ltr">
-                    <Phone className="w-3.5 h-3.5 text-primary" />
-                    {toFa(profile.phone)}
-                  </span>
-                )}
-              </div>
+                  {profile.phoneVisible && profile.phone && (
+                    <span className="inline-flex items-center gap-1" dir="ltr">
+                      <Icon name="chat" className="w-3.5 h-3.5 text-primary" />
+                      {toFa(profile.phone)}
+                    </span>
+                  )}
+                </div>
+              </motion.div>
             </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap items-center gap-2 md:pb-2">
+            <div className="flex flex-wrap items-center gap-2 md:pb-3">
               {isSelf ? (
                 <Button
                   variant="outline"
                   onClick={() => navigate({ view: "edit-profile" })}
                   className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-bold"
                 >
-                  <Pencil className="w-4 h-4" /> ویرایش پروفایل
+                  <Icon name="pencil" className="w-4 h-4" /> ویرایش پروفایل
                 </Button>
               ) : (
                 <>
@@ -435,46 +467,45 @@ function ProfileHeader({
                     }}
                     className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-bold"
                   >
-                    <MessageCircle className="w-4 h-4" /> پیام
+                    <Icon name="chat" className="w-4 h-4" /> پیام
                   </Button>
                   <Button
                     variant="ghost"
                     onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
                     className="gap-1.5 rounded-2xl font-semibold text-muted-foreground"
                   >
-                    <Download className="w-4 h-4" /> رزومه
+                    <Icon name="upload" className="w-4 h-4" /> رزومه
                   </Button>
                 </>
               )}
             </div>
           </div>
 
-          {/* Counts row */}
-          <div className="flex items-center gap-5 mt-5 pt-4 border-t border-border/60 text-sm">
+          {/* Counts row — single "ارتباطات" count */}
+          <div className="flex items-center gap-6 mt-5 pt-4 border-t border-border/60 text-sm">
             <button
               className="hover:opacity-80 transition-opacity text-right"
               onClick={() => navigate({ view: "connections" })}
             >
-              <span className="font-extrabold text-primary">
-                {formatCount(profile.followingCount)}
+              <span className="font-extrabold text-primary text-lg">
+                {formatCount(profile.followersCount + profile.followingCount)}
               </span>
-              <span className="text-muted-foreground mr-1">دنبال‌شده</span>
-            </button>
-            <button
-              className="hover:opacity-80 transition-opacity text-right"
-              onClick={() => navigate({ view: "connections" })}
-            >
-              <span className="font-extrabold text-primary">
-                {formatCount(profile.followersCount)}
-              </span>
-              <span className="text-muted-foreground mr-1">دنبال‌کننده</span>
+              <span className="text-muted-foreground mr-1.5">ارتباطات</span>
             </button>
             <span className="text-muted-foreground">
-              <span className="font-extrabold text-primary">
+              <span className="font-extrabold text-primary text-lg">
                 {formatCount(profile.postCount)}
               </span>
-              <span className="mr-1">پست</span>
+              <span className="mr-1.5">پست</span>
             </span>
+            {profile.categories.length > 0 && (
+              <span className="text-muted-foreground">
+                <span className="font-extrabold text-primary text-lg">
+                  {toFa(profile.categories.length)}
+                </span>
+                <span className="mr-1.5">تخصص</span>
+              </span>
+            )}
           </div>
         </div>
       </Card>
@@ -482,6 +513,9 @@ function ProfileHeader({
   );
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Connection Button — accept / pending / connect states
+   ────────────────────────────────────────────────────────────────── */
 function ConnectionButton({
   profile,
   onUpdated,
@@ -522,7 +556,7 @@ function ConnectionButton({
         disabled
         className="gap-1.5 rounded-2xl bg-primary/15 text-primary border border-primary/40 font-bold"
       >
-        <UserCheck className="w-4 h-4" /> متصل
+        <Icon name="userCheck" className="w-4 h-4" /> متصل
       </Button>
     );
   }
@@ -532,9 +566,9 @@ function ConnectionButton({
         variant="outline"
         onClick={handle}
         disabled
-        className="gap-1.5 rounded-2xl border-gold/40 text-gold font-bold"
+        className="gap-1.5 rounded-2xl border-amber-400/50 text-amber-600 font-bold"
       >
-        <Clock className="w-4 h-4" /> در انتظار
+        <Icon name="calendar" className="w-4 h-4" /> در انتظار
       </Button>
     );
   }
@@ -545,7 +579,7 @@ function ConnectionButton({
         disabled={busy}
         className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
       >
-        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+        {busy ? <Spinner className="w-4 h-4" /> : <Icon name="userCheck" className="w-4 h-4" />}
         پذیرش درخواست
       </Button>
     );
@@ -556,12 +590,15 @@ function ConnectionButton({
       disabled={busy}
       className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-sm"
     >
-      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-      دنبال کردن
+      {busy ? <Spinner className="w-4 h-4" /> : <Icon name="userPlus" className="w-4 h-4" />}
+      برقراری ارتباط
     </Button>
   );
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Tabs — درباره | رزومه | پست‌ها
+   ────────────────────────────────────────────────────────────────── */
 function ProfileTabs({
   profile,
   isSelf,
@@ -571,22 +608,22 @@ function ProfileTabs({
 }) {
   return (
     <Tabs defaultValue="about" className="w-full">
-      <TabsList className="w-full grid grid-cols-3 h-11 rounded-2xl bg-muted/60 p-1">
+      <TabsList className="w-full grid grid-cols-3 h-12 rounded-3xl bg-muted/60 p-1">
         <TabsTrigger
           value="about"
-          className="rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          className="rounded-2xl font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
         >
           درباره
         </TabsTrigger>
         <TabsTrigger
           value="resume"
-          className="rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          className="rounded-2xl font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
         >
           رزومه
         </TabsTrigger>
         <TabsTrigger
           value="posts"
-          className="rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          className="rounded-2xl font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
         >
           پست‌ها
         </TabsTrigger>
@@ -605,6 +642,9 @@ function ProfileTabs({
   );
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   About tab — bio + general info + categories with colors
+   ────────────────────────────────────────────────────────────────── */
 function AboutTab({ profile }: { profile: ProfileDetail }) {
   const hasBio = profile.bioLong.trim().length > 0;
   const hasCategories = profile.categories.length > 0;
@@ -613,7 +653,7 @@ function AboutTab({ profile }: { profile: ProfileDetail }) {
 
   if (!hasBio && !hasCategories && !genderLabel) {
     return (
-      <Card className="p-5 border-border/60 shadow-card">
+      <Card className="p-5 rounded-3xl shadow-card">
         <EmptyState
           kind="generic"
           title="هنوز توضیحاتی ثبت نشده"
@@ -631,12 +671,12 @@ function AboutTab({ profile }: { profile: ProfileDetail }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
         >
-          <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
-            <h2 className="text-sm font-bold mb-3 flex items-center gap-1.5">
-              <span className="grid place-items-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
-                <FileSignature className="w-4 h-4" />
+          <Card className="p-6 rounded-3xl shadow-card hover:shadow-lift transition-shadow duration-300">
+            <h2 className="text-sm font-bold mb-3 flex items-center gap-2">
+              <span className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary">
+                <Icon name="sparkles" className="w-4 h-4" />
               </span>
-              درباره
+              درباره من
             </h2>
             <p className="text-sm leading-8 whitespace-pre-wrap break-words text-foreground/90">
               {profile.bioLong}
@@ -650,32 +690,39 @@ function AboutTab({ profile }: { profile: ProfileDetail }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
       >
-        <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
-          <h2 className="text-sm font-bold mb-4 flex items-center gap-1.5">
-            <span className="grid place-items-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
-              <VenusAndMars className="w-4 h-4" />
+        <Card className="p-6 rounded-3xl shadow-card hover:shadow-lift transition-shadow duration-300">
+          <h2 className="text-sm font-bold mb-4 flex items-center gap-2">
+            <span className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary">
+              <Icon name="user" className="w-4 h-4" />
             </span>
             اطلاعات کلی
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {genderLabel && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/40">
-                <VenusAndMars className="w-4 h-4 text-primary" />
+              <div className="flex items-center gap-2 p-3 rounded-2xl bg-muted/40">
+                <Icon name="user" className="w-4 h-4 text-primary" />
                 <span className="text-xs text-muted-foreground">جنسیت:</span>
                 <span className="text-sm font-semibold">{genderLabel}</span>
               </div>
             )}
             {(getProvinceName(profile.province) || profile.city) && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/40">
-                <MapPin className="w-4 h-4 text-primary" />
+              <div className="flex items-center gap-2 p-3 rounded-2xl bg-muted/40">
+                <Icon name="mapPin" className="w-4 h-4 text-primary" />
                 <span className="text-xs text-muted-foreground">موقعیت:</span>
                 <span className="text-sm font-semibold">
                   {[getProvinceName(profile.province), profile.city].filter(Boolean).join("، ")}
                 </span>
               </div>
             )}
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/40">
-              <CalendarDays className="w-4 h-4 text-primary" />
+            {profile.username && (
+              <div className="flex items-center gap-2 p-3 rounded-2xl bg-muted/40" dir="ltr">
+                <Icon name="userPlus" className="w-4 h-4 text-primary" />
+                <span className="text-xs text-muted-foreground">نام کاربری:</span>
+                <span className="text-sm font-semibold" dir="ltr">@{profile.username}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2 p-3 rounded-2xl bg-muted/40">
+              <Icon name="calendar" className="w-4 h-4 text-primary" />
               <span className="text-xs text-muted-foreground">عضو از:</span>
               <span className="text-sm font-semibold">{formatFaDate(profile.createdAt)}</span>
             </div>
@@ -689,10 +736,10 @@ function AboutTab({ profile }: { profile: ProfileDetail }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
         >
-          <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
-            <h2 className="text-sm font-bold mb-4 flex items-center gap-1.5">
-              <span className="grid place-items-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
-                <Hash className="w-4 h-4" />
+          <Card className="p-6 rounded-3xl shadow-card hover:shadow-lift transition-shadow duration-300">
+            <h2 className="text-sm font-bold mb-4 flex items-center gap-2">
+              <span className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary">
+                <Icon name="spark" className="w-4 h-4" />
               </span>
               تخصص‌ها و مهارت‌ها
             </h2>
@@ -733,13 +780,16 @@ function AboutTab({ profile }: { profile: ProfileDetail }) {
   );
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Resume tab — experiences + educations timeline
+   ────────────────────────────────────────────────────────────────── */
 function ResumeTab({ profile }: { profile: ProfileDetail }) {
   const hasExp = profile.experiences.length > 0;
   const hasEdu = profile.educations.length > 0;
 
   if (!hasExp && !hasEdu) {
     return (
-      <Card className="p-5 border-border/60 shadow-card">
+      <Card className="p-5 rounded-3xl shadow-card">
         <EmptyState
           kind="generic"
           title="رزومه‌ای ثبت نشده"
@@ -757,10 +807,10 @@ function ResumeTab({ profile }: { profile: ProfileDetail }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
         >
-          <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
-            <h2 className="text-sm font-bold mb-4 flex items-center gap-1.5">
-              <span className="grid place-items-center w-7 h-7 rounded-lg bg-primary/10 text-primary">
-                <Briefcase className="w-4 h-4" />
+          <Card className="p-6 rounded-3xl shadow-card hover:shadow-lift transition-shadow duration-300">
+            <h2 className="text-sm font-bold mb-4 flex items-center gap-2">
+              <span className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary">
+                <Icon name="briefcase" className="w-4 h-4" />
               </span>
               سوابق کاری
             </h2>
@@ -771,9 +821,9 @@ function ResumeTab({ profile }: { profile: ProfileDetail }) {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: i * 0.05 }}
-                  className="relative pr-4 border-r-2 border-primary/30 last:border-transparent pb-3 last:pb-0"
+                  className="relative pr-5 border-r-2 border-primary/30 last:border-transparent pb-4 last:pb-0"
                 >
-                  <div className="absolute -right-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-card" />
+                  <div className="absolute -right-[6px] top-1.5 w-3 h-3 rounded-full bg-primary ring-4 ring-card" />
                   <div className="flex items-baseline justify-between gap-2 flex-wrap">
                     <h3 className="font-bold text-sm">
                       {e.jobTitle}{" "}
@@ -817,10 +867,10 @@ function ResumeTab({ profile }: { profile: ProfileDetail }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
         >
-          <Card className="p-5 border-border/60 shadow-card hover:shadow-lift transition-shadow duration-300">
-            <h2 className="text-sm font-bold mb-4 flex items-center gap-1.5">
-              <span className="grid place-items-center w-7 h-7 rounded-lg bg-gold/15 text-gold">
-                <GraduationCap className="w-4 h-4" />
+          <Card className="p-6 rounded-3xl shadow-card hover:shadow-lift transition-shadow duration-300">
+            <h2 className="text-sm font-bold mb-4 flex items-center gap-2">
+              <span className="grid place-items-center w-8 h-8 rounded-xl bg-amber-100 text-amber-600">
+                <Icon name="award" className="w-4 h-4" />
               </span>
               تحصیلات
             </h2>
@@ -831,9 +881,9 @@ function ResumeTab({ profile }: { profile: ProfileDetail }) {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: i * 0.05 }}
-                  className="relative pr-4 border-r-2 border-gold/40 last:border-transparent pb-3 last:pb-0"
+                  className="relative pr-5 border-r-2 border-amber-400/40 last:border-transparent pb-4 last:pb-0"
                 >
-                  <div className="absolute -right-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-gold ring-4 ring-card" />
+                  <div className="absolute -right-[6px] top-1.5 w-3 h-3 rounded-full bg-amber-400 ring-4 ring-card" />
                   <div className="flex items-baseline justify-between gap-2 flex-wrap">
                     <h3 className="font-bold text-sm">{e.degree}</h3>
                     {e.year && (
@@ -858,6 +908,9 @@ function ResumeTab({ profile }: { profile: ProfileDetail }) {
   );
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Posts tab
+   ────────────────────────────────────────────────────────────────── */
 function PostsTab({ userId, isSelf }: { userId: string; isSelf: boolean }) {
   const [posts, setPosts] = useState<PostWithRelations[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -883,7 +936,7 @@ function PostsTab({ userId, isSelf }: { userId: string; isSelf: boolean }) {
     return (
       <div className="space-y-3">
         {[...Array(2)].map((_, i) => (
-          <Card key={i} className="p-4 space-y-3 border-border/60 shadow-card">
+          <Card key={i} className="p-4 space-y-3 rounded-3xl shadow-card">
             <div className="flex items-center gap-3">
               <Skeleton className="w-11 h-11 rounded-full" />
               <div className="space-y-1.5 flex-1">
@@ -901,7 +954,7 @@ function PostsTab({ userId, isSelf }: { userId: string; isSelf: boolean }) {
 
   if (!posts || posts.length === 0) {
     return (
-      <Card className="p-5 border-border/60 shadow-card">
+      <Card className="p-5 rounded-3xl shadow-card">
         <EmptyState
           kind="posts"
           title="پستی منتشر نشده"
@@ -917,7 +970,7 @@ function PostsTab({ userId, isSelf }: { userId: string; isSelf: boolean }) {
                 onClick={() => navigate({ view: "feed" })}
                 className="rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5 font-bold"
               >
-                <FileText className="w-4 h-4" /> رفتن به فید
+                <Icon name="sparkles" className="w-4 h-4" /> رفتن به فید
               </Button>
             ) : undefined
           }
@@ -935,6 +988,9 @@ function PostsTab({ userId, isSelf }: { userId: string; isSelf: boolean }) {
   );
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Sidebar stats card
+   ────────────────────────────────────────────────────────────────── */
 function QuickStatsCard({
   profile,
   meta,
@@ -944,10 +1000,24 @@ function QuickStatsCard({
 }) {
   const isTopTalent = meta?.isTopTalent ?? profile.isTopTalent ?? false;
   const stats = [
-    { label: "پست", value: profile.postCount, icon: FileText, tint: "bg-primary/10 text-primary" },
-    { label: "دنبال‌کننده", value: profile.followersCount, icon: Users, tint: "bg-primary/10 text-primary" },
-    { label: "دنبال‌شده", value: profile.followingCount, icon: UserCheck, tint: "bg-gold/15 text-gold" },
-    { label: "تخصص", value: profile.categories.length, icon: Star, tint: "bg-rose/15 text-rose" },
+    {
+      label: "پست",
+      value: profile.postCount,
+      icon: "sparkles" as const,
+      tint: "bg-primary/10 text-primary",
+    },
+    {
+      label: "ارتباطات",
+      value: profile.followersCount + profile.followingCount,
+      icon: "users" as const,
+      tint: "bg-primary/10 text-primary",
+    },
+    {
+      label: "تخصص",
+      value: profile.categories.length,
+      icon: "spark" as const,
+      tint: "bg-rose/15 text-rose",
+    },
   ];
   return (
     <motion.div
@@ -955,34 +1025,31 @@ function QuickStatsCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
     >
-      <Card className="p-5 border-border/60 shadow-card">
+      <Card className="p-5 rounded-3xl shadow-card">
         <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
-          <Heart className="w-4 h-4 text-rose" /> آمار سریع
+          <Icon name="heart" className="w-4 h-4 text-rose" /> آمار سریع
         </h3>
-        <div className="grid grid-cols-2 gap-2">
-          {stats.map((s) => {
-            const Icon = s.icon;
-            return (
-              <div
-                key={s.label}
-                className="rounded-2xl bg-muted/40 p-3 flex flex-col items-center text-center hover:bg-muted transition-colors"
-              >
-                <div className={`grid place-items-center w-8 h-8 rounded-lg ${s.tint} mb-1.5`}>
-                  <Icon className="w-4 h-4" />
-                </div>
-                <span className="text-lg font-extrabold">{formatCount(s.value)}</span>
-                <span className="text-[11px] text-muted-foreground">{s.label}</span>
+        <div className="grid grid-cols-3 gap-2">
+          {stats.map((s) => (
+            <div
+              key={s.label}
+              className="rounded-2xl bg-muted/40 p-3 flex flex-col items-center text-center hover:bg-muted transition-colors"
+            >
+              <div className={`grid place-items-center w-9 h-9 rounded-xl ${s.tint} mb-1.5`}>
+                <Icon name={s.icon} className="w-4 h-4" />
               </div>
-            );
-          })}
+              <span className="text-base font-extrabold">{formatCount(s.value)}</span>
+              <span className="text-[11px] text-muted-foreground">{s.label}</span>
+            </div>
+          ))}
         </div>
 
         {isTopTalent && (
-          <div className="mt-3 p-3 rounded-2xl bg-gold/8 border border-gold/20 flex items-center gap-2">
-            <Crown className="w-4 h-4 text-gold shrink-0" />
+          <div className="mt-3 p-3 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-2">
+            <Icon name="crown" className="w-4 h-4 text-amber-600 shrink-0" />
             <div>
-              <p className="text-xs font-bold text-gold">استعداد برتر</p>
-              <p className="text-[10px] text-gold/80 mt-0.5 leading-4">
+              <p className="text-xs font-bold text-amber-600">استعداد برتر</p>
+              <p className="text-[10px] text-amber-700/80 mt-0.5 leading-4">
                 این کاربر توسط تیم همتیم تأیید شده است.
               </p>
             </div>
@@ -993,30 +1060,34 @@ function QuickStatsCard({
   );
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Loading skeleton
+   ────────────────────────────────────────────────────────────────── */
 function ProfileSkeleton() {
   return (
-    <div className="space-y-4">
-      <Card className="overflow-visible p-0 border-border/60 shadow-card rounded-2xl">
-        <Skeleton className="h-40 md:h-44 w-full rounded-none rounded-t-2xl" />
-        <div className="px-6 pb-6 -mt-14 md:-mt-16">
-          <div className="flex items-end gap-4">
+    <div className="space-y-5">
+      <Card className="overflow-visible p-0 shadow-card rounded-3xl">
+        <Skeleton className="h-44 md:h-56 w-full rounded-none rounded-t-3xl" />
+        <div className="px-6 md:px-8 pb-6 -mt-16 md:-mt-20">
+          <div className="flex items-end gap-5">
             <Skeleton className="w-28 h-28 rounded-full ring-4 ring-card" />
             <div className="flex-1 space-y-2">
-              <Skeleton className="h-5 w-40 rounded" />
-              <Skeleton className="h-3 w-56 rounded" />
+              <Skeleton className="h-6 w-40 rounded" />
               <Skeleton className="h-3 w-32 rounded" />
+              <Skeleton className="h-3 w-56 rounded" />
+              <Skeleton className="h-3 w-40 rounded" />
             </div>
           </div>
-          <div className="flex gap-4 mt-5 pt-4 border-t border-border/60">
-            <Skeleton className="h-4 w-20 rounded" />
-            <Skeleton className="h-4 w-20 rounded" />
-            <Skeleton className="h-4 w-16 rounded" />
+          <div className="flex gap-5 mt-5 pt-4 border-t border-border/60">
+            <Skeleton className="h-5 w-24 rounded" />
+            <Skeleton className="h-5 w-16 rounded" />
+            <Skeleton className="h-5 w-16 rounded" />
           </div>
         </div>
       </Card>
-      <Card className="p-4 border-border/60 shadow-card">
-        <Skeleton className="h-11 w-full mb-3 rounded-2xl" />
-        <Skeleton className="h-32 w-full rounded" />
+      <Card className="p-4 rounded-3xl shadow-card">
+        <Skeleton className="h-12 w-full mb-3 rounded-2xl" />
+        <Skeleton className="h-32 w-full rounded-2xl" />
       </Card>
     </div>
   );

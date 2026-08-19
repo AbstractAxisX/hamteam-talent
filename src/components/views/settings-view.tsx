@@ -1,15 +1,15 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useSettings, THEME_COLORS, FONTS, type ThemeMode, type ThemeColor, type FontFamily } from "@/lib/settings";
+import { useSettings, FONTS, type ThemeMode } from "@/lib/settings";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Moon, Sun, Monitor, Palette, Type, Check } from "lucide-react";
+import { Moon, Sun, Monitor, Type, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 export function SettingsView() {
-  const { mode, color, font, setMode, setColor, setFont } = useSettings();
+  const { mode, font, setMode, setFont } = useSettings();
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
@@ -28,32 +28,8 @@ export function SettingsView() {
         </div>
       </Section>
 
-      {/* Theme Color */}
-      <Section title="رنگ اصلی" icon={Palette} delay={0.1}>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-          {THEME_COLORS.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => { setColor(c.id); toast({ title: `رنگ «${c.name}» اعمال شد` }); }}
-              className={cn(
-                "relative flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all",
-                color === c.id ? "border-foreground/30 bg-muted/40" : "border-border hover:border-foreground/15"
-              )}
-            >
-              <span
-                className="w-10 h-10 rounded-full shadow-soft"
-                style={{ background: c.swatch }}
-              />
-              <span className="text-xs font-semibold">{c.name}</span>
-              {color === c.id && (
-                <span className="absolute top-1.5 right-1.5 grid place-items-center w-5 h-5 rounded-full bg-primary text-primary-foreground">
-                  <Check className="w-3 h-3" />
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      </Section>
+      {/* Theme Color picker — DISABLED per spec (Modern Indigo palette is locked) */}
+      {/* (removed) */}
 
       {/* Font */}
       <Section title="فونت" icon={Type} delay={0.15}>

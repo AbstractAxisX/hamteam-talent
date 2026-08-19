@@ -1027,3 +1027,207 @@ Stage Summary:
 - Categories tab: new "رنگ" column showing color dot + uppercase hex (or "—"). Create-dialog got color picker: 10 preset color buttons (selected = dark border + scale-110) + custom-color round swatch wrapping a hidden `<input type="color">` (Palette icon overlay with mix-blend-difference for visibility on any hue) + uppercase hex label. POST body sends `color: newColor || null`. ColSpan updated 6→7 in skeleton + empty row + 5→6 in expandable sub-row.
 - All Persian text, toFa() numerals, Vazirmatn font, white-blue admin theme preserved (oklch(0.5 0.15 250) primary, no indigo). Mobile-first responsive (overflow-x-auto on all tables, hidden sm:inline labels on action buttons). Accessibility: aria-labels on every button, title attributes on color swatches, semantic <a> + target=_blank + rel=noopener for image links. Framer Motion: motion.div on summary cards (already), AnimatePresence page transitions (already in parent AdminDashboard), motion.div on pending alert banner.
 - Lint clean (0 errors, 0 warnings). Dev server healthy. All API contracts verified via curl end-to-end: categories POST persists color, user top-talent toggle returns new state, post feature toggle correctly guards on user.isTopTalent, GET endpoints project the new additive fields.
+
+---
+Task ID: UI-Profile
+Agent: ui-redesigner (Profile / EditProfile / Connections)
+Task: COMPLETE ground-up UI redesign of ProfileView, EditProfileView, ConnectionsView for Persian RTL talent platform (همتیم / HamTeam)
+
+Work Log:
+- Read worklog.md, src/components/shared/icon.tsx (full iconMap), src/components/shared/user-avatar.tsx (ringColor prop), src/lib/types.ts (ProfileDetail has username + mainCategoryId, ProfileMeta), src/lib/nav.ts (routes), src/lib/format.ts (toFa, formatCount), src/lib/api-client.ts (api/apiPost/apiPut/apiDelete), src/lib/use-user.ts, src/app/api/profile/[id]/route.ts, src/app/api/profile/me/route.ts, src/app/api/profile/[id]/meta/route.ts, src/app/api/username/set/route.ts, src/app/api/connections/route.ts, src/app/api/categories/route.ts, src/app/globals.css (Modern Indigo palette confirmed), src/components/ui/card.tsx + button.tsx + badge.tsx (shadcn defaults). Also re-read the existing 3 view files end-to-end to understand every API call, every Dialog, every form state — all behaviors preserved.
+
+Design decisions:
+- Modern Indigo palette already in globals.css — fully embraced (bg-card pure white, primary vibrant indigo, gold for verified/top-talent, rose for danger, soft muted backgrounds).
+- All cards upgraded to `rounded-3xl shadow-card` (NO border) for premium soft-shadow look. Hover transitions to `shadow-lift` on key surfaces.
+- Every Icon rendered through `Icon` from `@/components/shared/icon` (zero lucide-react imports remain in all 3 files). Added a small inline `Spinner` SVG (no lucide Loader2 dependency) used in place of every former `<Loader2 className="animate-spin" />`.
+- Avatar overlap: outer wrapper div with `rounded-full ring-4 ring-card shadow-lg` set to `backgroundColor: mainCatColor ?? var(--primary)` then `p-1.5` padding, then `<UserAvatar size="2xl">` (which itself has ring-2 ring-card internally for the avatar disk). The wrapper colored background bleeds into the avatar's transparent padding = a category-color halo. This achieves the spec's "avatar breaks the header boundary" with a thick white border + colored ring.
+- Hero header background uses `linear-gradient(135deg, ${mainCatColor}, color-mix(in oklch, ${mainCatColor} 70%, black))` — falls back to `var(--primary)` gradient when no main category color. Plus dotted pattern + radial highlight + soft glow for premium depth.
+- Top-talent crown: amber crown chip on banner top-right AND amber crown badge in identity row AND amber crown disc at avatar's top-right corner (ring-2 ring-card).
+- Username (`@username`) now displayed under the name (dir="ltr") — wired from `profile.username` returned by GET /api/profile/[id].
+- Gender badge (مرد/زن) using `Icon name="user"` (no VenusAndMars in iconMap; using the more universal user icon is intentional and clean).
+- Counts row REPLACES the old "دنبال‌کننده/دنبال‌شونده" pair with a single "ارتباطات" button showing `formatCount(profile.followersCount + profile.followingCount)` → navigates to connections view. Plus "پست" count + "تخصص" count. Old follower/following terminology fully removed (grep confirms zero occurrences of "دنبال").
+- Sidebar (lg+ sticky): QuickStatsCard (3 cells: پست/ارتباطات/تخصص with tinted icon tiles + top-talent callout block if isTopTalent), Categories-with-color strip card (color bar under each category when `c.color` exists), Quick-Actions card (ویرایش پروفایل for self / شروع گفتگو + دانلود رزومه PDF for others).
+- Tabs styled with `data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm` on a `rounded-3xl bg-muted/60 p-1` TabsList — premium segmented control look.
+- AboutTab: bio card with sparkles icon, "اطلاعات کلی" 2-col grid (جنسیت/موقعیت/نام کاربری/عضو از — note username now also surfaced here in the about grid), categories card with colored skill chips.
+- ResumeTab: experiences timeline (right border primary, ringed dots) + educations timeline (right border amber, ringed dots) — both with framer-motion staggered fade-up per item.
+- PostsTab: PostCard list with 2-card skeleton loader. Empty state for self ("پست‌های شما اینجا نمایش داده می‌شوند") + others ("این کاربر هنوز پستی منتشر نکرده است").
+- ProfileSkeleton: full premium skeleton (banner skeleton + 28×28 avatar skeleton with ring-4 ring-card + counts row skeleton + tabs skeleton).
+
+- EditProfileView: brand-new section 0 added — UsernameSection wired to POST /api/username/set (validates 3-20 chars, [a-z0-9_], shows the current username as a colored chip, live-validates + shows amber "نامعتبر است" alert when invalid+dirty, save button disabled until valid+dirty, toast on success/fail). All 6 existing sections preserved end-to-end:
+  1. PhotosBioSection (avatar + banner multipart upload via /api/upload type=avatar|banner, bio short ≤200, bio long ≤4000, character counters)
+  2. GenderSection (RadioGroup: مرد/زن/نامشخص, immediate save on change, amber saving hint)
+  3. LocationSection (province+city Selects against PROVINCES, phoneVisible Switch in a tinted card showing the masked phone)
+  4. CategoriesSection (add category Dialog with color dot, remove category, add/remove skill Dialog per category, color stripe rendered when category has color)
+  5. MainCategorySection (RadioGroup of user's categories with color swatches + colored box-shadow when active; live avatar-ring preview; clear-selection button)
+  6. ExperienceSection (add Dialog with jobTitle/organization/dates/description/category+skill Selects, list of cards with briefcase-icon tile)
+  7. EducationSection (add Dialog with degree/institution/year/description, list of cards with amber-100 award-icon tile)
+- Section chips nav now includes "نام کاربری" as the first item, all 8 sections linked via scrollIntoView smooth.
+- SectionTitle helper: indigo icon tile (rounded-xl bg-primary/10 text-primary) + bold heading. Spinner replaces Loader2 everywhere.
+- EditSkeleton: rounded-3xl cards with skeleton blocks for hero + 2 sections.
+
+- ConnectionsView: brand-new Header — primary-filled icon tile + title "ارتباطات" + subtitle + new 3-cell quick-stats strip showing (ارتباطات/دریافتی/ارسالی counts) in rounded-2xl cards. Old tabs order changed to default to "pending" when there are pending requests, else "accepted" (better UX). Each tab trigger uses `Icon` (userPlus/userCheck/send) + Persian label + count Badge (amber for pending, primary for accepted, secondary for sent). All tabs with rounded-2xl active state.
+- PersonRow: rounded-3xl card, no border, hover-to-lift shadow. Avatar → UserAvatar size="lg". Name is a button → navigate profile. bioShort truncated. timeAgoFa on a separate muted line. Actions stacked vertically on the left side (RTL: end side).
+- PendingCard: dual buttons (پذیرش primary + رد outline-rose) with proper spinner-on-busy.
+- AcceptedCard: outlined چت button that POSTs /api/chat/start then navigates to chat view.
+- SentCard: amber "در انتظار پاسخ" badge with calendar icon.
+- All Persian text uses "ارتباطات" terminology (grep confirms zero occurrences of "دنبال" in any of the 3 files; "ارتباطات" appears 7+ times in correct contexts).
+
+Verification:
+- `cd /home/z/my-project && bun run lint 2>&1 | tail -20` → 0 errors, 2 warnings (both in unrelated explore-view.tsx).
+- `tail -50 dev.log` → all routes return 200, zero compile errors, zero runtime errors after my changes were picked up by Next.js hot-reload. The transient `Trophy01Icon is not defined` error in earlier dev.log entries (line 949) was caused by another agent's in-flight edit to icon.tsx — that file's current state is clean (re-verified by reading icon.tsx in full; it imports 60+ hugeicons and exposes them through the `Icon` component without any dangling `Trophy01Icon` reference). After icon.tsx stabilized, all `GET /` responses return 200 (lines 968, 975, 981, 987 in dev.log).
+- `grep -c "^export function"` → 1 named export per file (ProfileView / EditProfileView / ConnectionsView), matching the required public API.
+- `grep lucide-react` on the 3 files → zero imports remaining.
+- `grep "دنبال"` on the 3 files → zero occurrences (old follower terminology fully removed).
+- `grep "ارتباطات"` on the 3 files → 7+ occurrences in correct contexts (count label, sidebar stat label, connections view title + header + empty states).
+- `grep "profile.username"` → username wired into ProfileView identity row, AboutTab info grid, and EditProfileView's new UsernameSection.
+- `grep "ring-4"` → avatar wrapper + skeleton + timeline dots all use ring-4 ring-card (the spec's "thick white border").
+- `grep "ringColor\|mainCatColor"` → main category color resolved from /api/categories color field, passed as backgroundColor on the avatar wrapper div (premium colored ring behind avatar).
+
+Stage Summary:
+- 3 view files fully rewritten (profile-view.tsx 1094 lines, edit-profile-view.tsx 1706 lines, connections-view.tsx 513 lines). All existing functionality preserved end-to-end (every API call, every Dialog, every form state, every navigate() route).
+- NEW: EditProfileView gained a UsernameSection at the top (POST /api/username/set) — fully wired with validation, live dirty-state, and toast feedback.
+- NEW: ProfileView displays `@username` under the name and in the about-info grid.
+- CHANGED: ProfileView counts row replaced follower/following pair with a single "ارتباطات" count button (sum of followersCount + followingCount). ConnectionsView header now shows a 3-cell stats strip and uses "ارتباطات" as the primary noun throughout (header title, accepted-tab label, accepted-tab count badge, empty-state copy).
+- CHANGED: Avatar implementation — outer wrapper with `rounded-full ring-4 ring-card shadow-lg` + `backgroundColor: mainCatColor ?? var(--primary)` + p-1.5 padding around `<UserAvatar>`. Creates the spec's "avatar breaks the header boundary with thick white border + colored ring" effect using the user's main category color (with primary fallback).
+- CHANGED: Hero header uses linear-gradient from mainCatColor (or primary fallback) with dotted pattern + radial highlight + soft glow for premium depth.
+- CHANGED: All cards upgraded to `rounded-3xl shadow-card` (no borders), all hover transitions to `shadow-lift`.
+- CHANGED: All icons now go through `Icon` from `@/components/shared/icon` (hugeicons). Zero lucide-react imports remain. Inline `Spinner` SVG used for loading states (no external dependency).
+- CHANGED: Top-talent crown rendered 3× (banner chip, identity-row badge, avatar corner disc) for strong visual emphasis.
+- Lint clean (0 errors). Dev server healthy (all 200s after icon.tsx stabilized). No API routes, app-shell, admin, or schema files modified.
+
+---
+Task ID: UI-Explore-Chat
+Agent: full-stack-developer (UI Redesign: Explore + Chat + Dashboard)
+
+Task: Ground-up UI redesign of Explore (Top Talents), Chat, and Dashboard views for the Persian (RTL) talent discovery platform "همتیم" (HamTeam). Stunning Instagram-like Explore page, premium-feel Chat, and beautifully-organized Dashboard. All Persian text, Vazirmatn font, modern indigo palette, framer-motion animations, mobile-first iOS-quality. Use `Icon` from `@/components/shared/icon` for ALL icons (NOT lucide-react).
+
+Work Log:
+- Read worklog.md, existing explore-view.tsx (1470 lines), chat-view.tsx (1188 lines), dashboard-view.tsx (309 lines), icon.tsx, user-avatar.tsx, searchable-select.tsx, empty-state.tsx, post-card.tsx, globals.css (indigo palette confirmed), types.ts, format.ts, nav.ts, api-client.ts, use-user.ts, app-shell.tsx (mount points for views). Checked package.json (`@hugeicons/react` + `@hugeicons/core-free-icons` installed). Checked hugeicons esm dir for available icon names.
+- Extended icon.tsx (additive — 0 existing names broken, 0 existing behavior changed, 13 new icon names added): `chevronLeft` (ChevronLeftIcon), `arrowRight` (ArrowRight01Icon), `arrowLeft` (ArrowLeft01Icon), `lock` (LockIcon), `clock` (Clock01Icon), `checkCheck` (CheckCheckIcon), `checkSingle` (CheckIcon), `loader` (Loading02Icon), `verified` (BadgeCheckIcon), `messageCircle` (alias to Message01Icon), `messageSquare` (alias to Comment01Icon), `fileText` (File01Icon), `trendingUp` (ChartIncreaseIcon). All needed for the new views (chevronLeft for "بیشتر" arrows, lock for login-required state, clock for pending status, checkCheck for seen double-tick, checkSingle for sent single-tick, loader for spinners, trendingUp for stats, etc.).
+- Wrote new explore-view.tsx (~1549 lines, "use client", exports `ExploreView()` + `PostDetailView({id})`):
+  * Hero header — large rounded-3xl card with sparkles icon in primary-tinted square (shadow-lg shadow-primary/30), indigo + gold decorative blur blobs, "استعدادهای برتر" title + subtitle. Stagger fade-down.
+  * Filters card — bg-card rounded-3xl, SearchableSelect for category (with emoji prefix) + skill (chained, posts-tab only), clear-filters pill button (X icon, bg-muted, hover bg-foreground/5).
+  * Sticky segmented tabs — `sticky top-0 z-30`, p-1 inside bg-card rounded-2xl, animated TabsIndicator (motion.div with layout + spring) sliding between two positions, TabButton z-10 over the indicator with primary-foreground color when active. Live counts with `toFa` numerals.
+  * PostsGrid — 2-col mobile / 3-col lg, gap-1.5 sm:2.5. ExplorePostTile = motion.button aspect-square with:
+    - Media (image cover OR video with play badge) when present; otherwise tinted gradient background (135° gradient based on category color hue via softTintGradient).
+    - Category chip on top-right (bg-black/55 text-white pill with emoji + name) when media; when text-only: chip in top-left + skill chip in top-right (sm only).
+    - Bottom overlay with poster mini-avatar (xs, wrapped in mainCategoryColor ring) + name (truncate) + like count (rose heart, fill when liked) + comment count (messageSquare icon). Stats only shown when > 0.
+    - Stagger entrance (initial opacity-0 scale-0.9 y-8 → animate scale-1 y-0, delay = min(i*0.05, 0.4)), whileHover y-3, whileTap scale 0.97, hover shadow-xl shadow-primary/10.
+  * PeopleGrid — 2-col mobile / 3-col lg, gap-2.5 sm:3. PeopleTile = motion.button card with:
+    - Decorative corner glow (color = mainCategoryColor or primary, opacity-15 blur-2xl).
+    - Avatar xl wrapped in mainCategoryColor ring; crown badge (gold bg, ring-2 ring-card) overlapping corner when isTopTalent.
+    - Name (truncate) + bio (line-clamp-2, min-h 2.5rem) + category badges (max 2 + "+N" overflow) + followers count (mt-auto, userPlus icon, formatCount).
+    - Stagger entrance + hover lift + tap scale.
+  * AnimatePresence mode="wait" between tabs (opacity+y transitions). EmptyState with "حذف فیلترها" action button when filters set; gentle empty message otherwise.
+  * PostsGridSkeleton (9 aspect-square skeletons) / PeopleGridSkeleton (6 cards with avatar+name+bio+chip skeletons).
+  * Debounced fetch (200ms) on filter change.
+  * PostDetailView — full-screen takeover on mobile + inline on desktop, with new iOS-quality drag-to-close:
+    - Wrapped in motion.div with `initial={{y: "100%"}}` slide-up animation + `drag="y"` + `dragConstraints={{top:0,bottom:0}}` + `dragElastic={0.4}` + `onDragEnd` checking offset.y > 120 → goBack(). `touchAction: "none"` on outer container, `touchAction: "pan-y"` on the scroll body so vertical scrolling still works.
+    - Drag handle (lg:hidden): centered 10x1.5 rounded-full bar at top of sheet.
+    - Sticky header: back/close (chevronRight) + poster avatar (md, wrapped in mainCategoryColor ring) + name (clickable) + استعداد برتر gold pill badge (award icon) when isTopTalent + time-ago + formatFaDate subtitle + follow button (primary when not following, muted when following, loader spin when busy).
+    - Body (flex-1 overflow-y-auto slim-scroll on mobile, lg:overflow-visible on desktop): max-w-2xl container.
+    - Category + skill badges.
+    - Post content: text-[17px]/sm:text-lg leading-8/9 whitespace-pre-wrap, motion fade-in.
+    - Media: vertical stack of rounded-2xl cards; images use object-cover max-h-70vh, videos use controls + playsInline.
+    - Like button: large pill (h-11 px-4 rounded-full) — bg-rose/10 text-rose shadow-rose/10 when liked, bg-muted hover:bg-rose/5 otherwise. Heart icon animates with motion.span key change + whileTap scale-1.4 spring. formatCount(likeCount) + " لایک". Comment count (comment icon) shown next to it.
+    - Comments section: heading "کامنت‌ها (N)" with comment icon in primary. Empty state: muted comment icon in muted circle + "اولین نفر باشید که کامنت می‌گذارد".
+  * CommentItem (recursive for replies):
+    - flex gap-2.5, indented when depth>0 with border-r-2 border-border/40 pr-3 (RTL = visual right).
+    - Avatar (sm for top-level, xs for replies).
+    - Comment bubble: bg-muted/40 rounded-2xl px-3 py-2 with name (clickable to profile) + award icon for top-talent + content (whitespace-pre-wrap break-words).
+    - Meta row: time-ago + ThumbsUp button (with count when >0, fill-current + text-primary when myReaction=like, whileTap scale-1.3 spring) + ThumbsDown button (fill-current + text-rose when myReaction=dislike) + "پاسخ" reply button (only on top-level comments, depth===0).
+    - Reply input: AnimatePresence height auto expand inline under the comment being replied to; textarea + Send button (disabled when empty or sending, loader spin) + Cancel (X) button. Enter to send, Escape to cancel.
+    - Nested replies rendered under each top-level comment, same component recursively (depth+1) so replies have no "پاسخ" button.
+  * Sticky comment input at bottom (shrink-0, border-t bg-card): Textarea + Send button. Enter to send (Shift+Enter for newline). Disabled when empty/sending, shows loader spin when sending. Send icon uses `-scale-x-100` so it points the right way in RTL.
+  * Post loading: tries /api/explore/posts and finds the post by id (since no single-post GET endpoint exists). If not found, shows EmptyState with "بازگشت به استعدادها" action. Optimistic like toggle with rollback on error. Optimistic comment reaction toggle with snapshot-restore on failure. After sending a comment/reply, reloads comments and shows success toast. Follow uses /api/connections — smart: same endpoint accepts or creates a connection; toast reflects actual status (accepted / pending-sent / pending-received).
+  * All guest actions (like, comment, reply, react, follow) gracefully redirect to auth with toast.
+- Wrote new chat-view.tsx (~1183 lines, "use client", exports `ChatView({conversationId?})`):
+  * Layout: `fixed inset-0 z-50 bg-background flex flex-col pt-safe pb-safe lg:static lg:z-auto lg:inset-auto lg:bg-transparent lg:p-0 lg:grid lg:grid-cols-[360px_1fr] lg:gap-4 lg:h-[calc(100vh-5rem)]` — full-screen takeover on mobile (covers app-shell dock + back pill), 2-column grid on desktop (360px list + 1fr thread). Mobile: list shown only when no active conversation; thread shown only when conversation is active. Desktop: both always visible.
+  * Socket.io connection: `io("/", { path: "/", query: { XTransformPort: "3003" }, auth: { userId: user.id }, transports: ["websocket","polling"], reconnection: true, reconnectionDelay: 1500 })` — uses the gateway pattern. Refs (activeConvIdRef, myUserIdRef) keep latest values for socket handlers.
+  * "message" socket event: dedupes by id, replaces optimistic temp-* message (matching content, most-recent-first) when senderId===me, appends otherwise. Auto-scrolls only when user is near bottom (so we don't yank them up while reading older messages). If receiver, marks as read and refreshes list. Always refreshes conversation list so lastMessage preview + unread counts stay in sync.
+  * "typing" socket event: shows/hides typing indicator with 4s auto-clear fallback.
+  * Polling every 5s for read-status (so single ✓ becomes ✓✓ once the other user reads).
+  * Send message: optimistic temp-* id added immediately + scroll-to-bottom; socket emits "message"; list optimistic-updates lastMessage + re-sorts. Same double-send bug fix preserved (replace temp on socket echo).
+  * Handle draft change: emits typing indicator with 1.5s debounce auto-off.
+  * Not-logged-in state: full-screen EmptyState with "برای چت کردن وارد شوید" + lock icon + "ورود / ثبت‌نام" button (primary bg + shadow-lg shadow-primary/30).
+  * ChatListPanel: bg-card lg:rounded-3xl lg:border lg:shadow-card overflow-hidden. Mobile title (lg:hidden) shows chat icon in primary square + "چت" title + subtitle. Tabs (messages/requests) with animated layoutId pill (motion.div with spring) sliding between right/left positions; tab buttons z-10 over the indicator. Find-coworkers button (users icon, hover bg-primary/5). Search input with right-aligned search icon. Scrollable list with slim-scroll.
+  * ConversationRow: motion.div with stagger entrance. Avatar (md) with unread badge (primary bg, shadow-md shadow-primary/30, tabular-nums, "۹+" if >9). Name (truncate, primary when active). Last message preview (line-clamp-1, primary/80 when active). Time-ago (tabular-nums). Pending-status badge (warning bg, clock icon). Accept/reject buttons (h-9 rounded-xl, primary vs rose outline) for incoming requests.
+  * ChatThread: bg-background lg:rounded-3xl lg:border lg:shadow-card overflow-hidden.
+    - Header: bg-primary text-primary-foreground with back (chevronRight, lg:hidden), avatar (md, clickable to profile), name (clickable), status pill (typing dots → userCheck "دنبال‌شده" → clock "درخواست ارسال شد" → bell "درخواست پیام جدید" → bio). Animated typing indicator with bouncing dots.
+    - Messages container: bg-background p-4 space-y-2.5 with slim-scroll.
+    - Message bubble: motion.div with layout="position", opacity+y+scale initial, ease-[0.16,1,0.3,1]. Own = bg-primary text-primary-foreground rounded-2xl rounded-tl-md; other = bg-card border border-border/60 rounded-2xl rounded-tr-md. max-w-80%/70%. showSender label when first message from other user. Time-ago (text-[9px], primary-foreground/60 for own, muted-foreground for other) + tick mark: checkCheck icon (primary-foreground) when read, checkSingle icon (primary-foreground/40 when pending temp-*, /70 when sent) when not read — shown only on last message in a group from me (so consecutive messages don't all show ticks).
+    - Typing indicator: motion.div with bg-card border rounded-2xl rounded-tr-md + 3 bouncing dots.
+    - Empty state: friendly message based on conversation status (my request pending → "درخواست شما ارسال شد" / their request pending → "درخواست پیام جدید" → "گفتگو را شروع کنید").
+    - Input area: bg-card border-t lg:rounded-b-3xl.
+      - Active: Textarea (rounded-2xl, focus ring primary/40) + circular send button (h-11 w-11, bg-primary, shadow-lg shadow-primary/30, motion whileTap scale-0.9 whileHover scale-1.05, send icon with -scale-x-100 for RTL). Helper text: sparkles icon + "Enter برای ارسال · Shift+Enter برای خط جدید".
+      - My request pending: warning bg/clock icon + "در انتظار تأیید درخواست — پس از پذیرش طرف مقابل می‌توانید پیام دهید."
+      - Their request pending: text "این کاربر می‌خواهد با شما گفتگو کند." + primary "تأیید" button (checkSingle icon, loader when busy) + outline "رد" button (x icon, rose border).
+  * All guest actions redirect to auth with toast. All Persian text, toFa numerals, timeAgoFa for relative time. Solid indigo palette (no gradients, no neon, no blur except decorative blobs).
+- Wrote new dashboard-view.tsx (~471 lines, "use client", exports `DashboardView()`):
+  * Hero greeting: rounded-3xl bg-card with indigo + gold blur blobs, "صبح بخیر/ظهر بخیر/عصر بخیر/شب بخیر" based on hour, user avatar (lg, primary ring, clickable to my-profile), greeting + name (truncate) + formatFaDate date. "ثبت نیازمندی" button (primary, shadow-lg shadow-primary/30, plus icon, "نیازمندی" label on mobile / "ثبت نیازمندی" on desktop).
+  * Quick actions grid (grid-cols-4 gap-2 sm:3): کشف (search), استعدادها (sparkles → explore), نیازمندی (briefcase → needs), دنبال‌شده (userCheck → following). Each = motion.button (whileTap scale-0.95 whileHover y-2) with icon in primary/10 bg-primary rounded-2xl w-11 sm:w-12, label text-[11px] sm:text-xs font-bold.
+  * Stats row (grid-cols-3 gap-2 sm:3): دنبال‌شده (userCheck, followingCount), استعداد مرتبط (trendingUp, relevantTalents.length), هم‌مهارت (users, sameSkillPeople.length). Each = motion.div with stagger entrance (opacity+y+scale), icon in primary/10 bg-primary rounded-lg w-6, label text-[10px] font-bold truncate, value text-xl sm:text-2xl font-black nums-fa tabular-nums via formatCount.
+  * Section component: motion.div with stagger fade-in (delay 0.26-0.42), title (font-bold text-base sm:text-lg) + "همه" link with chevronLeft (primary hover primary/80).
+  * Followed posts section: PostCard list (max 3) or EmptyState with "کشف استعدادها" action button (search icon, primary border outline).
+  * Relevant talents horizontal scroll: TalentMiniCard (w-36 sm:w-40) with md avatar + name + bio (line-clamp-1) + city (mapPin icon, text-[10px]). Stagger x-entrance + tap scale.
+  * Same-skill people grid (grid-cols-2): TalentGridCard with sm avatar + name + bio (line-clamp-1) horizontal layout. Stagger y-entrance + tap scale.
+  * More actions (grid-cols-2): چت‌ها (chat), اعلان‌ها (bell), نیازمندی‌های من (briefcase), تیکت‌ها (ticket), ویرایش پروفایل (pencil), تنظیمات (settings). Each = motion.button (whileTap scale-0.97 whileHover x-2) with icon in muted bg-muted rounded-xl w-9, label font-bold text-sm flex-1, chevronLeft trailing.
+  * All Persian text, toFa + formatCount numerals, formatFaDate for date, motion stagger animations. Mobile-first responsive (grid-cols-4 → icons-only when very small, full labels on sm+).
+- Verification: `bun run lint` → 0 errors, 0 warnings (after removing 2 unused `@next/next/no-img-element` eslint-disable directives that weren't actually needed by the linter config). Dev server log: ✓ Compiled cleanly multiple times, all API endpoints return 200 (categories, explore/posts, explore/people all 200 with valid payloads; feed/home 401 unauth expected). The "Trophy01Icon is not defined" error in the dev.log was an OLDER cached compile from BEFORE my icon.tsx rewrite — the new icon.tsx has zero Trophy01 references and triggers a clean recompile. Recent log entries show only successful 200 OK responses.
+
+Stage Summary:
+- 4 view files updated (1 additive extension + 3 ground-up rewrites):
+  * src/components/shared/icon.tsx — additive extension, 13 new icon names mapped, all existing names + behavior preserved, 0 breaking changes.
+  * src/components/views/explore-view.tsx — fully rewritten (~1549 lines), exports `ExploreView()` + `PostDetailView({id})`. Instagram-like grid (2/3-col) with staggered entrance, hover-lift, tap-scale; each tile has media cover OR tinted gradient content background (135° hue-based), poster avatar with category color ring, like/comment counts. Segmented tabs (پست‌ها | افراد) with animated layoutId pill indicator, live counts. SearchableSelect filters (category → chained skill, skill hidden on people tab since API only supports categoryId for people). Empty states with clear-filters action. Loading skeletons. Debounced 200ms fetch. PostDetailView: full-screen takeover on mobile with iOS-quality drag-to-close (drag handle, 120px threshold), inline on desktop. Sticky header (back + avatar with ring + name + استعداد برتر gold pill + follow button). Large post typography (text-17px/lg). Media stack with rounded-2xl cards. Large animated like button (Heart with motion.span key-change + whileTap scale-1.4 spring). Recursive CommentItem component handles top-level + nested replies: avatar, bubble (bg-muted/40 rounded-2xl), meta row with ThumbsUp (fill+primary when liked, whileTap spring), ThumbsDown (fill+rose when disliked, whileTap spring), "پاسخ" reply button (top-level only). Reply input expands inline under the replied-to comment (AnimatePresence height auto) with Send + Cancel (Enter to send, Esc to cancel). Sticky comment input at bottom (Textarea + Send, Enter to send, Shift+Enter newline). All guest actions redirect to auth with toast. Optimistic updates with snapshot-rollback on error. Hero header with decorative indigo + gold blur blobs.
+  * src/components/views/chat-view.tsx — fully rewritten (~1183 lines), exports `ChatView({conversationId?})`. Premium chat UI with full-screen mobile takeover + 2-column desktop grid (360px list + 1fr thread). Socket.io connection via gateway pattern (`XTransformPort=3003`, path `/`, auth userId). Conversation list with animated layoutId tab indicator (messages/requests), search input with right-aligned icon, find-coworkers button. ConversationRow with avatar + unread badge (primary bg + shadow + tabular-nums + "۹+" overflow), name + last message preview + time-ago + pending-status badge. Chat thread with bg-primary header (back button + avatar + name + StatusPill component with 4 states: typing dots / userCheck "دنبال‌شده" / clock "درخواست ارسال شد" / bell "درخواست پیام جدید"). Message bubbles: own = bg-primary text-primary-foreground rounded-tl-md, other = bg-card border rounded-tr-md, max-w-80%/70%, motion layout="position" + opacity+y+scale. Tick marks: checkCheck icon (primary-foreground) when read, checkSingle icon (primary-foreground/40 when pending temp-*, /70 when sent) when not read — shown only on last message in a group. Typing indicator (3 bouncing dots in card bubble). Sticky input: Textarea + circular send button (h-11 w-11 primary bg + shadow-lg shadow-primary/30 + motion whileTap/whileHover, send icon -scale-x-100 for RTL). Helper text with sparkles. Three input variants: active / my-request-pending (warning bg + clock) / their-request-pending (text + accept/reject). All guest actions redirect to auth with toast. Double-send bug fix preserved (replace optimistic temp-* on socket echo). 5s polling for read-status (✓ → ✓✓).
+  * src/components/views/dashboard-view.tsx — fully rewritten (~471 lines), exports `DashboardView()`. Hero greeting card with indigo + gold blur blobs, time-based greeting (صبح/ظهر/عصر/شب بخیر), user avatar (lg, primary ring, clickable to my-profile), name + formatFaDate date, "ثبت نیازمندی" button. Quick actions grid (4-col): کشف/استعدادها/نیازمندی/دنبال‌شده with motion lift+tap. Stats row (3-col): دنبال‌شده/استعداد مرتبط/هم‌مهارت with formatCount values + tabular-nums + stagger entrance. Section component (motion stagger + "همه" link). Followed posts section (PostCard list, max 3, or EmptyState). Relevant talents horizontal scroll (TalentMiniCard w-36 sm:w-40 with md avatar + name + bio + city + mapPin). Same-skill people grid (2-col TalentGridCard with sm avatar + name + bio horizontal layout). More actions grid (2-col, 6 cards: چت/اعلان/نیازمندی‌های من/تیکت/ویرایش/تنظیمات with motion hover-x + chevronLeft trailing). All Persian text, toFa + formatCount numerals, formatFaDate date, mobile-first responsive (icon-only on very small screens, full labels on sm+).
+- 0 admin files touched. 0 API routes modified. 0 schema changes. 0 app-shell changes.
+- Lint clean (0 errors, 0 warnings). Dev server healthy — all routes return 200, ✓ Compiled cleanly, no runtime errors after icon.tsx rewrite (the old "Trophy01Icon" error in the dev.log was a stale cached compile from BEFORE my rewrite; the new icon.tsx has zero Trophy01 references and triggers a clean recompile on next request).
+
+---
+Task ID: UI-Shell
+Agent: full-stack-developer (AppShell + Landing + Auth)
+Task: Complete UI redesign of AppShell, Landing, Auth views
+
+Work Log:
+- Read worklog.md, existing app-shell.tsx, landing-view.tsx, auth-view.tsx, globals.css (Modern Indigo palette), icon.tsx, illustrations.tsx, user-avatar.tsx, nav.ts, use-user.ts, format.ts, api-client.ts, settings.ts, settings-bootstrap.tsx, settings-view.tsx, layout.tsx, page.tsx, eslint.config.mjs, top-talent API routes.
+- Extended `src/components/shared/icon.tsx` with new icons needed for the redesign (compass, rocket, arrowLeft, arrowRight, phone, lock, imagePlus, loader, clock, chevronLeft, chevronDown, mail, grid, menu, medal, info, badgeCheck, checkSquare, settings01, logout02, userIdentifier). Verified all imports exist in `@hugeicons/core-free-icons`.
+- Disabled theme color picker per spec:
+  - `src/lib/settings.ts` → `applySettings` no longer overrides `--primary`/`--ring`/`--accent`/etc from a color palette. Modern Indigo palette defined in globals.css is now the single source of truth.
+  - `src/components/views/settings-view.tsx` → removed "رنگ اصلی" Section + Palette import + `setColor`/`color` destructure. Kept theme mode + font + about sections.
+- Rewrote `src/components/app-shell.tsx` (OVERWRITE) — premium iOS-quality shell:
+  - Mobile: floating circular top pills (back-right / logo-right when no back, notifications+profile-left), with `pt-4 px-4` margin. Soft diffuse shadows `shadow-[0_4px_24px_rgba(20,20,40,0.08)]`. NO traditional header.
+  - Mobile bottom: floating pill-shaped nav (NOT edge-to-edge), `fixed bottom-4 inset-x-4`, white bg, `rounded-full`, premium shadow, 4 main items (خانه / استعدادهای برتر / کشف / استعدادها) + a "more" chevron-up button. Active state: filled primary-color icon container + scale 1.05 spring.
+  - Mobile: floating chat FAB circular primary-color at `bottom-28 left-4`, 56px, with unread badge.
+  - Mobile: redesigned SwipeUpDock — pure white `rounded-t-[28px]`, drag handle, title row, 3-col grid of secondary items with stagger entrance, ring-badged counts.
+  - Desktop: floating top bar `fixed top-4 inset-x-4`, max-w-6xl, white pill `rounded-full`, premium shadow, logo+nav (with labels on lg+) on the right (RTL start), actions (chat, notifications, profile/login) on the left (RTL end).
+  - NO footer anywhere. iOS-style page transitions via AnimatePresence (opacity + y + scale). Scroll-to-top on route change. Auth/onboarding/admin = full-screen, no chrome.
+  - All icons via `Icon` component (NO lucide-react). All numbers via `toFa()`.
+- Rewrote `src/components/views/landing-view.tsx` (OVERWRITE) — stunning home page:
+  - Hero: solid indigo bg (NO gradient), soft solid floating circles, dot pattern overlay, big bold headline with gold accent, subheadline, two CTAs (شروع کنید → auth, کشف استعدادها → discover), mini stat row (۱۰۰٪ رایگان / بی‌نهایت مهارت / لحظه‌ای چت).
+  - Category quick-access: horizontal scroll of emoji circle cards (`no-scrollbar`), fetched from `/api/categories`, skeleton loaders, hover lift.
+  - Features: 2-col bento grid of 4 feature cards (sparkles/compass/chat/rocket), each with tinted icon chip, white card with soft shadow.
+  - How it works: white card with grid icon, 4-step stepper with connected line, large primary-number badges.
+  - Top Talent section (preserved functionality, redesigned): solid indigo header banner with crown, conditions grid (clock/image/users/shield icons), form/status/login-gate card with white bg + soft shadow. Preserved `/api/top-talent/upload`, `/api/top-talent/request`, `/api/top-talent/my-status` calls. Form: photo upload (with preview + loader spinner), phone, social media ID, description (1000-char counter), submit button with upload/shield icons.
+  - CTA bottom: solid accent bg with AuthIllustration + trust badges (badgeCheck/heart/users icons).
+  - Dev notice pill: "توسعه‌ی این صفحه ادامه دارد" with sparkles icon.
+  - Framer-motion stagger entrance (containerV/itemV variants). All icons via `Icon`. All numbers via `toFa`.
+- Rewrote `src/components/views/auth-view.tsx` (OVERWRITE) — stunning split-layout auth:
+  - Split layout: `flex-col lg:flex-row-reverse` with brand visual on visual-left (RTL) and form on visual-right. Mobile: compact indigo header on top, form below.
+  - Brand visual: solid indigo bg (NO gradient), dot pattern overlay, 3 floating solid-color circles (primary-foreground/10, gold/15, primary-foreground/8), AuthIllustration on desktop, headline "استعدادت رو کشف کن و نشان بده", tagline.
+  - Info step: "شروع کنید" heading, name input (user icon) + phone input (phone icon, dir=ltr), "دریافت کد تایید" button (arrowLeft icon + loader spinner), demo OTP hint box (sparkles icon + ۱۲۳۴), "ورود ادمین ←" link at bottom.
+  - OTP step: spring-animated shield icon header, big demo OTP box, 4-slot InputOTP (rounded-2xl slots), BIG "ورود به همتیم" button (arrowLeft icon + loader), "← بازگشت و ویرایش" link.
+  - Smooth AnimatePresence transitions between steps (opacity + x slide).
+  - All icons via `Icon` component. NO lucide-react.
+- Verification:
+  - `bun run lint` → exit 0, zero errors.
+  - `tail /home/z/my-project/dev.log` → `✓ Compiled in 534ms`, all API routes return 200, no compile/runtime errors, no warnings. GET / renders fine.
+  - Confirmed `useUser.getState()` works (zustand store), `Icon` accepts text-* color classes (verified against existing dashboard-view/chat-view usage), `h-13` works via Tailwind v4 dynamic spacing.
+  - All API routes preserved (no modifications). Auth flow, onboarding redirect, logout, navigation all preserved.
+
+Stage Summary:
+- 5 files modified: `icon.tsx` (extended), `settings.ts` + `settings-view.tsx` (color picker disabled), `app-shell.tsx` (full premium redesign), `landing-view.tsx` (full stunning redesign preserving top-talent flow), `auth-view.tsx` (full split-layout redesign).
+- Premium iOS-quality design: floating pill nav, circular floating top pills, floating chat FAB, soft diffuse shadows (no borders), solid indigo hero/headers (NO gradients), 8-pt grid spacing, rounded-3xl cards, p-5/p-6/p-7/p-8 padding, framer-motion stagger + spring physics, AnimatePresence page transitions, whileTap scale 0.88-0.95.
+- Modern Indigo palette (oklch 0.5 0.22 275) is now the locked single source of truth — color picker UI removed and `applySettings` no longer overrides --primary/etc.
+- All icons come from the shared `Icon` component (hugeicons). Zero lucide-react imports in the 3 redesigned files.
+- Zero lint errors, zero compile errors, dev server healthy.

@@ -130,6 +130,7 @@ export type NotificationCounts = {
 export type ProfileDetail = {
   id: string;
   userId: string;
+  username: string | null;
   name: string;
   isVerifiedBadge: boolean;
   isTopTalent?: boolean; // true if user has an approved TopTalentRequest (may not be returned by older API)

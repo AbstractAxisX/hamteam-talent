@@ -154,6 +154,7 @@ export async function GET(
   const detail: ProfileDetail = {
     id: user.profile?.id ?? "",
     userId: user.id,
+    username: user.username,
     name: user.name,
     isVerifiedBadge: user.isVerifiedBadge,
     role: user.role,
