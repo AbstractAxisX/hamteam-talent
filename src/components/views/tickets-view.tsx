@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
@@ -21,24 +21,21 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
-import { timeAgoFa, toFa } from "@/lib/format";
-import {
-  Ticket as TicketIcon,
-  Plus,
-  MessageSquare,
-  ChevronLeft,
-  RefreshCcw,
-  CheckCircle2,
-  Loader2,
-  Send,
-  Lock,
-} from "lucide-react";
+import { timeAgoFa, toFa, formatFaDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/* ───────────────────────────── Types ───────────────────────────── */
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg className={cn("animate-spin", className)} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.2" strokeWidth="3" />
+      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
 
-type TicketItem = {
+type Ticket = {
   id: string;
   subject: string;
   status: string;
@@ -47,22 +44,17 @@ type TicketItem = {
   replyCount: number;
 };
 
-/* ───────────────────────────── Main View ───────────────────────────── */
-
 export function TicketsView() {
   const { user, loading: userLoading } = useUser();
-  const [tickets, setTickets] = useState<TicketItem[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api<{ tickets: TicketItem[] }>("/api/tickets");
-      setTickets(data.tickets);
+      const d = await api<{ tickets: Ticket[] }>("/api/tickets");
+      setTickets(d.tickets);
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -71,52 +63,35 @@ export function TicketsView() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    load();
+    if (user) load();
+    else setLoading(false);
   }, [user, load]);
 
-  // Redirect to auth if not logged in
-  useEffect(() => {
-    if (!userLoading && !user) {
-      navigate({ view: "auth" });
-    }
-  }, [user, userLoading]);
-
-  async function handleCreate() {
-    const s = subject.trim();
-    const t = body.trim();
-    if (s.length < 3) {
-      toast({ title: "خطا", description: "موضوع حداقل ۳ نویسه باشد", variant: "destructive" });
-      return;
-    }
-    if (t.length < 5) {
-      toast({ title: "خطا", description: "متن تیکت حداقل ۵ نویسه باشد", variant: "destructive" });
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await apiPost<{ ok: boolean; id: string }>("/api/tickets", {
-        subject: s,
-        body: t,
-      });
-      toast({ title: "تیکت ثبت شد", description: "پاسخ شما به‌زودی داده خواهد شد" });
-      setCreateOpen(false);
-      setSubject("");
-      setBody("");
-      navigate({ view: "ticket", id: res.id });
-    } catch (e) {
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  if (userLoading || !user) {
+  if (!userLoading && !user) {
     return (
-      <div className="max-w-3xl mx-auto space-y-4">
-        <Skeleton className="h-12 w-full rounded-2xl" />
-        <Skeleton className="h-24 w-full rounded-2xl" />
-        <Skeleton className="h-24 w-full rounded-2xl" />
+      <div className="max-w-2xl mx-auto space-y-5">
+        <Header count={null} />
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <Card className="glass p-8 text-center space-y-3 shadow-card rounded-3xl border-border/50">
+            <div className="grid place-items-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mx-auto">
+              <Icon name="lock" className="w-6 h-6" />
+            </div>
+            <h2 className="font-bold text-lg">برای ثبت تیکت وارد شوید</h2>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-6">
+              برای ارتباط با تیم پشتیبانی و پیگیری تیکت‌های خود وارد شوید.
+            </p>
+            <Button
+              onClick={() => navigate({ view: "auth" })}
+              className="gap-1.5 rounded-2xl font-bold mx-auto bg-primary text-primary-foreground"
+            >
+              ورود / ثبت‌نام
+            </Button>
+          </Card>
+        </motion.div>
       </div>
     );
   }
@@ -124,235 +99,241 @@ export function TicketsView() {
   const openCount = tickets.filter((t) => t.status === "open").length;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
-      {/* ── Header ── */}
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between gap-3"
-      >
-        <div className="flex items-center gap-3">
-          <div className="grid place-items-center w-11 h-11 rounded-2xl bg-forest text-lime shadow-md">
-            <TicketIcon className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-xl font-extrabold leading-tight tracking-tight">
-              تیکت‌های پشتیبانی
-            </h1>
-            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
-              {tickets.length > 0 ? (
-                <>
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-lime" />
-                  {toFa(openCount)} تیکت باز · {toFa(tickets.length)} کل
-                </>
-              ) : (
-                "سوالات، گزارش‌ها و درخواست‌های پشتیبانی"
-              )}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={load}
-            aria-label="بارگذاری مجدد"
-            disabled={loading}
-            className="rounded-2xl hover:bg-muted"
-          >
-            <RefreshCcw className={loading ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
-          </Button>
-          <Button
-            onClick={() => setCreateOpen(true)}
-            size="sm"
-            className="gap-1.5 rounded-2xl bg-lime text-forest font-bold hover:bg-lime/90 shadow-md"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">تیکت جدید</span>
-            <span className="sm:hidden">جدید</span>
-          </Button>
-        </div>
-      </motion.div>
+    <div className="max-w-2xl mx-auto space-y-5">
+      <Header count={tickets.length} openCount={openCount} loading={loading} onRefresh={load} onCreate={() => setShowDialog(true)} />
 
-      {/* ── List ── */}
       {loading ? (
         <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="glass p-5 border-border/50 rounded-3xl space-y-3">
+              <Skeleton className="h-5 w-3/4 rounded" />
+              <Skeleton className="h-3 w-40 rounded" />
+              <Skeleton className="h-3 w-24 rounded" />
+            </Card>
           ))}
         </div>
       ) : tickets.length === 0 ? (
-        <Card className="p-0 rounded-2xl border-border/60 overflow-hidden">
-          <EmptyState
-            kind="tickets"
-            title="هنوز تیکتی ثبت نکرده‌اید"
-            description="برای سوال، گزارش یا درخواست پشتیبانی، تیکت جدیدی ایجاد کنید."
-            action={
-              <Button
-                onClick={() => setCreateOpen(true)}
-                className="gap-1.5 rounded-2xl bg-lime text-forest font-bold hover:bg-lime/90 shadow-md"
-              >
-                <Plus className="w-4 h-4" />
-                ایجاد اولین تیکت
-              </Button>
-            }
-          />
-        </Card>
+        <EmptyState
+          kind="tickets"
+          title="تیکتی ثبت نکرده‌اید"
+          description="برای ارتباط با پشتیبانی، گزارش مشکل یا درخواست ویژگی تیکت جدید ثبت کنید."
+          action={
+            <Button onClick={() => setShowDialog(true)} className="gap-1.5 rounded-2xl font-bold">
+              <Icon name="plus" className="w-4 h-4" />
+              ثبت اولین تیکت
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-3">
-          {tickets.map((t, i) => {
-            const isOpen = t.status === "open";
-            return (
-              <motion.div
-                key={t.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.3,
-                  ease: [0.16, 1, 0.3, 1],
-                  delay: Math.min(i * 0.04, 0.4),
-                }}
-              >
-                <Card
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate({ view: "ticket", id: t.id })}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      navigate({ view: "ticket", id: t.id });
-                    }
-                  }}
-                  className="p-4 cursor-pointer hover:shadow-md hover:border-forest/20 transition-all group rounded-2xl border-border/60 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <div
-                        className={cn(
-                          "grid place-items-center w-11 h-11 rounded-2xl shrink-0 transition-colors",
-                          isOpen
-                            ? "bg-lime/20 text-forest"
-                            : "bg-muted text-muted-foreground"
-                        )}
-                      >
-                        <TicketIcon className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-sm truncate group-hover:text-forest transition-colors">
-                            {t.subject}
-                          </h3>
-                          <StatusBadge isOpen={isOpen} />
-                        </div>
-                        <div className="flex items-center gap-2.5 mt-2 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            {toFa(t.replyCount)} پاسخ
-                          </span>
-                          <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
-                          <span>آخرین به‌روزرسانی {timeAgoFa(t.updatedAt)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <ChevronLeft className="w-5 h-5 text-muted-foreground group-hover:text-forest group-hover:-translate-x-0.5 transition-all shrink-0" />
-                  </div>
-                </Card>
-              </motion.div>
-            );
-          })}
+          <AnimatePresence mode="popLayout">
+            {tickets.map((t, i) => (
+              <TicketCard key={t.id} ticket={t} index={i} />
+            ))}
+          </AnimatePresence>
         </div>
       )}
 
-      {/* ── Create Dialog ── */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="grid place-items-center w-7 h-7 rounded-lg bg-lime/20 text-forest">
-                <Plus className="w-4 h-4" />
-              </span>
-              تیکت جدید
-            </DialogTitle>
-            <DialogDescription>
-              تیم پشتیبانی در اسرع وقت پاسخ تیکت شما را خواهد داد.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="ticket-subject">موضوع</Label>
-              <Input
-                id="ticket-subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="مثال: مشکل در ورود به حساب"
-                maxLength={200}
-                className="rounded-xl"
-              />
-              <div className="text-xs text-muted-foreground text-left">
-                {toFa(subject.length)} / {toFa(200)}
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="ticket-body">متن تیکت</Label>
-              <Textarea
-                id="ticket-body"
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder="توضیحات کامل را وارد کنید..."
-                rows={5}
-                maxLength={5000}
-                className="rounded-xl resize-none"
-              />
-              <div className="text-xs text-muted-foreground text-left">
-                {toFa(body.length)} / {toFa(5000)}
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setCreateOpen(false)}
-              disabled={submitting}
-              className="rounded-xl"
-            >
-              انصراف
-            </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={submitting}
-              className="gap-1.5 rounded-xl bg-lime text-forest font-bold hover:bg-lime/90"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  در حال ارسال...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  ثبت تیکت
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CreateTicketDialog open={showDialog} onOpenChange={setShowDialog} onCreated={load} />
     </div>
   );
 }
 
-/* ───────────────────────────── Status Badge ───────────────────────────── */
+function Header({
+  count,
+  openCount,
+  loading,
+  onRefresh,
+  onCreate,
+}: {
+  count: number | null;
+  openCount?: number;
+  loading: boolean;
+  onRefresh: () => void;
+  onCreate: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="relative overflow-hidden rounded-3xl glass border border-border/50 p-6 shadow-float"
+    >
+      <div className="absolute -top-12 -left-12 w-40 h-40 rounded-full bg-primary/15 blur-3xl" aria-hidden />
+      <div className="relative flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-4">
+          <div className="grid place-items-center w-16 h-16 rounded-3xl bg-primary text-primary-foreground shadow-glow shrink-0">
+            <Icon name="ticket" className="w-7 h-7" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black tracking-tight leading-none">تیکت‌های پشتیبانی</h1>
+            <p className="text-sm text-muted-foreground mt-2 leading-6">
+              {loading ? "در حال بارگذاری..." : count === null ? "ارتباط با تیم پشتیبانی" : count === 0 ? "هنوز تیکتی ثبت نشده" : `${toFa(count)} تیکت · ${toFa(openCount ?? 0)} باز`}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onRefresh}
+            className="rounded-2xl w-10 h-10 hover:bg-primary/5"
+            aria-label="به‌روزرسانی"
+          >
+            <Icon name="loader" className="w-4 h-4" />
+          </Button>
+          <Button
+            onClick={onCreate}
+            className="gap-1.5 rounded-2xl font-bold bg-primary text-primary-foreground shadow-glow"
+          >
+            <Icon name="plus" className="w-4 h-4" />
+            تیکت جدید
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
-function StatusBadge({ isOpen }: { isOpen: boolean }) {
-  return isOpen ? (
-    <Badge className="bg-lime/20 text-forest border-lime/40 hover:bg-lime/25">
-      <CheckCircle2 className="w-3 h-3 ml-0.5" />
-      باز
-    </Badge>
-  ) : (
-    <Badge variant="secondary" className="bg-muted text-muted-foreground gap-0.5">
-      <Lock className="w-3 h-3" />
-      بسته‌شده
-    </Badge>
+function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
+  const isOpen = ticket.status === "open";
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.25), ease: [0.16, 1, 0.3, 1] }}
+    >
+      <Card
+        onClick={() => navigate({ view: "ticket", id: ticket.id })}
+        className="glass p-5 border-border/50 hover:border-primary/40 hover:shadow-lift transition-all cursor-pointer group rounded-3xl"
+      >
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-bold text-[15px] leading-7 line-clamp-2 group-hover:text-primary transition-colors flex-1">
+            {ticket.subject}
+          </h3>
+          <Badge
+            className={cn(
+              "shrink-0 h-6 px-2 text-[10px] rounded-md font-medium",
+              isOpen ? "bg-primary/15 text-primary border border-primary/30" : "bg-muted text-muted-foreground"
+            )}
+          >
+            {isOpen ? "باز" : "بسته"}
+          </Badge>
+        </div>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="chat" className="w-3.5 h-3.5" />
+            <span className="nums-fa">{toFa(ticket.replyCount)} پاسخ</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 nums-fa">
+            {timeAgoFa(ticket.updatedAt)}
+            <Icon name="chevronLeft" className="w-3.5 h-3.5 group-hover:text-primary transition-colors" />
+          </span>
+        </div>
+      </Card>
+    </motion.div>
+  );
+}
+
+function CreateTicketDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onCreated: () => void;
+}) {
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit() {
+    if (submitting) return;
+    if (subject.trim().length < 3) {
+      toast({ title: "موضوع کوتاه است", description: "موضوع باید حداقل ۳ نویسه باشد.", variant: "destructive" });
+      return;
+    }
+    if (body.trim().length < 5) {
+      toast({ title: "متن کوتاه است", description: "متن تیکت باید حداقل ۵ نویسه باشد.", variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const r = await apiPost<{ ok: boolean; id: string }>("/api/tickets", {
+        subject: subject.trim(),
+        body: body.trim(),
+      });
+      toast({ title: "ثبت شد", description: "تیکت شما با موفقیت ثبت شد." });
+      setSubject("");
+      setBody("");
+      onOpenChange(false);
+      onCreated();
+      // Navigate to the new ticket
+      navigate({ view: "ticket", id: r.id });
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="glass-strong border-border/50 rounded-3xl max-w-md p-6">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-black flex items-center gap-2">
+            <Icon name="plus" className="w-5 h-5 text-primary" />
+            تیکت جدید
+          </DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground leading-6">
+            برای گزارش مشکل، درخواست ویژگی یا ارتباط با پشتیبانی فرم زیر را پر کنید.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-muted-foreground">موضوع</Label>
+            <Input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="موضوع کوتاه تیکت"
+              maxLength={200}
+              className="rounded-xl bg-background/40 border-border/50 focus-visible:ring-primary/60 h-11"
+            />
+            <p className="text-[11px] text-muted-foreground nums-fa text-left">{toFa(subject.length)} / {toFa(200)}</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-muted-foreground">متن تیکت</Label>
+            <Textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="توضیح کامل مشکل یا درخواست خود را بنویسید..."
+              rows={5}
+              maxLength={5000}
+              className="resize-none rounded-xl bg-background/40 border-border/50 focus-visible:ring-primary/60 min-h-[120px]"
+            />
+            <p className="text-[11px] text-muted-foreground nums-fa text-left">{toFa(body.length)} / {toFa(5000)}</p>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-2xl font-semibold">
+            انصراف
+          </Button>
+          <Button
+            onClick={submit}
+            disabled={submitting}
+            className="gap-1.5 rounded-2xl font-bold bg-primary text-primary-foreground shadow-glow"
+          >
+            {submitting ? <Spinner className="w-4 h-4" /> : <Icon name="send" className="w-4 h-4" />}
+            ثبت تیکت
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

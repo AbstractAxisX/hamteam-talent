@@ -57,6 +57,64 @@ type ConversationDetail = {
   messages: ChatMessage[];
 };
 
+/* ─────────────────── Inline tick icons (no lucide) ──────────────── */
+
+function SingleTick({ size = 14, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M3 12l5 5L20 5"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function DoubleTick({ size = 14, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 28 24"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M2 12l5 5L17 5"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 17L20 7"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16 17l10-10"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /* ───────────────────────────── Main View ───────────────────────────── */
 
 export function ChatView({ conversationId }: { conversationId?: string }) {
@@ -78,10 +136,11 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   const activeConvIdRef = useRef<string | undefined>(conversationId);
   const myUserIdRef = useRef<string | undefined>(user?.id);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Dedup set: track processed message IDs to fix the double-send bug
+  const processedIdsRef = useRef<Set<string>>(new Set());
 
   /* ── Load conversation list ── */
   const loadConversations = useCallback(async () => {
-    setConvLoading((prev) => (prev ? prev : true));
     try {
       const d = await api<{
         conversations: ConversationListItem[];
@@ -97,14 +156,18 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     }
   }, []);
 
-  /* ── Load messages of active conversation (with loading state) ── */
+  /* ── Load messages of active conversation ── */
   const loadMessages = useCallback(async (id: string) => {
     setMsgLoading(true);
+    // Reset dedup set when switching conversations
+    processedIdsRef.current = new Set();
     try {
       const d = await api<ConversationDetail>(
         `/api/chat/conversations/${id}/messages`
       );
       setActiveConv(d);
+      // Mark all returned message ids as processed
+      d.messages.forEach((m) => processedIdsRef.current.add(m.id));
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
       setActiveConv(null);
@@ -113,23 +176,42 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     }
   }, []);
 
-  /* ── Silent poll for read-status / new messages from server ── */
-  const pollMessages = useCallback(async (id: string) => {
+  /* ── Silent poll for read-status updates only (does not duplicate messages) ── */
+  const pollReadStatus = useCallback(async (id: string) => {
     try {
       const d = await api<ConversationDetail>(
         `/api/chat/conversations/${id}/messages`
       );
       setActiveConv((prev) => {
         if (!prev || prev.conversation?.id !== id) return prev;
-        const pending = prev.messages.filter((m) => m.id.startsWith("temp-"));
-        return { ...d, messages: [...d.messages, ...pending] };
+        // Only update readAt fields for existing messages — never append duplicates
+        const existingMap = new Map(prev.messages.map((m) => [m.id, m]));
+        // Update readAt for messages that now have readAt set
+        const updated = d.messages.map((serverMsg) => {
+          const existing = existingMap.get(serverMsg.id);
+          if (existing) {
+            // Preserve local copy but update readAt
+            if (!existing.readAt && serverMsg.readAt) {
+              return { ...existing, readAt: serverMsg.readAt };
+            }
+            return existing;
+          }
+          return serverMsg;
+        });
+        // Add any server-only messages we haven't seen yet (e.g. sent from another device)
+        const localIds = new Set(prev.messages.map((m) => m.id));
+        const newOnes = d.messages.filter((m) => !localIds.has(m.id));
+        if (newOnes.length > 0) {
+          newOnes.forEach((m) => processedIdsRef.current.add(m.id));
+        }
+        return { ...prev, messages: [...updated, ...newOnes] };
       });
     } catch {
       /* ignore */
     }
   }, []);
 
-  /* ── Keep refs in sync (used inside socket handlers) ── */
+  /* ── Keep refs in sync ── */
   useEffect(() => {
     activeConvIdRef.current = conversationId;
   }, [conversationId]);
@@ -188,11 +270,25 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
       const myId = myUserIdRef.current;
       const activeId = activeConvIdRef.current;
 
+      // Dedup guard: never add the same message twice
+      if (processedIdsRef.current.has(msg.id)) {
+        // Even if seen, fall through to update read-status if needed
+        if (msg.conversationId === activeId && msg.senderId !== myId) {
+          apiPost(`/api/chat/conversations/${msg.conversationId}/read`)
+            .then(() => loadConversations())
+            .catch(() => {});
+        }
+        return;
+      }
+      processedIdsRef.current.add(msg.id);
+
       if (msg.conversationId === activeId) {
         setActiveConv((prev) => {
           if (!prev) return prev;
+          // Double-check by id one more time (race-safety)
           if (prev.messages.some((m) => m.id === msg.id)) return prev;
 
+          // Own message: replace the temp by content match
           if (msg.senderId === myId) {
             const msgs = [...prev.messages];
             for (let i = msgs.length - 1; i >= 0; i--) {
@@ -203,11 +299,12 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
                 msgs[i] = msg;
                 return { ...prev, messages: msgs };
               }
-              // No temp message found (sent from another device) — append.
             }
+            // No temp found (sent from another device) — append
             return { ...prev, messages: [...msgs, msg] };
           }
 
+          // Other's message: append
           return { ...prev, messages: [...prev.messages, msg] };
         });
 
@@ -265,23 +362,24 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   useEffect(() => {
     if (!conversationId || !user) return;
     pollRef.current = setInterval(() => {
-      pollMessages(conversationId);
+      pollReadStatus(conversationId);
     }, 5000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [conversationId, user, pollMessages]);
+  }, [conversationId, user, pollReadStatus]);
 
   /* ── Auto-scroll to bottom on new messages ── */
   useEffect(() => {
     queueMicrotask(() => scrollToBottom());
   }, [activeConv?.messages.length, scrollToBottom]);
 
-  /* ── Send a message ── */
+  /* ── Send a message (no double-add bug) ── */
   const handleSend = useCallback(() => {
     const content = draft.trim();
     const convId = conversationId;
     if (!content || !convId || !user || !socketRef.current) return;
+
     setDraft("");
     socketRef.current.emit("typing", {
       conversationId: convId,
@@ -291,6 +389,9 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // Register the temp id as processed so the dedup guard doesn't reject it
+    processedIdsRef.current.add(tempId);
+
     const optimistic: ChatMessage = {
       id: tempId,
       conversationId: convId,
@@ -300,7 +401,12 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
       readAt: null,
     };
     setActiveConv((prev) =>
-      prev ? { ...prev, messages: [...prev.messages, optimistic] } : prev
+      prev
+        ? // Avoid duplicate: only add if not already present
+          prev.messages.some((m) => m.id === tempId)
+          ? prev
+          : { ...prev, messages: [...prev.messages, optimistic] }
+        : prev
     );
     queueMicrotask(() => scrollToBottom());
 
@@ -418,12 +524,12 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     );
   }
 
-  /* ── Respond to message requests (shared handler) ── */
+  /* ── Respond to message requests ── */
   const handleRespond = async (id: string, action: "accept" | "reject") => {
     try {
       await apiPost(`/api/chat/conversations/${id}/respond`, { action });
       toast({
-        title: action === "accept" ? "درخواست تأیید شد ✅" : "درخواست رد شد",
+        title: action === "accept" ? "درخواست تأیید شد" : "درخواست رد شد",
       });
       if (action === "accept") {
         await loadMessages(id);
@@ -442,7 +548,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     }
   };
 
-  /* ── Full-screen mobile layout, 2-pane desktop layout ── */
+  /* ── Layout: full-screen mobile, 2-pane desktop ── */
   return (
     <div
       className={cn(
@@ -494,7 +600,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
             onRespond={handleRespond}
           />
         ) : (
-          <div className="h-full flex items-center justify-center rounded-3xl bg-card shadow-sm p-6">
+          <div className="h-full flex items-center justify-center rounded-3xl glass p-6">
             <EmptyState
               kind="chat"
               title="یک گفتگو را انتخاب کنید"
@@ -545,10 +651,10 @@ function ChatListPanel({
   ];
 
   return (
-    <div className="h-full flex flex-col bg-card border-b border-border/60 lg:border lg:rounded-3xl lg:shadow-card overflow-hidden">
+    <div className="h-full flex flex-col glass lg:rounded-3xl overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 p-3 sm:p-4 border-b border-border/60 space-y-3 bg-card lg:rounded-t-3xl">
-        {/* Mobile title (full-screen header) */}
+      <div className="shrink-0 p-4 border-b border-border/60 space-y-3">
+        {/* Mobile title */}
         <div className="flex items-center gap-3 lg:hidden">
           <div className="grid place-items-center w-11 h-11 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30">
             <Icon name="chat" size={22} />
@@ -561,61 +667,52 @@ function ChatListPanel({
           </div>
         </div>
 
-        {/* Tabs + find-coworkers button */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="relative flex items-center gap-0.5 p-1 rounded-2xl bg-muted/60 flex-1">
-            <AnimatePresence>
-              {listTab === "messages" && (
-                <motion.div
-                  layoutId="list-tab-pill"
-                  className="absolute inset-y-1 right-1 w-[calc(50%-0.25rem)] rounded-xl bg-primary shadow-md shadow-primary/20"
-                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                />
+        {/* Tabs */}
+        <div className="relative flex items-center gap-0.5 p-1 rounded-2xl bg-muted/60">
+          <AnimatePresence>
+            {listTab === "messages" && (
+              <motion.div
+                layoutId="list-tab-pill"
+                className="absolute inset-y-1 right-1 w-[calc(50%-0.25rem)] rounded-xl bg-primary shadow-md shadow-primary/20"
+                transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              />
+            )}
+            {listTab === "requests" && (
+              <motion.div
+                layoutId="list-tab-pill"
+                className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-xl bg-primary shadow-md shadow-primary/20"
+                transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              />
+            )}
+          </AnimatePresence>
+          {tabItems.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => onTabChange(t.key)}
+              className={cn(
+                "relative z-10 flex-1 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5",
+                listTab === t.key
+                  ? "text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               )}
-              {listTab === "requests" && (
-                <motion.div
-                  layoutId="list-tab-pill"
-                  className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-xl bg-primary shadow-md shadow-primary/20"
-                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                />
+            >
+              {t.label}
+              {t.count > 0 && (
+                <span
+                  className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded-full font-bold tabular-nums",
+                    listTab === t.key
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : t.key === "requests"
+                      ? "bg-gold/15 text-gold"
+                      : "bg-muted-foreground/15 text-muted-foreground"
+                  )}
+                >
+                  {toFa(t.count)}
+                </span>
               )}
-            </AnimatePresence>
-            {tabItems.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => onTabChange(t.key)}
-                className={cn(
-                  "relative z-10 flex-1 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5",
-                  listTab === t.key
-                    ? "text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {t.label}
-                {t.count > 0 && (
-                  <span
-                    className={cn(
-                      "text-[10px] px-1.5 py-0.5 rounded-full font-bold tabular-nums",
-                      listTab === t.key
-                        ? "bg-primary-foreground/20 text-primary-foreground"
-                        : t.key === "requests"
-                        ? "bg-warning/15 text-warning"
-                        : "bg-muted-foreground/15 text-muted-foreground"
-                    )}
-                  >
-                    {toFa(t.count)}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => navigate({ view: "talents" })}
-            className="shrink-0 grid place-items-center w-9 h-9 rounded-xl hover:bg-primary/5 text-primary transition-colors"
-            aria-label="پیدا کردن همکار"
-          >
-            <Icon name="users" size={18} />
-          </button>
+            </button>
+          ))}
         </div>
 
         {/* Search */}
@@ -764,7 +861,7 @@ function ConversationRow({
             size="md"
           />
           {c.unreadCount > 0 && c.status === "active" && (
-            <span className="absolute -top-1 -left-1 min-w-[20px] h-5 px-1 grid place-items-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold shadow-md shadow-primary/30 tabular-nums">
+            <span className="absolute -top-1 -left-1 min-w-[20px] h-5 px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-bold shadow-md shadow-rose/30 tabular-nums">
               {c.unreadCount > 9 ? "۹+" : toFa(c.unreadCount)}
             </span>
           )}
@@ -799,7 +896,7 @@ function ConversationRow({
           </p>
         </div>
         {!showActions && c.status === "pending_request" && (
-          <span className="shrink-0 px-2 py-0.5 rounded-full bg-warning/15 text-warning text-[9px] font-bold flex items-center gap-0.5">
+          <span className="shrink-0 px-2 py-0.5 rounded-full bg-gold/15 text-gold text-[9px] font-bold flex items-center gap-0.5">
             <Icon name="clock" size={10} /> در انتظار
           </span>
         )}
@@ -816,7 +913,7 @@ function ConversationRow({
             {busy ? (
               <Icon name="loader" size={14} className="animate-spin" />
             ) : (
-              <Icon name="checkSingle" size={14} />
+              <Icon name="check" size={14} />
             )}
             تأیید
           </button>
@@ -901,7 +998,7 @@ function ChatThread({
       return (
         <span className="inline-flex items-center gap-1 text-[11px] text-primary-foreground/70">
           <Icon name="userCheck" size={12} />
-          دنبال‌شده
+          در ارتباط
         </span>
       );
     }
@@ -1054,7 +1151,7 @@ function ChatThread({
                       "max-w-[80%] sm:max-w-[70%] px-3.5 py-2.5 text-sm leading-6 break-words whitespace-pre-wrap shadow-sm",
                       isMine
                         ? "bg-primary text-primary-foreground rounded-2xl rounded-tl-md"
-                        : "bg-card border border-border/60 rounded-2xl rounded-tr-md"
+                        : "glass border border-border/60 rounded-2xl rounded-tr-md"
                     )}
                   >
                     {m.content}
@@ -1071,17 +1168,20 @@ function ChatThread({
                         {/* ── Sent / Seen ticks (WhatsApp-style) ── */}
                         {isMine && (
                           <span className="mr-auto flex items-center">
-                            {isRead ? (
-                              <Icon name="checkCheck" size={14} className="text-primary-foreground" />
-                            ) : (
-                              <Icon
-                                name="checkSingle"
+                            {isPending ? (
+                              <SingleTick
                                 size={12}
-                                className={cn(
-                                  isPending
-                                    ? "text-primary-foreground/40"
-                                    : "text-primary-foreground/70"
-                                )}
+                                className="text-primary-foreground/40"
+                              />
+                            ) : isRead ? (
+                              <DoubleTick
+                                size={14}
+                                className="text-primary-foreground"
+                              />
+                            ) : (
+                              <SingleTick
+                                size={12}
+                                className="text-primary-foreground/70"
                               />
                             )}
                           </span>
@@ -1101,7 +1201,7 @@ function ChatThread({
                 exit={{ opacity: 0, y: -4 }}
                 className="flex items-start"
               >
-                <div className="bg-card border border-border/60 rounded-2xl rounded-tr-md px-4 py-3 flex gap-1 shadow-sm">
+                <div className="glass border border-border/60 rounded-2xl rounded-tr-md px-4 py-3 flex gap-1 shadow-sm">
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.3s]" />
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.15s]" />
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" />
@@ -1112,8 +1212,8 @@ function ChatThread({
         )}
       </div>
 
-      {/* ── Input area (varies by conversation status) ── */}
-      <div className="shrink-0 p-3 border-t border-border/60 bg-card lg:rounded-b-3xl">
+      {/* ── Input area ── */}
+      <div className="shrink-0 p-3 border-t border-border/60 glass lg:rounded-b-3xl pb-safe">
         {status === "active" ? (
           <>
             <div className="flex items-end gap-2">
@@ -1144,9 +1244,9 @@ function ChatThread({
             </p>
           </>
         ) : isMyRequestPending ? (
-          <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-warning/10 border border-warning/20">
-            <Icon name="clock" size={16} className="text-warning" />
-            <p className="text-xs font-medium text-warning">
+          <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gold/10 border border-gold/20">
+            <Icon name="clock" size={16} className="text-gold" />
+            <p className="text-xs font-medium text-gold">
               در انتظار تأیید درخواست — پس از پذیرش طرف مقابل می‌توانید پیام دهید.
             </p>
           </div>
@@ -1163,7 +1263,7 @@ function ChatThread({
               {busyRespond ? (
                 <Icon name="loader" size={16} className="animate-spin" />
               ) : (
-                <Icon name="checkSingle" size={16} />
+                <Icon name="check" size={16} />
               )}
               تأیید
             </button>

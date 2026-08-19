@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState, useCallback } from "react";
+import { motion } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
@@ -10,42 +10,48 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
-import { UserAvatar } from "@/components/shared/user-avatar";
 import { EmptyState } from "@/components/shared/empty-state";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
-import { timeAgoFa, formatFaDateTime, toFa } from "@/lib/format";
-import { getProvinceName } from "@/lib/geo";
-import {
-  Ticket as TicketIcon,
-  ArrowRight,
-  Send,
-  Lock,
-  Shield,
-  BadgeCheck,
-  Ban,
-  CheckCircle2,
-  User as UserIcon,
-  CalendarDays,
-  MapPin,
-  Phone,
-  IdCard,
-  Loader2,
-} from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { timeAgoFa, toFa, formatFaDate, formatFaDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/* ───────────────────────────── Types ───────────────────────────── */
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg className={cn("animate-spin", className)} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.2" strokeWidth="3" />
+      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+type TicketUser = {
+  id: string;
+  name: string;
+  role: string;
+  isVerifiedBadge: boolean;
+  isBanned?: boolean;
+  avatarUrl: string | null;
+  phone?: string;
+  nationalId?: string;
+  createdAt?: string;
+  bioShort?: string;
+  province?: string | null;
+  city?: string | null;
+};
+
+type Reply = {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string;
+    role: string;
+    avatarUrl: string | null;
+  };
+};
 
 type TicketDetail = {
   id: string;
@@ -55,34 +61,9 @@ type TicketDetail = {
   createdAt: string;
   updatedAt: string;
   userId: string;
-  user: {
-    id: string;
-    name: string;
-    role: string;
-    isVerifiedBadge: boolean;
-    isBanned: boolean;
-    avatarUrl: string | null;
-    phone: string;
-    nationalId: string;
-    createdAt: string;
-    bioShort: string;
-    province: string | null;
-    city: string | null;
-  };
-  replies: {
-    id: string;
-    content: string;
-    createdAt: string;
-    user: {
-      id: string;
-      name: string;
-      role: string;
-      avatarUrl: string | null;
-    };
-  }[];
+  user: TicketUser;
+  replies: Reply[];
 };
-
-/* ───────────────────────────── Main View ───────────────────────────── */
 
 export function TicketDetailView({ id }: { id: string }) {
   const { user, loading: userLoading } = useUser();
@@ -91,24 +72,14 @@ export function TicketDetailView({ id }: { id: string }) {
   const [reply, setReply] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [closing, setClosing] = useState(false);
-  const [targetUserState, setTargetUserState] = useState<{
-    isVerifiedBadge: boolean;
-    isBanned: boolean;
-  } | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api<{ ticket: TicketDetail }>(`/api/tickets/${id}`);
-      setTicket(data.ticket);
-      setTargetUserState({
-        isVerifiedBadge: data.ticket.user.isVerifiedBadge,
-        isBanned: data.ticket.user.isBanned,
-      });
+      const d = await api<{ ticket: TicketDetail }>(`/api/tickets/${id}`);
+      setTicket(d.ticket);
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
-      setTicket(null);
     } finally {
       setLoading(false);
     }
@@ -118,35 +89,20 @@ export function TicketDetailView({ id }: { id: string }) {
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (!userLoading && !user) {
-      navigate({ view: "auth" });
+  async function submitReply() {
+    if (submitting) return;
+    if (reply.trim().length < 1) {
+      toast({ title: "خالی است", description: "متن پاسخ را بنویسید.", variant: "destructive" });
+      return;
     }
-  }, [user, userLoading]);
-
-  const isAdmin = user?.role === "admin";
-  const isOwner = ticket && user ? ticket.userId === user.id : false;
-  const canClose = ticket && user ? (isOwner || isAdmin) && ticket.status === "open" : false;
-
-  async function handleReply() {
-    const text = reply.trim();
-    if (text.length < 1) return;
     setSubmitting(true);
     try {
-      const res = await apiPost<{
-        ok: boolean;
-        reply: TicketDetail["replies"][number];
-      }>(`/api/tickets/${id}`, { content: text });
-      setTicket((prev) =>
-        prev ? { ...prev, replies: [...prev.replies, res.reply] } : prev
-      );
+      const r = await apiPost<{ ok: boolean; reply: Reply }>(`/api/tickets/${id}`, {
+        content: reply.trim(),
+      });
+      setTicket((t) => (t ? { ...t, replies: [...t.replies, r.reply] } : t));
       setReply("");
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-      }, 50);
-      toast({ title: "پاسخ ثبت شد" });
+      toast({ title: "ارسال شد", description: "پاسخ شما ثبت شد." });
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -154,12 +110,13 @@ export function TicketDetailView({ id }: { id: string }) {
     }
   }
 
-  async function handleClose() {
+  async function closeTicket() {
+    if (closing) return;
     setClosing(true);
     try {
       await apiPost(`/api/tickets/${id}/close`);
-      setTicket((prev) => (prev ? { ...prev, status: "closed" } : prev));
-      toast({ title: "تیکت بسته شد" });
+      setTicket((t) => (t ? { ...t, status: "closed" } : t));
+      toast({ title: "بسته شد", description: "تیکت بسته شد." });
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -167,525 +124,218 @@ export function TicketDetailView({ id }: { id: string }) {
     }
   }
 
-  async function handleAdminAction(action: "ban" | "unban" | "verify" | "unverify") {
-    if (!ticket) return;
-    try {
-      const res = (await api(`/api/admin/users/${ticket.user.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ action }),
-        headers: { "Content-Type": "application/json" },
-      })) as { ok: boolean; user: { isBanned: boolean; isVerifiedBadge: boolean } };
-      setTargetUserState({
-        isVerifiedBadge: res.user.isVerifiedBadge,
-        isBanned: res.user.isBanned,
-      });
-      toast({
-        title: "عملیات انجام شد",
-        description:
-          action === "ban"
-            ? "کاربر مسدود شد"
-            : action === "unban"
-              ? "مسدودیت کاربر لغو شد"
-              : action === "verify"
-                ? "تیک آبی اعطا شد"
-                : "تیک آبی لغو شد",
-      });
-    } catch (e) {
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
-    }
-  }
-
-  /* ── Loading state ── */
-  if (userLoading || !user) {
+  if (!userLoading && !user) {
     return (
-      <div className="max-w-4xl mx-auto space-y-4">
-        <Skeleton className="h-10 w-40 rounded-xl" />
-        <Skeleton className="h-48 w-full rounded-2xl" />
-        <Skeleton className="h-64 w-full rounded-2xl" />
+      <div className="max-w-2xl mx-auto">
+        <EmptyState
+          kind="tickets"
+          title="برای مشاهده تیکت وارد شوید"
+          description="برای پیگیری تیکت‌های پشتیبانی ابتدا وارد شوید."
+          action={
+            <Button onClick={() => navigate({ view: "auth" })} className="rounded-2xl font-bold gap-1.5">
+              <Icon name="lock" className="w-4 h-4" />
+              ورود / ثبت‌نام
+            </Button>
+          }
+        />
       </div>
     );
   }
 
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto space-y-4">
-        <Skeleton className="h-10 w-40 rounded-xl" />
-        <Skeleton className="h-48 w-full rounded-2xl" />
-        <Skeleton className="h-64 w-full rounded-2xl" />
-      </div>
-    );
-  }
-
-  /* ── Not found ── */
-  if (!ticket) {
+  if (loading || !ticket) {
     return (
       <div className="max-w-3xl mx-auto space-y-4">
-        <BackButton />
-        <Card className="p-0 rounded-2xl border-border/60 overflow-hidden">
-          <EmptyState
-            kind="tickets"
-            title="تیکت یافت نشد"
-            description="ممکن است حذف شده باشد یا شناسه اشتباه باشد."
-            action={
-              <Button
-                variant="outline"
-                onClick={() => navigate({ view: "tickets" })}
-                className="gap-1.5 rounded-2xl border-forest/30 text-forest hover:bg-forest/5"
-              >
-                <ArrowRight className="w-4 h-4" />
-                بازگشت به تیکت‌ها
-              </Button>
-            }
-          />
+        <Skeleton className="h-10 w-24 rounded-xl" />
+        <Card className="glass p-6 rounded-3xl border-border/50 space-y-4">
+          <Skeleton className="h-8 w-3/4 rounded" />
+          <Skeleton className="h-4 w-40 rounded" />
+          <Skeleton className="h-32 w-full rounded" />
         </Card>
       </div>
     );
   }
 
-  const isOpen = ticket.status === "open";
-  const targetVerified = targetUserState?.isVerifiedBadge ?? ticket.user.isVerifiedBadge;
-  const targetBanned = targetUserState?.isBanned ?? ticket.user.isBanned;
+  const isClosed = ticket.status === "closed";
+  const isOwner = user?.id === ticket.userId;
+  const isAdmin = user?.role === "admin";
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
-      {/* Back button */}
-      <BackButton />
-
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
-        {/* ═══ Main thread ═══ */}
-        <div className="space-y-4 min-w-0">
-          {/* ── Ticket header card ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <Card className="p-5 rounded-2xl border-border/60 shadow-sm">
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <div
-                    className={cn(
-                      "grid place-items-center w-11 h-11 rounded-2xl shrink-0",
-                      isOpen
-                        ? "bg-lime/20 text-forest"
-                        : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    <TicketIcon className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h1 className="text-lg font-extrabold leading-tight tracking-tight">
-                      {ticket.subject}
-                    </h1>
-                    <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground flex-wrap">
-                      <span>{formatFaDateTime(ticket.createdAt)}</span>
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
-                      <span>توسط {ticket.user.name}</span>
-                    </div>
-                  </div>
-                </div>
-                <StatusBadge isOpen={isOpen} />
-              </div>
-              <Separator className="my-4" />
-              <p className="text-sm whitespace-pre-wrap leading-7">{ticket.body}</p>
-            </Card>
-          </motion.div>
-
-          {/* ── Replies thread ── */}
-          <Card className="p-0 overflow-hidden rounded-2xl border-border/60 shadow-sm">
-            <div className="px-5 py-3.5 border-b border-border/60 bg-forest text-lime flex items-center justify-between">
-              <h2 className="text-sm font-bold flex items-center gap-2">
-                <span className="grid place-items-center w-6 h-6 rounded-lg bg-white/10">
-                  <TicketIcon className="w-3.5 h-3.5" />
-                </span>
-                گفتگو ({toFa(ticket.replies.length)} پاسخ)
-              </h2>
-            </div>
-            <div
-              ref={scrollRef}
-              className="max-h-[460px] overflow-y-auto slim-scroll p-4 space-y-3 bg-cream-gradient"
-            >
-              {ticket.replies.length === 0 ? (
-                <div className="text-center py-10 text-sm text-muted-foreground">
-                  هنوز پاسخی ثبت نشده است
-                </div>
-              ) : (
-                <AnimatePresence initial={false}>
-                  {ticket.replies.map((r) => {
-                    const replyIsAdmin = r.user.role === "admin";
-                    const isCreator = r.user.id === ticket.userId;
-                    // Per spec: creator = right (forest), admin = left (lime accent)
-                    const onRight = isCreator && !replyIsAdmin;
-                    return (
-                      <motion.div
-                        key={r.id}
-                        layout="position"
-                        initial={{ opacity: 0, y: 10, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                        className={cn(
-                          "flex gap-3",
-                          // onRight (creator) → bubble on RIGHT in RTL → use flex-row-reverse
-                          onRight ? "flex-row-reverse" : ""
-                        )}
-                      >
-                        <div className="shrink-0">
-                          <UserAvatar
-                            name={r.user.name}
-                            avatarUrl={r.user.avatarUrl}
-                            size="sm"
-                            verified={false}
-                          />
-                        </div>
-                        <div
-                          className={cn(
-                            "min-w-0 max-w-[80%] flex flex-col",
-                            onRight ? "items-end" : "items-start"
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              "inline-block px-3.5 py-2.5 shadow-sm",
-                              replyIsAdmin
-                                ? // Admin → LEFT, lime accent
-                                  "bg-lime/15 border border-lime/40 rounded-2xl rounded-tr-md"
-                                : onRight
-                                  ? // Creator → RIGHT, forest
-                                    "bg-forest text-white rounded-2xl rounded-tl-md"
-                                  : // Other (non-admin, non-creator) → LEFT, card
-                                    "bg-card border border-border/60 rounded-2xl rounded-tr-md"
-                            )}
-                          >
-                            <div
-                              className={cn(
-                                "flex items-center gap-1.5 mb-1",
-                                onRight ? "justify-end" : ""
-                              )}
-                            >
-                              <span
-                                className={cn(
-                                  "text-xs font-bold",
-                                  replyIsAdmin
-                                    ? "text-forest"
-                                    : onRight
-                                      ? "text-white"
-                                      : "text-foreground"
-                                )}
-                              >
-                                {r.user.name}
-                              </span>
-                              {replyIsAdmin && (
-                                <Badge className="bg-forest text-lime border-forest hover:bg-forest text-[10px] py-0 px-1.5 gap-0.5">
-                                  <Shield className="w-3 h-3" />
-                                  مدیر
-                                </Badge>
-                              )}
-                            </div>
-                            <p
-                              className={cn(
-                                "text-sm whitespace-pre-wrap leading-7 text-right",
-                                onRight ? "text-white" : "text-foreground"
-                              )}
-                            >
-                              {r.content}
-                            </p>
-                          </div>
-                          <div className="text-[10px] text-muted-foreground mt-1 px-1">
-                            {timeAgoFa(r.createdAt)}
-                          </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              )}
-            </div>
-          </Card>
-
-          {/* ── Reply box ── */}
-          {isOpen ? (
-            <Card className="p-4 rounded-2xl border-border/60 shadow-sm">
-              <Textarea
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                placeholder="پاسخ خود را بنویسید..."
-                rows={3}
-                maxLength={5000}
-                disabled={submitting}
-                className="rounded-xl resize-none focus-visible:ring-lime/50"
-              />
-              <div className="flex items-center justify-between mt-3 gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {toFa(reply.length)} / {toFa(5000)}
-                </span>
-                <div className="flex items-center gap-2">
-                  {canClose && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5 rounded-2xl border-rose/40 text-rose hover:bg-rose/5"
-                          disabled={closing}
-                        >
-                          <Lock className="w-4 h-4" />
-                          <span className="hidden sm:inline">بستن تیکت</span>
-                          <span className="sm:hidden">بستن</span>
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="rounded-2xl">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>بستن تیکت</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            آیا از بستن این تیکت مطمئن هستید؟ پس از بسته شدن، امکان ارسال پاسخ جدید وجود ندارد.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="rounded-xl">انصراف</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={handleClose}
-                            className="bg-rose hover:bg-rose/90 rounded-2xl"
-                          >
-                            بستن تیکت
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                  <Button
-                    onClick={handleReply}
-                    size="sm"
-                    className="gap-1.5 rounded-2xl bg-lime text-forest font-bold hover:bg-lime/90 shadow-md"
-                    disabled={submitting || reply.trim().length === 0}
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        در حال ارسال...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" />
-                        ارسال پاسخ
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ) : (
-            <Card className="p-4 rounded-2xl border-border/60 shadow-sm">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Lock className="w-4 h-4" />
-                این تیکت بسته شده است. در صورت نیاز، تیکت جدیدی ایجاد کنید.
-              </div>
-            </Card>
-          )}
-        </div>
-
-        {/* ═══ Admin sidebar ═══ */}
-        {isAdmin && (
-          <aside className="space-y-4">
-            <Card className="p-4 rounded-2xl border-border/60 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="grid place-items-center w-7 h-7 rounded-lg bg-forest/10 text-forest">
-                  <Shield className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-bold">اطلاعات کاربر</h3>
-              </div>
-
-              <div className="flex flex-col items-center text-center pb-3">
-                <UserAvatar
-                  name={ticket.user.name}
-                  avatarUrl={ticket.user.avatarUrl}
-                  verified={targetVerified}
-                  size="lg"
-                />
-                <button
-                  onClick={() => navigate({ view: "profile", id: ticket.user.id })}
-                  className="font-bold mt-2.5 hover:text-forest transition-colors"
-                >
-                  {ticket.user.name}
-                </button>
-                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap justify-center">
-                  <Badge variant="secondary" className="text-[10px]">
-                    {ticket.user.role === "admin" ? "مدیر" : "کاربر"}
-                  </Badge>
-                  {targetVerified && (
-                    <Badge className="bg-gold/15 text-gold border-gold/30 hover:bg-gold/15 text-[10px] gap-0.5">
-                      <BadgeCheck className="w-3 h-3" />
-                      تاییدشده
-                    </Badge>
-                  )}
-                  {targetBanned && (
-                    <Badge variant="destructive" className="text-[10px] gap-0.5">
-                      <Ban className="w-3 h-3" />
-                      مسدود
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              <Separator className="my-3" />
-
-              <div className="space-y-2.5 text-xs">
-                <InfoRow icon={Phone} label="شماره موبایل">
-                  <span className="font-mono" dir="ltr">
-                    {toFa(ticket.user.phone)}
-                  </span>
-                </InfoRow>
-                <InfoRow icon={IdCard} label="کد ملی">
-                  <span className="font-mono" dir="ltr">
-                    {toFa(ticket.user.nationalId)}
-                  </span>
-                </InfoRow>
-                <InfoRow icon={CalendarDays} label="عضویت">
-                  {formatFaDateTime(ticket.user.createdAt)}
-                </InfoRow>
-                {ticket.user.province && (
-                  <InfoRow icon={MapPin} label="موقعیت">
-                    {getProvinceName(ticket.user.province)}
-                    {ticket.user.city ? `، ${ticket.user.city}` : ""}
-                  </InfoRow>
-                )}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mt-3.5 gap-1.5 rounded-xl border-forest/30 text-forest hover:bg-forest/5"
-                onClick={() => navigate({ view: "profile", id: ticket.user.id })}
-              >
-                <UserIcon className="w-4 h-4" />
-                مشاهده پروفایل
-              </Button>
-
-              <Separator className="my-3" />
-
-              <div className="space-y-2">
-                <div className="text-xs font-bold text-muted-foreground">اقدامات سریع</div>
-                {!targetVerified ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-1.5 rounded-xl border-gold/40 text-gold hover:bg-gold/10 hover:text-gold"
-                    onClick={() => handleAdminAction("verify")}
-                    disabled={ticket.user.id === user.id}
-                  >
-                    <BadgeCheck className="w-4 h-4" />
-                    اعطای تیک آبی
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-1.5 rounded-xl"
-                    onClick={() => handleAdminAction("unverify")}
-                    disabled={ticket.user.id === user.id}
-                  >
-                    <BadgeCheck className="w-4 h-4" />
-                    لغو تیک آبی
-                  </Button>
-                )}
-                {!targetBanned ? (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full gap-1.5 rounded-xl border-rose/40 text-rose hover:bg-rose/5 hover:text-rose"
-                        disabled={ticket.user.id === user.id}
-                      >
-                        <Ban className="w-4 h-4" />
-                        مسدود کردن کاربر
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="rounded-2xl">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>مسدود کردن کاربر</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          کاربر پس از مسدود شدن نمی‌تواند وارد سیستم شود. آیا مطمئن هستید؟
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="rounded-xl">انصراف</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleAdminAction("ban")}
-                          className="bg-rose hover:bg-rose/90 rounded-2xl"
-                        >
-                          مسدود کردن
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-1.5 rounded-xl border-success/40 text-success hover:bg-success/10 hover:text-success"
-                    onClick={() => handleAdminAction("unban")}
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    رفع مسدودیت
-                  </Button>
-                )}
-              </div>
-            </Card>
-          </aside>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ───────────────────────────── Small Components ───────────────────────────── */
-
-function BackButton() {
-  return (
-    <div className="flex items-center gap-2">
+    <div className="max-w-3xl mx-auto space-y-5">
+      {/* ═══ Back button ═══ */}
       <Button
         variant="ghost"
         size="sm"
         onClick={() => navigate({ view: "tickets" })}
-        className="gap-1.5 -mr-2 rounded-2xl hover:bg-forest/5 hover:text-forest"
+        className="gap-1.5 h-9 rounded-xl font-semibold text-muted-foreground hover:text-foreground"
       >
-        <ArrowRight className="w-4 h-4" />
-        تیکت‌ها
+        <Icon name="arrowRight" className="w-4 h-4" />
+        بازگشت به تیکت‌ها
       </Button>
-    </div>
-  );
-}
 
-function StatusBadge({ isOpen }: { isOpen: boolean }) {
-  return isOpen ? (
-    <Badge className="bg-lime/20 text-forest border-lime/40 hover:bg-lime/25">
-      <CheckCircle2 className="w-3 h-3 ml-0.5" />
-      باز
-    </Badge>
-  ) : (
-    <Badge variant="secondary" className="bg-muted text-muted-foreground gap-0.5">
-      <Lock className="w-3 h-3" />
-      بسته‌شده
-    </Badge>
-  );
-}
+      {/* ═══ Main ticket ═══ */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <Card className="glass p-6 sm:p-8 rounded-3xl border-border/50 shadow-float space-y-5">
+          <div>
+            <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
+              <h1 className="text-2xl font-black leading-tight tracking-tight flex-1">{ticket.subject}</h1>
+              <Badge
+                className={cn(
+                  "shrink-0 h-7 px-3 rounded-lg font-medium",
+                  isClosed ? "bg-muted text-muted-foreground" : "bg-primary/15 text-primary border border-primary/30"
+                )}
+              >
+                {isClosed ? "بسته شده" : "باز"}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <Icon name="clock" className="w-3.5 h-3.5" />
+                {timeAgoFa(ticket.createdAt)}
+              </span>
+              <span className="text-muted-foreground/50">•</span>
+              <span className="nums-fa">{formatFaDate(ticket.createdAt)}</span>
+              <span className="text-muted-foreground/50">•</span>
+              <span className="inline-flex items-center gap-1">
+                <Icon name="chat" className="w-3.5 h-3.5" />
+                {toFa(ticket.replies.length)} پاسخ
+              </span>
+            </div>
+          </div>
 
-function InfoRow({
-  icon: Icon,
-  label,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-2">
-      <Icon className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
-      <div className="min-w-0 flex-1">
-        <div className="text-muted-foreground text-[10px] mb-0.5">{label}</div>
-        <div className="font-medium text-xs">{children}</div>
-      </div>
+          {/* Owner info */}
+          <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-background/40 border border-border/50">
+            <button
+              onClick={() => navigate({ view: "profile", id: ticket.user.id })}
+              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            >
+              <UserAvatar
+                name={ticket.user.name}
+                avatarUrl={ticket.user.avatarUrl}
+                verified={ticket.user.isVerifiedBadge}
+                size="md"
+              />
+              <div className="text-right">
+                <p className="text-sm font-bold">{ticket.user.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {ticket.user.role === "admin" ? "پشتیبانی" : "سازنده‌ی تیکت"}
+                </p>
+              </div>
+            </button>
+            {(isOwner || isAdmin) && !isClosed && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={closeTicket}
+                disabled={closing}
+                className="gap-1.5 rounded-2xl font-semibold border-rose/30 text-rose hover:bg-rose/5"
+              >
+                {closing ? <Spinner className="w-3.5 h-3.5" /> : <Icon name="x" className="w-3.5 h-3.5" />}
+                بستن تیکت
+              </Button>
+            )}
+          </div>
+
+          {/* Initial body */}
+          <div>
+            <h2 className="text-xs font-bold text-muted-foreground mb-2">متن اولیه</h2>
+            <p className="text-[15px] leading-8 whitespace-pre-wrap break-words">
+              {ticket.body}
+            </p>
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* ═══ Replies thread ═══ */}
+      {ticket.replies.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-xs font-bold text-muted-foreground">پاسخ‌ها</h2>
+          <div className="space-y-3 max-h-[480px] overflow-y-auto slim-scroll pl-1">
+            {ticket.replies.map((r, i) => {
+              const isOwn = user?.id === r.user.id;
+              const isStaff = r.user.role === "admin";
+              return (
+                <motion.div
+                  key={r.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: Math.min(i * 0.03, 0.25), ease: [0.16, 1, 0.3, 1] }}
+                  className={cn("flex flex-col items-start gap-1", isOwn ? "items-end" : "items-start")}
+                >
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => navigate({ view: "profile", id: r.user.id })}>
+                      <UserAvatar
+                        name={r.user.name}
+                        avatarUrl={r.user.avatarUrl}
+                        size="xs"
+                      />
+                    </button>
+                    <span className="text-xs font-bold flex items-center gap-1.5">
+                      {r.user.name}
+                      {isStaff && (
+                        <Badge className="h-4 px-1 text-[9px] rounded bg-gold/20 text-gold border border-gold/30">پشتیبانی</Badge>
+                      )}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground nums-fa">{timeAgoFa(r.createdAt)}</span>
+                  </div>
+                  <div
+                    className={cn(
+                      "max-w-[85%] p-3.5 rounded-2xl border",
+                      isOwn
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "glass border-border/50"
+                    )}
+                  >
+                    <p className="text-sm leading-7 whitespace-pre-wrap break-words">{r.content}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Reply form ═══ */}
+      {!isClosed ? (
+        <Card className="glass p-4 sm:p-5 rounded-3xl border-border/50 shadow-soft space-y-3">
+          <div className="flex items-center gap-2">
+            <Icon name="pencil" className="w-4 h-4 text-primary" />
+            <h2 className="font-bold text-sm">پاسخ جدید</h2>
+          </div>
+          <Textarea
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            placeholder="پاسخ خود را بنویسید..."
+            rows={4}
+            maxLength={5000}
+            className="resize-none rounded-2xl bg-background/40 border-border/50 focus-visible:ring-primary/60 min-h-[100px]"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground nums-fa">{toFa(reply.length)} / {toFa(5000)}</span>
+            <Button
+              onClick={submitReply}
+              disabled={submitting}
+              className="gap-1.5 rounded-2xl font-bold bg-primary text-primary-foreground shadow-glow"
+            >
+              {submitting ? <Spinner className="w-4 h-4" /> : <Icon name="send" className="w-4 h-4" />}
+              ارسال پاسخ
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <Card className="glass p-5 rounded-3xl border-border/50 shadow-soft text-center space-y-2">
+          <div className="grid place-items-center w-12 h-12 rounded-xl bg-muted text-muted-foreground mx-auto">
+            <Icon name="checkCircle" className="w-6 h-6" />
+          </div>
+          <h2 className="font-bold text-sm">این تیکت بسته شده است</h2>
+          <p className="text-xs text-muted-foreground leading-5">
+            برای ادامه‌ی گفتگو تیکت جدیدی ثبت کنید.
+          </p>
+        </Card>
+      )}
     </div>
   );
 }

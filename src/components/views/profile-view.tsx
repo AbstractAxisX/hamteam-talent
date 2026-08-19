@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
@@ -11,73 +11,57 @@ import type {
   PostWithRelations,
   CategoryWithSkills,
 } from "@/lib/types";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PostCard } from "@/components/shared/post-card";
-import { CategoryIcon } from "@/components/shared/illustrations";
 import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, formatFaDate } from "@/lib/format";
 import { getProvinceName } from "@/lib/geo";
 import { cn } from "@/lib/utils";
 
-/* ── Small inline spinner (no lucide dependency) ───────────────── */
-function Spinner({ className }: { className?: string }) {
-  return (
-    <svg
-      className={cn("animate-spin", className)}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.2" strokeWidth="3" />
-      <path
-        d="M22 12a10 10 0 0 0-10-10"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
+/* ─────────────────────────────────────────────────────────────────────
+   ProfileView — full-screen immersive design, dark green glass theme.
+   Avatar breaks the header boundary (overlaps by half).
+   Pill tabs for درباره | رزومه | پست‌ها.
+   ───────────────────────────────────────────────────────────────────── */
+
+type Tab = "about" | "resume" | "posts";
 
 export function ProfileView({ id }: { id: string }) {
   const { user: me } = useUser();
   const [profile, setProfile] = useState<ProfileDetail | null>(null);
-  const [cats, setCats] = useState<CategoryWithSkills[]>([]);
   const [meta, setMeta] = useState<ProfileMeta | null>(null);
+  const [cats, setCats] = useState<CategoryWithSkills[]>([]);
+  const [posts, setPosts] = useState<PostWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
+  const [postsLoading, setPostsLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [tab, setTab] = useState<Tab>("about");
+  const [connBusy, setConnBusy] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
 
+  /* ── Fetch profile + meta + categories ── */
   const load = useCallback(async () => {
     setLoading(true);
     setNotFound(false);
+    setPosts([]); // Reset posts when switching profile
+    setTab("about");
     try {
-      const [profileData, catsData] = await Promise.all([
-        api<ProfileDetail>(`/api/profile/${id}`),
-        api<{ categories: CategoryWithSkills[] }>("/api/categories").catch(
-          () => ({ categories: [] as CategoryWithSkills[] })
-        ),
+      const [p, m, c] = await Promise.all([
+        api<ProfileDetail>(`/api/profile/${id}`).catch(() => null),
+        api<ProfileMeta>(`/api/profile/${id}/meta`).catch(() => null),
+        api<{ categories: CategoryWithSkills[] }>(`/api/categories`).catch(() => ({ categories: [] })),
       ]);
-      setProfile(profileData);
-      setCats(catsData.categories);
-
-      api<ProfileMeta>(`/api/profile/${id}/meta`)
-        .then(setMeta)
-        .catch(() => setMeta(null));
-    } catch (e) {
-      const msg = (e as Error).message;
-      if (msg.includes("پیدا نشد") || msg.includes("404")) {
+      if (!p) {
         setNotFound(true);
-      } else {
-        toast({ title: "خطا", description: msg, variant: "destructive" });
+        return;
       }
+      setProfile(p);
+      setMeta(m);
+      setCats(c.categories || []);
     } finally {
       setLoading(false);
     }
@@ -87,1008 +71,813 @@ export function ProfileView({ id }: { id: string }) {
     load();
   }, [load]);
 
+  /* ── Load posts when posts tab opened ── */
+  useEffect(() => {
+    if (tab !== "posts" || !profile || posts.length > 0 || postsLoading) return;
+    setPostsLoading(true);
+    api<{ posts: PostWithRelations[] }>(`/api/posts?userId=${profile.userId}`)
+      .then((d) => setPosts(d.posts || []))
+      .catch(() => setPosts([]))
+      .finally(() => setPostsLoading(false));
+  }, [tab, profile, posts.length, postsLoading]);
+
+  /* ── Category color map ── */
+  const catColorMap = useMemo(() => {
+    const m = new Map<string, string>();
+    cats.forEach((c) => m.set(c.id, c.color || ""));
+    return m;
+  }, [cats]);
+
+  /* ── Ring color for avatar: profile.mainCategoryId → category.color ── */
+  const ringColor = useMemo(() => {
+    if (!profile) return null;
+    const mainCatId = profile.mainCategoryId ?? meta?.mainCategoryId ?? null;
+    if (mainCatId) return catColorMap.get(mainCatId) ?? null;
+    // Fallback: first category color
+    const firstCat = profile.categories?.[0];
+    if (firstCat) return catColorMap.get(firstCat.id) ?? null;
+    return null;
+  }, [profile, meta, catColorMap]);
+
+  const isSelf = me?.id === profile?.userId;
+  const isTopTalent = profile?.isTopTalent ?? meta?.isTopTalent ?? false;
+
+  /* ── Connection actions ── */
+  async function handleConnection() {
+    if (!profile || !me) return;
+    setConnBusy(true);
+    try {
+      const res = await apiPost<{ status: string }>(`/api/connections`, {
+        receiverId: profile.userId,
+      });
+      const s = res.status;
+      let msg = "درخواست ارتباط ارسال شد";
+      if (s === "accepted") msg = "ارتباط برقرار شد ✅";
+      else if (s === "pending-sent") msg = "درخواست ارسال شد";
+      toast({ title: msg });
+      await load();
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setConnBusy(false);
+    }
+  }
+
+  async function handleStartChat() {
+    if (!profile || !me) return;
+    setChatBusy(true);
+    try {
+      const res = await apiPost<{ conversationId: string; status: string }>(
+        `/api/chat/start`,
+        { userId: profile.userId }
+      );
+      if (res.conversationId) {
+        navigate({ view: "chat", conversationId: res.conversationId });
+      }
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
+  /* ── Loading state — full screen skeleton ── */
   if (loading) return <ProfileSkeleton />;
 
   if (notFound || !profile) {
     return (
-      <EmptyState
-        kind="people"
-        title="کاربر پیدا نشد"
-        description="این پروفایل ممکن است حذف شده باشد یا آدرس اشتباه باشد."
-        action={
-          <Button
-            onClick={() => navigate({ view: "feed" })}
-            className="rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
+      <div className="min-h-[60vh] grid place-items-center p-6">
+        <EmptyState
+          kind="people"
+          title="کاربر پیدا نشد"
+          description="ممکن است این حساب حذف شده یا شناسه اشتباه باشد."
+          action={
+            <Button
+              onClick={() => navigate({ view: "explore" })}
+              className="bg-primary text-primary-foreground"
+            >
+              <Icon name="sparkles" size={16} />
+              کشف استعدادها
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  const connCount = (profile.followersCount || 0) + (profile.followingCount || 0);
+  const province = getProvinceName(profile.province);
+
+  /* ── Connection status label & button ── */
+  const conn = profile.connectionStatus;
+  const connBtn = (() => {
+    if (isSelf) return null;
+    if (conn === "self") return null;
+    if (conn === "accepted") {
+      return (
+        <Button
+          variant="outline"
+          onClick={handleStartChat}
+          disabled={chatBusy}
+          className="border-primary/30 text-primary hover:bg-primary/5 h-11 px-5 gap-2 font-bold"
+        >
+          {chatBusy ? (
+            <Icon name="loader" size={16} className="animate-spin" />
+          ) : (
+            <Icon name="chat" size={16} />
+          )}
+          پیام
+        </Button>
+      );
+    }
+    if (conn === "pending-sent") {
+      return (
+        <Button
+          disabled
+          className="border border-warning/30 text-warning bg-warning/5 h-11 px-5 gap-2 font-bold"
+        >
+          <Icon name="clock" size={16} />
+          ارسال شد
+        </Button>
+      );
+    }
+    if (conn === "pending-received") {
+      return (
+        <Button
+          onClick={handleConnection}
+          disabled={connBusy}
+          className="bg-gold h-11 px-5 gap-2 font-bold shadow-lg shadow-gold/20"
+          style={{ color: "oklch(0.15 0.01 80)" }}
+        >
+          {connBusy ? (
+            <Icon name="loader" size={16} className="animate-spin" />
+          ) : (
+            <Icon name="check" size={16} />
+          )}
+          تأیید ارتباط
+        </Button>
+      );
+    }
+    return (
+      <Button
+        onClick={handleConnection}
+        disabled={connBusy}
+        className="bg-primary text-primary-foreground h-11 px-5 gap-2 font-bold shadow-lg shadow-primary/20"
+      >
+        {connBusy ? (
+          <Icon name="loader" size={16} className="animate-spin" />
+        ) : (
+          <Icon name="userPlus" size={16} />
+        )}
+        ارتباط
+      </Button>
+    );
+  })();
+
+  /* ── Tab pill items ── */
+  const tabs: { key: Tab; label: string; count?: number }[] = [
+    { key: "about", label: "درباره" },
+    { key: "resume", label: "رزومه", count: (profile.experiences?.length || 0) + (profile.educations?.length || 0) },
+    { key: "posts", label: "پست‌ها", count: profile.postCount },
+  ];
+
+  return (
+    <div className="max-w-3xl mx-auto pb-12">
+      {/* ═══════ IMMERSIVE HEADER ═══════ */}
+      <motion.header
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        className="relative overflow-hidden rounded-b-[40px]"
+        style={{
+          background: `linear-gradient(180deg, ${ringColor ? shadeColor(ringColor, 0.22, 165) : "oklch(0.18 0.012 165)"} 0%, oklch(0.13 0.012 165) 100%)`,
+        }}
+      >
+        {/* Category color accent stripe at the very top */}
+        <div
+          className="absolute top-0 inset-x-0 h-1.5"
+          style={{ background: ringColor || "oklch(0.6 0.15 160)" }}
+        />
+        {/* Soft glow blob with category color */}
+        <div
+          className="absolute -top-20 right-0 w-72 h-72 rounded-full opacity-30 blur-3xl pointer-events-none"
+          style={{ background: ringColor || "oklch(0.6 0.15 160)" }}
+        />
+        <div
+          className="absolute -bottom-24 -left-16 w-64 h-64 rounded-full opacity-15 blur-3xl pointer-events-none"
+          style={{ background: "oklch(0.75 0.15 80)" }}
+        />
+
+        {/* Top action row */}
+        <div className="relative flex items-center justify-between p-4 pt-6">
+          <button
+            onClick={() => window.history.back()}
+            className="grid place-items-center w-10 h-10 rounded-full glass text-foreground hover:bg-white/5 transition-colors"
+            aria-label="بازگشت"
           >
-            بازگشت به خانه
-          </Button>
+            <Icon name="chevronRight" size={20} />
+          </button>
+
+          {isSelf ? (
+            <Button
+              variant="ghost"
+              onClick={() => navigate({ view: "edit-profile" })}
+              className="glass text-foreground hover:bg-white/5 h-10 px-4 gap-2 font-bold rounded-full"
+            >
+              <Icon name="pencil" size={16} />
+              ویرایش
+            </Button>
+          ) : (
+            <button
+              onClick={() => navigate({ view: "chat" })}
+              className="grid place-items-center w-10 h-10 rounded-full glass text-foreground hover:bg-white/5 transition-colors"
+              aria-label="چت"
+            >
+              <Icon name="chat" size={20} />
+            </button>
+          )}
+        </div>
+
+        {/* Username + name */}
+        <div className="relative px-6 pb-4 pt-2 text-center">
+          {/* Top Talent crown badge */}
+          {isTopTalent && (
+            <motion.div
+              initial={{ scale: 0, rotate: -30 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 22, delay: 0.15 }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-2 text-[11px] font-bold"
+              style={{
+                background: "oklch(0.75 0.15 80 / 0.18)",
+                color: "oklch(0.85 0.13 80)",
+              }}
+            >
+              <Icon name="crown" size={14} />
+              استعداد برتر
+            </motion.div>
+          )}
+
+          <h1 className="text-2xl font-black tracking-tight leading-tight">
+            {profile.name}
+          </h1>
+          {profile.username && (
+            <p className="text-sm mt-1 font-mono" dir="ltr" style={{ color: "oklch(0.6 0.1 150)" }}>
+              @{profile.username}
+            </p>
+          )}
+
+          {/* Location + joined chip row */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-3 text-[11px]">
+            {province && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full glass text-foreground/80">
+                <Icon name="mapPin" size={11} />
+                {province}
+                {profile.city ? ` · ${profile.city}` : ""}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full glass text-foreground/80">
+              <Icon name="calendar" size={11} />
+              {formatFaDate(profile.createdAt)}
+            </span>
+          </div>
+        </div>
+
+        {/* Avatar that breaks the boundary */}
+        <div className="relative flex justify-center">
+          <motion.div
+            initial={{ scale: 0.7, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 320, damping: 26, delay: 0.1 }}
+            className="relative z-10 translate-y-1/2"
+          >
+            <div
+              className="rounded-full p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
+              style={{
+                background: `linear-gradient(135deg, ${ringColor || "oklch(0.6 0.15 160)"}, oklch(0.4 0.08 160))`,
+              }}
+            >
+              <UserAvatar
+                name={profile.name}
+                avatarUrl={profile.avatarUrl}
+                verified={profile.isVerifiedBadge}
+                gender={profile.gender}
+                size="2xl"
+                ringColor="transparent"
+                className="ring-4"
+              />
+            </div>
+          </motion.div>
+        </div>
+      </motion.header>
+
+      {/* ═══════ BODY (push down to accommodate avatar) ═══════ */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+        className="px-4 pt-20"
+      >
+        {/* Bio */}
+        {profile.bioShort && (
+          <p className="text-center text-[15px] leading-7 text-foreground/90 px-2">
+            {profile.bioShort}
+          </p>
+        )}
+
+        {/* Stats row — ارتباات + posts */}
+        <div className="grid grid-cols-3 gap-2 mt-5">
+          <StatBlock
+            value={formatCount(connCount)}
+            label="ارتباطات"
+            icon="users"
+          />
+          <StatBlock
+            value={toFa(profile.postCount)}
+            label="پست‌ها"
+            icon="image"
+          />
+          <StatBlock
+            value={toFa((profile.categories?.length || 0))}
+            label="تخصص‌ها"
+            icon="award"
+          />
+        </div>
+
+        {/* Action row */}
+        {connBtn && (
+          <div className="flex items-center justify-center gap-3 mt-5">
+            {connBtn}
+            {isSelf && (
+              <Button
+                onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
+                className="bg-card text-foreground border border-border hover:bg-card/70 h-11 px-5 gap-2 font-bold"
+              >
+                <Icon name="briefcase" size={16} />
+                رزومه PDF
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* ═══════ PILL TABS ═══════ */}
+        <div className="relative mt-6 p-1 bg-card rounded-2xl glass flex gap-1">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className="relative z-10 flex-1 h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+              style={{
+                color: tab === t.key ? "oklch(0.1 0.01 160)" : "oklch(0.62 0.015 150)",
+              }}
+            >
+              {tab === t.key && (
+                <motion.div
+                  layoutId="profile-tab-pill"
+                  className="absolute inset-0 rounded-xl"
+                  style={{ background: ringColor || "oklch(0.6 0.15 160)" }}
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              <span className="relative z-10">{t.label}</span>
+              {t.count !== undefined && t.count > 0 && (
+                <span
+                  className={cn(
+                    "relative z-10 text-[10px] px-1.5 py-0.5 rounded-full font-bold tabular-nums",
+                    tab === t.key ? "bg-black/15" : "bg-muted"
+                  )}
+                >
+                  {toFa(t.count)}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* ═══════ TAB CONTENT ═══════ */}
+        <div className="mt-5 min-h-[200px]">
+          <AnimatePresence mode="wait">
+            {tab === "about" && (
+              <motion.div
+                key="about"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+              >
+                <AboutTab profile={profile} catColorMap={catColorMap} />
+              </motion.div>
+            )}
+            {tab === "resume" && (
+              <motion.div
+                key="resume"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+              >
+                <ResumeTab profile={profile} isSelf={isSelf} userId={profile.userId} />
+              </motion.div>
+            )}
+            {tab === "posts" && (
+              <motion.div
+                key="posts"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-4"
+              >
+                {postsLoading ? (
+                  <PostsSkeleton />
+                ) : posts.length === 0 ? (
+                  <EmptyState
+                    kind="posts"
+                    title={isSelf ? "هنوز پستی نگذاشته‌اید" : "این کاربر هنوز پستی ندارد"}
+                    description={isSelf ? "اولین پست خود را در فید بسازید." : ""}
+                    action={
+                      isSelf ? (
+                        <Button
+                          onClick={() => navigate({ view: "feed" })}
+                          className="bg-primary text-primary-foreground"
+                        >
+                          <Icon name="plus" size={16} />
+                          ساخت پست
+                        </Button>
+                      ) : undefined
+                    }
+                  />
+                ) : (
+                  posts.map((p, i) => <PostCard key={p.id} post={p} index={i} />)
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────────────── */
+/*  About tab: bio + categories with color chips + skills               */
+/* ───────────────────────────────────────────────────────────────────── */
+
+function AboutTab({
+  profile,
+  catColorMap,
+}: {
+  profile: ProfileDetail;
+  catColorMap: Map<string, string>;
+}) {
+  const cats = profile.categories || [];
+  if (!profile.bioLong && !profile.bioShort && cats.length === 0) {
+    return (
+      <EmptyState
+        kind="generic"
+        title="اطلاعاتی موجود نیست"
+        description="این کاربر هنوز درباره خودش ننوشته است."
+      />
+    );
+  }
+  return (
+    <div className="space-y-5">
+      {profile.bioLong && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass rounded-2xl p-5"
+        >
+          <div className="flex items-center gap-2 mb-3 text-xs font-bold text-muted-foreground">
+            <Icon name="info" size={14} />
+            درباره من
+          </div>
+          <p className="text-[14px] leading-8 whitespace-pre-wrap text-foreground/90">
+            {profile.bioLong}
+          </p>
+        </motion.div>
+      )}
+
+      {cats.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="space-y-3"
+        >
+          <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground px-1">
+            <Icon name="award" size={14} />
+            حوزه‌های تخصصی
+          </div>
+          <div className="space-y-3">
+            {cats.map((c, i) => {
+              const color = catColorMap.get(c.id) || "oklch(0.6 0.15 160)";
+              return (
+                <motion.div
+                  key={c.id}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.06 }}
+                  className="glass rounded-2xl p-4"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <span
+                      className="w-3 h-3 rounded-full shrink-0"
+                      style={{ background: color }}
+                    />
+                    <h3 className="font-bold text-sm flex-1">{c.name}</h3>
+                  </div>
+                  {c.skills.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {c.skills.map((s) => (
+                        <span
+                          key={s.id}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold border"
+                          style={{
+                            background: shadeColor(color, 0.18, 165, 0.85),
+                            borderColor: shadeColor(color, 0.3, 165),
+                            color: shadeColor(color, 0.92, 165, 1),
+                          }}
+                        >
+                          {s.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {c.skills.length === 0 && (
+                    <p className="text-xs text-muted-foreground">مهارت‌ای ثبت نشده</p>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Phone (if visible) */}
+      {profile.phone && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass rounded-2xl p-4 flex items-center gap-3"
+        >
+          <div className="grid place-items-center w-10 h-10 rounded-xl bg-primary/10 text-primary shrink-0">
+            <Icon name="phone" size={18} />
+          </div>
+          <div className="flex-1">
+            <p className="text-[11px] text-muted-foreground">شماره تماس</p>
+            <p className="text-sm font-bold font-mono" dir="ltr">{profile.phone}</p>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────────────── */
+/*  Resume tab: experiences timeline + educations + PDF button          */
+/* ───────────────────────────────────────────────────────────────────── */
+
+function ResumeTab({
+  profile,
+  isSelf,
+  userId,
+}: {
+  profile: ProfileDetail;
+  isSelf: boolean;
+  userId: string;
+}) {
+  const exps = profile.experiences || [];
+  const edus = profile.educations || [];
+
+  if (exps.length === 0 && edus.length === 0) {
+    return (
+      <EmptyState
+        kind="generic"
+        title="رزومه‌ای ثبت نشده"
+        description={isSelf ? "برای تکمیل رزومه به ویرایش پروفایل بروید." : ""}
+        action={
+          isSelf ? (
+            <Button
+              onClick={() => navigate({ view: "edit-profile" })}
+              className="bg-primary text-primary-foreground"
+            >
+              <Icon name="pencil" size={16} />
+              ویرایش پروفایل
+            </Button>
+          ) : undefined
         }
       />
     );
   }
 
-  const isSelf = me?.id === profile.userId;
-
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
-      <div className="space-y-5 min-w-0">
-        <ProfileHeader
-          profile={profile}
-          meta={meta}
-          cats={cats}
-          isSelf={isSelf}
-          onUpdated={load}
-        />
-        <ProfileTabs profile={profile} isSelf={isSelf} />
-      </div>
+    <div className="space-y-6">
+      {/* PDF download button */}
+      <button
+        onClick={() => window.open(`/api/resume/${userId}`, "_blank")}
+        className="w-full flex items-center justify-between gap-3 p-4 rounded-2xl glass hover:bg-white/5 transition-colors group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="grid place-items-center w-11 h-11 rounded-xl bg-primary/10 text-primary">
+            <Icon name="briefcase" size={20} />
+          </div>
+          <div className="text-right">
+            <p className="font-bold text-sm">دانلود رزومه PDF</p>
+            <p className="text-[11px] text-muted-foreground">نسخه کامل با فرمت چاپ</p>
+          </div>
+        </div>
+        <Icon name="chevronLeft" size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+      </button>
 
-      {/* Desktop sidebar (sticky) */}
-      <aside className="hidden lg:block lg:sticky lg:top-20 space-y-4">
-        <QuickStatsCard profile={profile} meta={meta} />
-
-        {profile.categories.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <Card className="p-5 rounded-3xl shadow-card">
-              <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
-                <Icon name="spark" className="w-4 h-4 text-primary" /> تخصص‌ها
-              </h3>
-              <div className="space-y-3">
-                {profile.categories.map((c) => {
-                  const catMeta = cats.find((x) => x.id === c.id);
-                  const isMain =
-                    meta?.mainCategoryId === c.id ||
-                    (!meta?.mainCategoryId && c.id === profile.categories[0]?.id);
-                  return (
-                    <div key={c.id}>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <CategoryIcon emoji={c.iconUrl} className="w-7 h-7 text-sm" />
-                        <p className="text-xs font-bold text-foreground">{c.name}</p>
-                        {isMain && (
-                          <Badge className="bg-primary/10 text-primary border border-primary/20 text-[9px] h-4 rounded-md px-1 font-bold">
-                            اصلی
-                          </Badge>
-                        )}
-                      </div>
-                      {c.skills.length > 0 ? (
-                        <div className="flex flex-wrap gap-1 pr-9">
-                          {c.skills.map((s) => (
-                            <Badge
-                              key={s.id}
-                              variant="secondary"
-                              className="text-[10px] h-5 rounded-md font-medium"
-                            >
-                              {s.name}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground pr-9">مهارتی ثبت نشده</p>
-                      )}
-                      {catMeta?.color && (
-                        <div
-                          className="mt-2 mr-9 h-1 w-10 rounded-full"
-                          style={{ backgroundColor: catMeta.color }}
-                        />
+      {/* Experiences */}
+      {exps.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <Icon name="rocket" size={16} className="text-primary" />
+            <h3 className="text-sm font-bold">تجربه‌ها</h3>
+            <span className="text-[10px] text-muted-foreground">({toFa(exps.length)})</span>
+          </div>
+          <div className="relative">
+            {/* Vertical line */}
+            <div className="absolute top-2 bottom-2 right-[7px] w-0.5 bg-border/60" />
+            <div className="space-y-4">
+              {exps.map((e, i) => (
+                <motion.div
+                  key={e.id}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="relative pr-8"
+                >
+                  <div className="absolute right-0 top-2 w-4 h-4 rounded-full border-2 border-primary bg-background" />
+                  <div className="glass rounded-2xl p-4">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <h4 className="font-bold text-sm leading-tight">{e.jobTitle}</h4>
+                      {e.categoryName && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold shrink-0">
+                          {e.categoryName}
+                        </span>
                       )}
                     </div>
-                  );
-                })}
-              </div>
-            </Card>
-          </motion.div>
-        )}
+                    <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <Icon name="briefcase" size={11} />
+                      {e.organization}
+                      {e.skillName && <span className="text-foreground/60"> · {e.skillName}</span>}
+                    </p>
+                    {(e.startDate || e.endDate) && (
+                      <p className="text-[11px] text-muted-foreground/80 mb-2" dir="ltr">
+                        {[e.startDate, e.endDate || "تاکنون"].filter(Boolean).join(" — ")}
+                      </p>
+                    )}
+                    {e.description && (
+                      <p className="text-xs leading-6 text-foreground/80 mt-2 whitespace-pre-wrap">
+                        {e.description}
+                      </p>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <Card className="p-5 rounded-3xl shadow-card space-y-2">
-            <h3 className="text-sm font-bold mb-2">دسترسی سریع</h3>
-            {isSelf ? (
-              <Button
-                size="sm"
-                className="w-full justify-start gap-2 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
-                onClick={() => navigate({ view: "edit-profile" })}
+      {/* Educations */}
+      {edus.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <Icon name="award" size={16} className="text-gold" />
+            <h3 className="text-sm font-bold">تحصیلات</h3>
+            <span className="text-[10px] text-muted-foreground">({toFa(edus.length)})</span>
+          </div>
+          <div className="space-y-3">
+            {edus.map((e, i) => (
+              <motion.div
+                key={e.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="glass rounded-2xl p-4"
               >
-                <Icon name="pencil" className="w-4 h-4" /> ویرایش پروفایل
-              </Button>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start gap-2 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-semibold"
-                  onClick={async () => {
-                    try {
-                      const r = await apiPost<{ conversationId: string; status: string }>(
-                        "/api/chat/start",
-                        { userId: profile.userId }
-                      );
-                      if (r.status === "active") {
-                        navigate({ view: "chat", conversationId: r.conversationId });
-                      } else {
-                        toast({
-                          title: "درخواست پیام ارسال شد 📨",
-                          description: "پس از تأیید طرف مقابل، گفتگو باز خواهد شد.",
-                        });
-                      }
-                    } catch (e) {
-                      toast({
-                        title: "خطا",
-                        description: (e as Error).message,
-                        variant: "destructive",
-                      });
-                    }
-                  }}
-                >
-                  <Icon name="chat" className="w-4 h-4" /> شروع گفتگو
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start gap-2 rounded-2xl font-semibold text-muted-foreground"
-                  onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
-                >
-                  <Icon name="upload" className="w-4 h-4" /> دانلود رزومه PDF
-                </Button>
-              </>
-            )}
-          </Card>
-        </motion.div>
-      </aside>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="font-bold text-sm">{e.degree}</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                      <Icon name="mapPin" size={11} />
+                      {e.institution}
+                    </p>
+                  </div>
+                  {e.year && (
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gold/10 text-gold shrink-0">
+                      {toFa(e.year)}
+                    </span>
+                  )}
+                </div>
+                {e.description && (
+                  <p className="text-xs leading-6 text-foreground/80 mt-2 whitespace-pre-wrap">
+                    {e.description}
+                  </p>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   Hero header — solid color background, avatar breaks the boundary
-   ────────────────────────────────────────────────────────────────── */
-function ProfileHeader({
-  profile,
-  meta,
-  cats,
-  isSelf,
-  onUpdated,
+/* ───────────────────────────────────────────────────────────────────── */
+/*  Small components                                                    */
+/* ───────────────────────────────────────────────────────────────────── */
+
+function StatBlock({
+  value,
+  label,
+  icon,
 }: {
-  profile: ProfileDetail;
-  meta: ProfileMeta | null;
-  cats: CategoryWithSkills[];
-  isSelf: boolean;
-  onUpdated: () => void;
+  value: string;
+  label: string;
+  icon: string;
 }) {
-  const provinceName = getProvinceName(profile.province);
-  const genderLabel =
-    profile.gender === "male" ? "مرد" : profile.gender === "female" ? "زن" : null;
-
-  // Build a Map<categoryId, color> from categories endpoint
-  const colorMap = new Map<string, string | null>();
-  for (const c of cats) colorMap.set(c.id, c.color ?? null);
-
-  const mainCatId =
-    meta?.mainCategoryId ??
-    profile.mainCategoryId ??
-    profile.categories[0]?.id ??
-    null;
-  const mainCatColor = mainCatId ? colorMap.get(mainCatId) ?? null : null;
-  const isTopTalent = meta?.isTopTalent ?? profile.isTopTalent ?? false;
-
-  // Hero background: use main category color tinted, or solid primary
-  const heroBg = mainCatColor
-    ? `linear-gradient(135deg, ${mainCatColor} 0%, color-mix(in oklch, ${mainCatColor} 70%, black) 100%)`
-    : "linear-gradient(135deg, var(--primary) 0%, color-mix(in oklch, var(--primary) 75%, black) 100%)";
-
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      whileTap={{ scale: 0.96 }}
+      className="glass rounded-2xl py-3 flex flex-col items-center"
     >
-      <Card className="p-0 shadow-card overflow-visible rounded-3xl">
-        {/* ── Banner ──────────────────────────────────────────────── */}
-        <div
-          className="relative h-44 md:h-56 w-full rounded-t-3xl overflow-hidden"
-          style={{ background: heroBg }}
-        >
-          {profile.bannerUrl && !profile.bannerUrl.startsWith("default") ? (
-            <img
-              src={profile.bannerUrl}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-          ) : (
-            <>
-              {/* Subtle radial highlight */}
-              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_20%,white_0%,transparent_55%)]" />
-              {/* Dotted pattern */}
-              <div
-                className="absolute inset-0 opacity-10"
-                style={{
-                  backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
-                  backgroundSize: "28px 28px",
-                }}
-              />
-              {/* Soft glow on the right (RTL: leading edge) */}
-              <div className="absolute -bottom-20 -right-10 w-56 h-56 rounded-full bg-white/8 blur-3xl" />
-            </>
-          )}
-
-          {/* Top badges row */}
-          <div className="absolute top-4 right-4 left-4 flex justify-between items-start gap-2 flex-wrap">
-            {isTopTalent && (
-              <div className="px-3 py-1.5 rounded-full bg-white/95 text-amber-600 text-xs font-bold flex items-center gap-1.5 shadow-md backdrop-blur-sm">
-                <Icon name="crown" className="w-3.5 h-3.5" />
-                استعداد برتر
-              </div>
-            )}
-            {profile.isVerifiedBadge && !isTopTalent && (
-              <div className="px-3 py-1.5 rounded-full bg-white/95 text-amber-600 text-xs font-bold flex items-center gap-1.5 shadow-md backdrop-blur-sm">
-                <Icon name="shield" className="w-3.5 h-3.5" />
-                تأیید شده
-              </div>
-            )}
-            {profile.isBanned && (
-              <div className="px-3 py-1.5 rounded-full bg-rose/95 text-white text-xs font-bold flex items-center gap-1.5 shadow-md">
-                <Icon name="alert" className="w-3.5 h-3.5" />
-                حساب مسدود
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Identity row ─────────────────────────────────────────── */}
-        <div className="px-5 md:px-8 pb-6">
-          <div className="flex flex-col md:flex-row md:items-end gap-5 -mt-16 md:-mt-20">
-            {/* Avatar — overlapping the header boundary */}
-            <div className="relative shrink-0">
-              <div
-                className="rounded-full ring-4 ring-card shadow-lg"
-                style={{ backgroundColor: mainCatColor ?? "var(--primary)" }}
-              >
-                <div className="p-1.5">
-                  <UserAvatar
-                    name={profile.name}
-                    avatarUrl={profile.avatarUrl}
-                    verified={profile.isVerifiedBadge}
-                    gender={profile.gender}
-                    size="2xl"
-                  />
-                </div>
-              </div>
-              {isTopTalent && (
-                <span className="absolute -top-1.5 -right-1.5 grid place-items-center w-10 h-10 rounded-full bg-amber-400 text-white shadow-lg ring-2 ring-card">
-                  <Icon name="crown" className="w-5 h-5" />
-                </span>
-              )}
-            </div>
-
-            {/* Name + meta + actions */}
-            <div className="flex-1 min-w-0 md:pb-3">
-              <motion.div
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.35, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-                    {profile.name}
-                  </h1>
-                  {profile.isVerifiedBadge && (
-                    <Badge className="bg-amber-50 text-amber-600 border border-amber-200 rounded-lg gap-1">
-                      <Icon name="shield" className="w-3 h-3" /> تأیید شده
-                    </Badge>
-                  )}
-                  {isTopTalent && (
-                    <Badge className="bg-amber-50 text-amber-600 border border-amber-200 rounded-lg gap-1">
-                      <Icon name="crown" className="w-3 h-3" /> استعداد برتر
-                    </Badge>
-                  )}
-                  {genderLabel && (
-                    <Badge
-                      variant="outline"
-                      className="rounded-lg gap-1 border-primary/25 text-primary font-medium"
-                    >
-                      <Icon name="user" className="w-3 h-3" />
-                      {genderLabel}
-                    </Badge>
-                  )}
-                </div>
-                {profile.username && (
-                  <p className="text-sm text-muted-foreground mt-1" dir="ltr">
-                    @{profile.username}
-                  </p>
-                )}
-                {profile.bioShort && (
-                  <p className="text-sm text-muted-foreground mt-2 line-clamp-2 leading-6 max-w-xl">
-                    {profile.bioShort}
-                  </p>
-                )}
-                <div className="flex items-center gap-3 mt-2.5 text-xs text-muted-foreground flex-wrap">
-                  {(provinceName || profile.city) && (
-                    <span className="inline-flex items-center gap-1">
-                      <Icon name="mapPin" className="w-3.5 h-3.5 text-primary" />
-                      {[provinceName, profile.city].filter(Boolean).join("، ")}
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1">
-                    <Icon name="calendar" className="w-3.5 h-3.5 text-primary" />
-                    عضو از {formatFaDate(profile.createdAt)}
-                  </span>
-                  {profile.phoneVisible && profile.phone && (
-                    <span className="inline-flex items-center gap-1" dir="ltr">
-                      <Icon name="chat" className="w-3.5 h-3.5 text-primary" />
-                      {toFa(profile.phone)}
-                    </span>
-                  )}
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-wrap items-center gap-2 md:pb-3">
-              {isSelf ? (
-                <Button
-                  variant="outline"
-                  onClick={() => navigate({ view: "edit-profile" })}
-                  className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-bold"
-                >
-                  <Icon name="pencil" className="w-4 h-4" /> ویرایش پروفایل
-                </Button>
-              ) : (
-                <>
-                  <ConnectionButton profile={profile} onUpdated={onUpdated} />
-                  <Button
-                    variant="outline"
-                    onClick={async () => {
-                      try {
-                        const r = await apiPost<{ conversationId: string; status: string }>(
-                          "/api/chat/start",
-                          { userId: profile.userId }
-                        );
-                        if (r.status === "active") {
-                          navigate({ view: "chat", conversationId: r.conversationId });
-                        } else {
-                          toast({
-                            title: "درخواست پیام ارسال شد 📨",
-                            description: "پس از تأیید طرف مقابل، گفتگو باز خواهد شد.",
-                          });
-                        }
-                      } catch (e) {
-                        toast({
-                          title: "خطا",
-                          description: (e as Error).message,
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                    className="gap-1.5 rounded-2xl border-primary/30 text-primary hover:bg-primary/5 font-bold"
-                  >
-                    <Icon name="chat" className="w-4 h-4" /> پیام
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
-                    className="gap-1.5 rounded-2xl font-semibold text-muted-foreground"
-                  >
-                    <Icon name="upload" className="w-4 h-4" /> رزومه
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Counts row — single "ارتباطات" count */}
-          <div className="flex items-center gap-6 mt-5 pt-4 border-t border-border/60 text-sm">
-            <button
-              className="hover:opacity-80 transition-opacity text-right"
-              onClick={() => navigate({ view: "connections" })}
-            >
-              <span className="font-extrabold text-primary text-lg">
-                {formatCount(profile.followersCount + profile.followingCount)}
-              </span>
-              <span className="text-muted-foreground mr-1.5">ارتباطات</span>
-            </button>
-            <span className="text-muted-foreground">
-              <span className="font-extrabold text-primary text-lg">
-                {formatCount(profile.postCount)}
-              </span>
-              <span className="mr-1.5">پست</span>
-            </span>
-            {profile.categories.length > 0 && (
-              <span className="text-muted-foreground">
-                <span className="font-extrabold text-primary text-lg">
-                  {toFa(profile.categories.length)}
-                </span>
-                <span className="mr-1.5">تخصص</span>
-              </span>
-            )}
-          </div>
-        </div>
-      </Card>
+      <div className="text-primary mb-1">
+        <Icon name={icon} size={16} />
+      </div>
+      <span className="font-black text-lg leading-none nums-fa">{value}</span>
+      <span className="text-[10px] text-muted-foreground mt-1">{label}</span>
     </motion.div>
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   Connection Button — accept / pending / connect states
-   ────────────────────────────────────────────────────────────────── */
-function ConnectionButton({
-  profile,
-  onUpdated,
-}: {
-  profile: ProfileDetail;
-  onUpdated: () => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  const status = profile.connectionStatus;
-
-  async function handle() {
-    if (status === "accepted") {
-      toast({ title: "شما قبلاً متصل شده‌اید" });
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await apiPost<{ status: string }>("/api/connections", {
-        receiverId: profile.userId,
-      });
-      if (res.status === "accepted") {
-        toast({ title: "ارتباط برقرار شد ✅" });
-      } else if (res.status === "pending-sent") {
-        toast({ title: "درخواست ارتباط ارسال شد 📨" });
-      }
-      onUpdated();
-    } catch (e) {
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (status === "accepted") {
-    return (
-      <Button
-        onClick={handle}
-        disabled
-        className="gap-1.5 rounded-2xl bg-primary/15 text-primary border border-primary/40 font-bold"
-      >
-        <Icon name="userCheck" className="w-4 h-4" /> متصل
-      </Button>
-    );
-  }
-  if (status === "pending-sent") {
-    return (
-      <Button
-        variant="outline"
-        onClick={handle}
-        disabled
-        className="gap-1.5 rounded-2xl border-amber-400/50 text-amber-600 font-bold"
-      >
-        <Icon name="calendar" className="w-4 h-4" /> در انتظار
-      </Button>
-    );
-  }
-  if (status === "pending-received") {
-    return (
-      <Button
-        onClick={handle}
-        disabled={busy}
-        className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
-      >
-        {busy ? <Spinner className="w-4 h-4" /> : <Icon name="userCheck" className="w-4 h-4" />}
-        پذیرش درخواست
-      </Button>
-    );
-  }
+function ProfileSkeleton() {
   return (
-    <Button
-      onClick={handle}
-      disabled={busy}
-      className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-sm"
-    >
-      {busy ? <Spinner className="w-4 h-4" /> : <Icon name="userPlus" className="w-4 h-4" />}
-      برقراری ارتباط
-    </Button>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────
-   Tabs — درباره | رزومه | پست‌ها
-   ────────────────────────────────────────────────────────────────── */
-function ProfileTabs({
-  profile,
-  isSelf,
-}: {
-  profile: ProfileDetail;
-  isSelf: boolean;
-}) {
-  return (
-    <Tabs defaultValue="about" className="w-full">
-      <TabsList className="w-full grid grid-cols-3 h-12 rounded-3xl bg-muted/60 p-1">
-        <TabsTrigger
-          value="about"
-          className="rounded-2xl font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-        >
-          درباره
-        </TabsTrigger>
-        <TabsTrigger
-          value="resume"
-          className="rounded-2xl font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-        >
-          رزومه
-        </TabsTrigger>
-        <TabsTrigger
-          value="posts"
-          className="rounded-2xl font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-        >
-          پست‌ها
-        </TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="about" className="mt-4 space-y-4">
-        <AboutTab profile={profile} />
-      </TabsContent>
-      <TabsContent value="resume" className="mt-4 space-y-4">
-        <ResumeTab profile={profile} />
-      </TabsContent>
-      <TabsContent value="posts" className="mt-4 space-y-4">
-        <PostsTab userId={profile.userId} isSelf={isSelf} />
-      </TabsContent>
-    </Tabs>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────
-   About tab — bio + general info + categories with colors
-   ────────────────────────────────────────────────────────────────── */
-function AboutTab({ profile }: { profile: ProfileDetail }) {
-  const hasBio = profile.bioLong.trim().length > 0;
-  const hasCategories = profile.categories.length > 0;
-  const genderLabel =
-    profile.gender === "male" ? "مرد" : profile.gender === "female" ? "زن" : null;
-
-  if (!hasBio && !hasCategories && !genderLabel) {
-    return (
-      <Card className="p-5 rounded-3xl shadow-card">
-        <EmptyState
-          kind="generic"
-          title="هنوز توضیحاتی ثبت نشده"
-          description="درباره‌ی تخصص، تجربه و علاقه‌مندی‌های خود بنویسید."
-        />
-      </Card>
-    );
-  }
-
-  return (
-    <>
-      {hasBio && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <Card className="p-6 rounded-3xl shadow-card hover:shadow-lift transition-shadow duration-300">
-            <h2 className="text-sm font-bold mb-3 flex items-center gap-2">
-              <span className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary">
-                <Icon name="sparkles" className="w-4 h-4" />
-              </span>
-              درباره من
-            </h2>
-            <p className="text-sm leading-8 whitespace-pre-wrap break-words text-foreground/90">
-              {profile.bioLong}
-            </p>
-          </Card>
-        </motion.div>
-      )}
-
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <Card className="p-6 rounded-3xl shadow-card hover:shadow-lift transition-shadow duration-300">
-          <h2 className="text-sm font-bold mb-4 flex items-center gap-2">
-            <span className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary">
-              <Icon name="user" className="w-4 h-4" />
-            </span>
-            اطلاعات کلی
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {genderLabel && (
-              <div className="flex items-center gap-2 p-3 rounded-2xl bg-muted/40">
-                <Icon name="user" className="w-4 h-4 text-primary" />
-                <span className="text-xs text-muted-foreground">جنسیت:</span>
-                <span className="text-sm font-semibold">{genderLabel}</span>
-              </div>
-            )}
-            {(getProvinceName(profile.province) || profile.city) && (
-              <div className="flex items-center gap-2 p-3 rounded-2xl bg-muted/40">
-                <Icon name="mapPin" className="w-4 h-4 text-primary" />
-                <span className="text-xs text-muted-foreground">موقعیت:</span>
-                <span className="text-sm font-semibold">
-                  {[getProvinceName(profile.province), profile.city].filter(Boolean).join("، ")}
-                </span>
-              </div>
-            )}
-            {profile.username && (
-              <div className="flex items-center gap-2 p-3 rounded-2xl bg-muted/40" dir="ltr">
-                <Icon name="userPlus" className="w-4 h-4 text-primary" />
-                <span className="text-xs text-muted-foreground">نام کاربری:</span>
-                <span className="text-sm font-semibold" dir="ltr">@{profile.username}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2 p-3 rounded-2xl bg-muted/40">
-              <Icon name="calendar" className="w-4 h-4 text-primary" />
-              <span className="text-xs text-muted-foreground">عضو از:</span>
-              <span className="text-sm font-semibold">{formatFaDate(profile.createdAt)}</span>
-            </div>
+    <div className="max-w-3xl mx-auto">
+      <div className="relative overflow-hidden rounded-b-[40px] bg-card h-64">
+        <Skeleton className="absolute inset-0" />
+        <Skeleton className="absolute top-0 inset-x-0 h-1.5" />
+        <div className="relative flex justify-center items-end h-full pb-0">
+          <div className="translate-y-1/2">
+            <Skeleton className="w-32 h-32 rounded-full ring-4 ring-background" />
           </div>
-        </Card>
-      </motion.div>
-
-      {hasCategories && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <Card className="p-6 rounded-3xl shadow-card hover:shadow-lift transition-shadow duration-300">
-            <h2 className="text-sm font-bold mb-4 flex items-center gap-2">
-              <span className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary">
-                <Icon name="spark" className="w-4 h-4" />
-              </span>
-              تخصص‌ها و مهارت‌ها
-            </h2>
-            <div className="space-y-5">
-              {profile.categories.map((c, i) => (
-                <motion.div
-                  key={c.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: i * 0.05 }}
-                >
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <CategoryIcon emoji={c.iconUrl} className="w-8 h-8 text-base" />
-                    <span className="font-bold text-sm">{c.name}</span>
-                    <Separator className="flex-1" />
-                  </div>
-                  {c.skills.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5 pr-10">
-                      {c.skills.map((s) => (
-                        <Badge
-                          key={s.id}
-                          className="bg-primary/10 text-primary border border-primary/20 text-xs rounded-md font-medium hover:bg-primary/20"
-                        >
-                          {s.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground pr-10">مهارتی ثبت نشده</p>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-        </motion.div>
-      )}
-    </>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────
-   Resume tab — experiences + educations timeline
-   ────────────────────────────────────────────────────────────────── */
-function ResumeTab({ profile }: { profile: ProfileDetail }) {
-  const hasExp = profile.experiences.length > 0;
-  const hasEdu = profile.educations.length > 0;
-
-  if (!hasExp && !hasEdu) {
-    return (
-      <Card className="p-5 rounded-3xl shadow-card">
-        <EmptyState
-          kind="generic"
-          title="رزومه‌ای ثبت نشده"
-          description="سوابق کاری و تحصیلی هنوز اضافه نشده‌اند."
-        />
-      </Card>
-    );
-  }
-
-  return (
-    <>
-      {hasExp && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <Card className="p-6 rounded-3xl shadow-card hover:shadow-lift transition-shadow duration-300">
-            <h2 className="text-sm font-bold mb-4 flex items-center gap-2">
-              <span className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary">
-                <Icon name="briefcase" className="w-4 h-4" />
-              </span>
-              سوابق کاری
-            </h2>
-            <div className="space-y-3">
-              {profile.experiences.map((e, i) => (
-                <motion.div
-                  key={e.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: i * 0.05 }}
-                  className="relative pr-5 border-r-2 border-primary/30 last:border-transparent pb-4 last:pb-0"
-                >
-                  <div className="absolute -right-[6px] top-1.5 w-3 h-3 rounded-full bg-primary ring-4 ring-card" />
-                  <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                    <h3 className="font-bold text-sm">
-                      {e.jobTitle}{" "}
-                      <span className="text-muted-foreground font-normal">@ {e.organization}</span>
-                    </h3>
-                    {(e.startDate || e.endDate) && (
-                      <span className="text-[11px] text-muted-foreground" dir="ltr">
-                        {toFa([e.startDate, e.endDate || "تاکنون"].filter(Boolean).join(" — "))}
-                      </span>
-                    )}
-                  </div>
-                  {e.description && (
-                    <p className="text-xs leading-6 mt-2 text-muted-foreground whitespace-pre-wrap">
-                      {e.description}
-                    </p>
-                  )}
-                  {(e.categoryName || e.skillName) && (
-                    <div className="flex items-center gap-1 mt-2 flex-wrap">
-                      {e.categoryName && (
-                        <Badge variant="secondary" className="text-[10px] h-5 rounded-md">
-                          {e.categoryName}
-                        </Badge>
-                      )}
-                      {e.skillName && (
-                        <Badge className="text-[10px] h-5 rounded-md bg-primary/10 text-primary border border-primary/20 font-medium">
-                          {e.skillName}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-        </motion.div>
-      )}
-
-      {hasEdu && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <Card className="p-6 rounded-3xl shadow-card hover:shadow-lift transition-shadow duration-300">
-            <h2 className="text-sm font-bold mb-4 flex items-center gap-2">
-              <span className="grid place-items-center w-8 h-8 rounded-xl bg-amber-100 text-amber-600">
-                <Icon name="award" className="w-4 h-4" />
-              </span>
-              تحصیلات
-            </h2>
-            <div className="space-y-3">
-              {profile.educations.map((e, i) => (
-                <motion.div
-                  key={e.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: i * 0.05 }}
-                  className="relative pr-5 border-r-2 border-amber-400/40 last:border-transparent pb-4 last:pb-0"
-                >
-                  <div className="absolute -right-[6px] top-1.5 w-3 h-3 rounded-full bg-amber-400 ring-4 ring-card" />
-                  <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                    <h3 className="font-bold text-sm">{e.degree}</h3>
-                    {e.year && (
-                      <span className="text-[11px] text-muted-foreground" dir="ltr">
-                        {toFa(e.year)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{e.institution}</p>
-                  {e.description && (
-                    <p className="text-xs leading-6 mt-1 text-muted-foreground whitespace-pre-wrap">
-                      {e.description}
-                    </p>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-        </motion.div>
-      )}
-    </>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────
-   Posts tab
-   ────────────────────────────────────────────────────────────────── */
-function PostsTab({ userId, isSelf }: { userId: string; isSelf: boolean }) {
-  const [posts, setPosts] = useState<PostWithRelations[] | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api<{ posts: PostWithRelations[] }>(`/api/posts?userId=${userId}`);
-      setPosts(data.posts);
-    } catch (e) {
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {[...Array(2)].map((_, i) => (
-          <Card key={i} className="p-4 space-y-3 rounded-3xl shadow-card">
-            <div className="flex items-center gap-3">
-              <Skeleton className="w-11 h-11 rounded-full" />
-              <div className="space-y-1.5 flex-1">
-                <Skeleton className="h-3.5 w-32 rounded" />
-                <Skeleton className="h-2.5 w-20 rounded" />
-              </div>
-            </div>
-            <Skeleton className="h-4 w-full rounded" />
-            <Skeleton className="h-4 w-3/4 rounded" />
-          </Card>
-        ))}
+        </div>
       </div>
-    );
-  }
+      <div className="px-4 pt-20 space-y-4">
+        <div className="flex flex-col items-center gap-2">
+          <Skeleton className="h-6 w-32 rounded" />
+          <Skeleton className="h-3 w-24 rounded" />
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-20 rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-11 rounded-2xl" />
+        <Skeleton className="h-32 rounded-2xl" />
+      </div>
+    </div>
+  );
+}
 
-  if (!posts || posts.length === 0) {
-    return (
-      <Card className="p-5 rounded-3xl shadow-card">
-        <EmptyState
-          kind="posts"
-          title="پستی منتشر نشده"
-          description={
-            isSelf
-              ? "پست‌های شما اینجا نمایش داده می‌شوند."
-              : "این کاربر هنوز پستی منتشر نکرده است."
-          }
-          action={
-            isSelf ? (
-              <Button
-                size="sm"
-                onClick={() => navigate({ view: "feed" })}
-                className="rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5 font-bold"
-              >
-                <Icon name="sparkles" className="w-4 h-4" /> رفتن به فید
-              </Button>
-            ) : undefined
-          }
-        />
-      </Card>
-    );
-  }
-
+function PostsSkeleton() {
   return (
     <div className="space-y-4">
-      {posts.map((p, i) => (
-        <PostCard key={p.id} post={p} index={i} />
+      {[...Array(3)].map((_, i) => (
+        <Skeleton key={i} className="h-48 rounded-2xl" />
       ))}
     </div>
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   Sidebar stats card
-   ────────────────────────────────────────────────────────────────── */
-function QuickStatsCard({
-  profile,
-  meta,
-}: {
-  profile: ProfileDetail;
-  meta: ProfileMeta | null;
-}) {
-  const isTopTalent = meta?.isTopTalent ?? profile.isTopTalent ?? false;
-  const stats = [
-    {
-      label: "پست",
-      value: profile.postCount,
-      icon: "sparkles" as const,
-      tint: "bg-primary/10 text-primary",
-    },
-    {
-      label: "ارتباطات",
-      value: profile.followersCount + profile.followingCount,
-      icon: "users" as const,
-      tint: "bg-primary/10 text-primary",
-    },
-    {
-      label: "تخصص",
-      value: profile.categories.length,
-      icon: "spark" as const,
-      tint: "bg-rose/15 text-rose",
-    },
-  ];
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-    >
-      <Card className="p-5 rounded-3xl shadow-card">
-        <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
-          <Icon name="heart" className="w-4 h-4 text-rose" /> آمار سریع
-        </h3>
-        <div className="grid grid-cols-3 gap-2">
-          {stats.map((s) => (
-            <div
-              key={s.label}
-              className="rounded-2xl bg-muted/40 p-3 flex flex-col items-center text-center hover:bg-muted transition-colors"
-            >
-              <div className={`grid place-items-center w-9 h-9 rounded-xl ${s.tint} mb-1.5`}>
-                <Icon name={s.icon} className="w-4 h-4" />
-              </div>
-              <span className="text-base font-extrabold">{formatCount(s.value)}</span>
-              <span className="text-[11px] text-muted-foreground">{s.label}</span>
-            </div>
-          ))}
-        </div>
-
-        {isTopTalent && (
-          <div className="mt-3 p-3 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-2">
-            <Icon name="crown" className="w-4 h-4 text-amber-600 shrink-0" />
-            <div>
-              <p className="text-xs font-bold text-amber-600">استعداد برتر</p>
-              <p className="text-[10px] text-amber-700/80 mt-0.5 leading-4">
-                این کاربر توسط تیم همتیم تأیید شده است.
-              </p>
-            </div>
-          </div>
-        )}
-      </Card>
-    </motion.div>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────
-   Loading skeleton
-   ────────────────────────────────────────────────────────────────── */
-function ProfileSkeleton() {
-  return (
-    <div className="space-y-5">
-      <Card className="overflow-visible p-0 shadow-card rounded-3xl">
-        <Skeleton className="h-44 md:h-56 w-full rounded-none rounded-t-3xl" />
-        <div className="px-6 md:px-8 pb-6 -mt-16 md:-mt-20">
-          <div className="flex items-end gap-5">
-            <Skeleton className="w-28 h-28 rounded-full ring-4 ring-card" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-6 w-40 rounded" />
-              <Skeleton className="h-3 w-32 rounded" />
-              <Skeleton className="h-3 w-56 rounded" />
-              <Skeleton className="h-3 w-40 rounded" />
-            </div>
-          </div>
-          <div className="flex gap-5 mt-5 pt-4 border-t border-border/60">
-            <Skeleton className="h-5 w-24 rounded" />
-            <Skeleton className="h-5 w-16 rounded" />
-            <Skeleton className="h-5 w-16 rounded" />
-          </div>
-        </div>
-      </Card>
-      <Card className="p-4 rounded-3xl shadow-card">
-        <Skeleton className="h-12 w-full mb-3 rounded-2xl" />
-        <Skeleton className="h-32 w-full rounded-2xl" />
-      </Card>
-    </div>
-  );
+/* ── Color helper: shade a hex/oklch color toward a darker version ── */
+function shadeColor(
+  color: string,
+  lightness: number,
+  hue: number,
+  alpha: number = 1
+): string {
+  // If color is hex, parse and create an oklch tint
+  if (color.startsWith("#")) {
+    const hex = color.slice(1);
+    const r = parseInt(hex.slice(0, 2), 16) / 255;
+    const g = parseInt(hex.slice(2, 4), 16) / 255;
+    const b = parseInt(hex.slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = hue;
+    if (max !== min) {
+      const d = max - min;
+      if (max === r) h = ((g - b) / d) % 6;
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h = h * 60;
+      if (h < 0) h += 360;
+    }
+    return `oklch(${lightness} 0.04 ${h.toFixed(0)}${alpha < 1 ? ` / ${alpha}` : ""})`;
+  }
+  return color;
 }

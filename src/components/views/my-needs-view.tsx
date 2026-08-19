@@ -10,33 +10,19 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { timeAgoFa, toFa, formatCount } from "@/lib/format";
 import { getProvinceName } from "@/lib/geo";
-import {
-  Briefcase,
-  Plus,
-  Inbox,
-  Send,
-  MapPin,
-  Users,
-  Clock,
-  ChevronLeft,
-  Lock,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type Tab = "posted" | "applied";
 
 export function MyNeedsView() {
   const { user, loading: userLoading } = useUser();
   const [data, setData] = useState<MyNeedsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>("posted");
-  const [reloadKey, setReloadKey] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,12 +30,7 @@ export function MyNeedsView() {
       const d = await api<MyNeedsData>("/api/needs/my-needs");
       setData(d);
     } catch (e) {
-      toast({
-        title: "خطا",
-        description: (e as Error).message,
-        variant: "destructive",
-      });
-      setData(null);
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -58,326 +39,297 @@ export function MyNeedsView() {
   useEffect(() => {
     if (user) load();
     else setLoading(false);
-  }, [user, load, reloadKey]);
+  }, [user, load]);
 
-  /* ── Guest state ── */
   if (!userLoading && !user) {
     return (
-      <div className="max-w-3xl mx-auto space-y-5">
+      <div className="max-w-2xl mx-auto space-y-5">
         <Header />
-        <Card className="p-0 rounded-2xl border-border/60 overflow-hidden">
-          <EmptyState
-            kind="jobs"
-            title="برای مشاهده نیازمندی‌های خود وارد شوید"
-            description="پس از ورود، نیازمندی‌های ثبت‌شده و درخواست‌های شما در این صفحه نمایش داده می‌شود."
-            action={
-              <Button
-                onClick={() => navigate({ view: "auth" })}
-                className="gap-1.5 rounded-2xl"
-              >
-                <Lock className="w-4 h-4" />
-                ورود / ثبت‌نام
-              </Button>
-            }
-          />
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <Card className="glass p-8 text-center space-y-3 shadow-card rounded-3xl border-border/50">
+            <div className="grid place-items-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mx-auto">
+              <Icon name="lock" className="w-6 h-6" />
+            </div>
+            <h2 className="font-bold text-lg">برای مشاهده نیازمندی‌های خود وارد شوید</h2>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-6">
+              نیازمندی‌های ارسالی و درخواست‌های شما در این صفحه نمایش داده می‌شود.
+            </p>
+            <Button
+              onClick={() => navigate({ view: "auth" })}
+              className="gap-1.5 rounded-2xl font-bold mx-auto bg-primary text-primary-foreground"
+            >
+              ورود / ثبت‌نام
+            </Button>
+          </Card>
+        </motion.div>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-3xl mx-auto space-y-5">
-      <Header />
+  const postedCount = data?.posted.length ?? 0;
+  const appliedCount = data?.applied.length ?? 0;
+  const defaultTab = postedCount > 0 || appliedCount === 0 ? "posted" : "applied";
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <TabsList className="grid grid-cols-2 h-11 rounded-2xl bg-muted border border-border p-1">
+  return (
+    <div className="max-w-4xl mx-auto space-y-5">
+      <Header
+        postedCount={loading ? null : postedCount}
+        appliedCount={loading ? null : appliedCount}
+      />
+
+      <Tabs defaultValue={defaultTab} className="w-full">
+        <TabsList className="w-full h-12 rounded-2xl glass border border-border/50 p-1">
           <TabsTrigger
             value="posted"
-            className="rounded-xl text-xs sm:text-sm font-bold data-[state=active]:bg-card data-[state=active]:shadow-sm gap-1.5"
+            className="gap-1.5 flex-1 rounded-xl font-bold text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-soft"
           >
-            <Inbox className="w-4 h-4" />
-            نیازمندی‌های من
-            {data && data.posted.length > 0 && (
-              <Badge
-                variant="secondary"
-                className="text-[10px] h-4 px-1 rounded-md font-bold"
-              >
-                {toFa(data.posted.length)}
+            <Icon name="upload" className="w-4 h-4" />
+            ارسالی
+            {postedCount > 0 && (
+              <Badge className="ml-1 h-5 px-1.5 text-[10px] bg-primary/15 text-primary border border-primary/30">
+                {toFa(postedCount)}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger
             value="applied"
-            className="rounded-xl text-xs sm:text-sm font-bold data-[state=active]:bg-card data-[state=active]:shadow-sm gap-1.5"
+            className="gap-1.5 flex-1 rounded-xl font-bold text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-soft"
           >
-            <Send className="w-4 h-4" />
+            <Icon name="send" className="w-4 h-4" />
             درخواست‌های من
-            {data && data.applied.length > 0 && (
-              <Badge
-                variant="secondary"
-                className="text-[10px] h-4 px-1 rounded-md font-bold"
-              >
-                {toFa(data.applied.length)}
+            {appliedCount > 0 && (
+              <Badge className="ml-1 h-5 px-1.5 text-[10px] bg-gold/20 text-gold border border-gold/30">
+                {toFa(appliedCount)}
               </Badge>
             )}
           </TabsTrigger>
         </TabsList>
-      </Tabs>
 
-      {loading ? (
-        <ListSkeleton />
-      ) : tab === "posted" ? (
-        data && data.posted.length > 0 ? (
-          <div className="space-y-3">
-            {data.posted.map((need, i) => (
-              <PostedNeedCard key={need.id} need={need} index={i} />
-            ))}
-          </div>
-        ) : (
-          <Card className="p-0 rounded-2xl border-border/60 overflow-hidden">
+        {/* Posted tab */}
+        <TabsContent value="posted" className="mt-4">
+          {loading ? (
+            <ListSkeleton />
+          ) : !data || data.posted.length === 0 ? (
             <EmptyState
               kind="jobs"
-              title="هنوز نیازمندی ثبت نکرده‌اید"
-              description="اولین نیازمندی خود را ثبت کنید تا افراد مرتبط با آن آگاه شوند."
+              title="هنوز نیازمندی‌ای منتشر نکرده‌اید"
+              description="نیازها و فرصت‌های خود را ثبت کنید تا افراد مرتبط پیدا شوند."
               action={
-                <Button
-                  onClick={() => navigate({ view: "create-need" })}
-                  className="gap-1.5 rounded-2xl"
-                >
-                  <Plus className="w-4 h-4" />
-                  ثبت نیازمندی
+                <Button onClick={() => navigate({ view: "create-need" })} className="gap-1.5 rounded-2xl font-bold">
+                  <Icon name="plus" className="w-4 h-4" />
+                  ثبت اولین نیازمندی
                 </Button>
               }
             />
-          </Card>
-        )
-      ) : data && data.applied.length > 0 ? (
-        <div className="space-y-3">
-          {data.applied.map((a, i) => (
-            <AppliedNeedCard
-              key={a.id}
-              applicationId={a.id}
-              message={a.message}
-              createdAt={a.createdAt}
-              need={a.need}
-              index={i}
+          ) : (
+            <div className="space-y-3">
+              {data.posted.map((need, i) => (
+                <PostedNeedCard key={need.id} need={need} index={i} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Applied tab */}
+        <TabsContent value="applied" className="mt-4">
+          {loading ? (
+            <ListSkeleton />
+          ) : !data || data.applied.length === 0 ? (
+            <EmptyState
+              kind="jobs"
+              title="هنوز درخواستی ثبت نکرده‌اید"
+              description="نیازمندی‌های دیگران را مشاهده و برای آن‌ها درخواست بفرستید."
+              action={
+                <Button onClick={() => navigate({ view: "needs" })} className="gap-1.5 rounded-2xl font-bold">
+                  <Icon name="briefcase" className="w-4 h-4" />
+                  مرور نیازمندی‌ها
+                </Button>
+              }
             />
-          ))}
-        </div>
-      ) : (
-        <Card className="p-0 rounded-2xl border-border/60 overflow-hidden">
-          <EmptyState
-            kind="jobs"
-            title="درخواستی ثبت نکرده‌اید"
-            description="نیازمندی‌های دیگران را بررسی کنید و برای موارد مرتبط درخواست بفرستید."
-            action={
-              <Button
-                variant="outline"
-                onClick={() => navigate({ view: "needs" })}
-                className="gap-1.5 rounded-2xl"
-              >
-                <Briefcase className="w-4 h-4" />
-                مرور نیازمندی‌ها
-              </Button>
-            }
-          />
-        </Card>
-      )}
+          ) : (
+            <div className="space-y-3">
+              {data.applied.map((a, i) => (
+                <AppliedNeedCard key={a.id} need={a.need} message={a.message} appliedAt={a.createdAt} index={i} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
 
-/* ── Header ── */
-function Header() {
+function Header({
+  postedCount,
+  appliedCount,
+}: {
+  postedCount?: number | null;
+  appliedCount?: number | null;
+}) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: -8 }}
+      initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center justify-between gap-3"
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="relative overflow-hidden rounded-3xl glass border border-border/50 p-6 shadow-float"
     >
-      <div className="flex items-center gap-3">
-        <div className="grid place-items-center w-11 h-11 rounded-2xl bg-primary text-primary-foreground shadow-md">
-          <Briefcase className="w-5 h-5" />
+      <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/15 blur-3xl" aria-hidden />
+      <div className="relative flex items-center gap-4">
+        <div className="grid place-items-center w-16 h-16 rounded-3xl bg-primary text-primary-foreground shadow-glow shrink-0">
+          <Icon name="briefcase" className="w-7 h-7" />
         </div>
         <div>
-          <h1 className="text-xl font-extrabold leading-tight">
-            نیازمندی‌های من
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            مدیریت نیازمندی‌ها و درخواست‌ها
-          </p>
+          <h1 className="text-3xl font-black tracking-tight leading-none">نیازمندی‌های من</h1>
+          <p className="text-sm text-muted-foreground mt-2 leading-6">مدیریت نیازمندی‌های ارسالی و درخواست‌های شما</p>
         </div>
       </div>
-      <Button
-        onClick={() => navigate({ view: "create-need" })}
-        className="gap-1.5 rounded-xl font-bold h-10"
-      >
-        <Plus className="w-4 h-4" />
-        <span className="hidden sm:inline">ثبت نیازمندی</span>
-      </Button>
+
+      {(postedCount !== undefined || appliedCount !== undefined) && (
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <Card className="glass-strong p-3 rounded-2xl border-border/50 flex flex-col items-center text-center">
+            <span className="text-2xl font-black text-primary nums-fa">{toFa(postedCount ?? 0)}</span>
+            <span className="text-[11px] text-muted-foreground mt-0.5">ارسالی</span>
+          </Card>
+          <Card className="glass-strong p-3 rounded-2xl border-border/50 flex flex-col items-center text-center">
+            <span className="text-2xl font-black text-gold nums-fa">{toFa(appliedCount ?? 0)}</span>
+            <span className="text-[11px] text-muted-foreground mt-0.5">درخواست ثبت‌شده</span>
+          </Card>
+        </div>
+      )}
     </motion.div>
   );
 }
 
-/* ── Posted need card ── */
-function PostedNeedCard({
-  need,
-  index,
-}: {
-  need: NeedListItem;
-  index: number;
-}) {
+function PostedNeedCard({ need, index }: { need: NeedListItem; index: number }) {
   const isClosed = need.status === "closed";
-  const locationLabel = need.city
-    ? `${need.city}${need.province ? `، ${getProvinceName(need.province)}` : ""}`
-    : need.province
-    ? getProvinceName(need.province)
-    : null;
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.3,
-        delay: Math.min(index * 0.04, 0.3),
-        ease: [0.16, 1, 0.3, 1],
-      }}
+      transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3), ease: [0.16, 1, 0.3, 1] }}
     >
       <Card
         onClick={() => navigate({ view: "need", id: need.id })}
-        className="p-4 rounded-2xl border-border/60 shadow-sm hover:shadow-md transition-shadow duration-300 cursor-pointer group"
+        className="glass p-5 border-border/50 hover:border-primary/40 hover:shadow-lift transition-all cursor-pointer group rounded-3xl"
       >
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-bold text-sm leading-7 line-clamp-2 group-hover:text-primary transition-colors flex-1">
+          <h3 className="font-bold text-[15px] leading-7 line-clamp-2 group-hover:text-primary transition-colors flex-1">
             {need.title}
           </h3>
           <Badge
-            variant={isClosed ? "secondary" : "outline"}
             className={cn(
-              "shrink-0 text-[10px] h-5 rounded-md font-medium",
-              !isClosed && "border-success/40 text-success"
+              "shrink-0 h-6 px-2 text-[10px] rounded-md font-medium",
+              isClosed ? "bg-muted text-muted-foreground" : "bg-primary/15 text-primary border border-primary/30"
             )}
           >
             {isClosed ? "بسته" : "باز"}
           </Badge>
         </div>
-
-        <p className="text-[13px] text-muted-foreground leading-7 line-clamp-2 mb-2">
+        <p className="text-[13px] text-muted-foreground leading-7 line-clamp-2 mb-3 whitespace-pre-wrap break-words">
           {need.description}
         </p>
-
-        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+        {(need.categoryName || need.skills.length > 0) && (
+          <div className="flex items-center gap-1.5 flex-wrap mb-3">
+            {need.categoryName && (
+              <Badge variant="secondary" className="text-[10px] py-0 h-5 rounded-md font-medium">{need.categoryName}</Badge>
+            )}
+            {need.skills.slice(0, 3).map((s) => (
+              <Badge key={s.id} variant="outline" className="text-[10px] py-0 h-5 rounded-md border-primary/25 text-primary font-medium">
+                {s.name}
+              </Badge>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center justify-between pt-3 border-t border-border/40 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            <Users className="w-3 h-3" />
-            {formatCount(need.applicationCount)} درخواست
+            <Icon name="users" className="w-3.5 h-3.5" />
+            <span className="nums-fa">{formatCount(need.applicationCount)} درخواست</span>
           </span>
-          <span className="inline-flex items-center gap-1">
-            <Clock className="w-3 h-3" />
+          <span className="inline-flex items-center gap-1 nums-fa">
             {timeAgoFa(need.createdAt)}
+            <Icon name="chevronLeft" className="w-3.5 h-3.5 group-hover:text-primary transition-colors" />
           </span>
-          {locationLabel && (
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {locationLabel}
-            </span>
-          )}
-          <ChevronLeft className="w-4 h-4 mr-auto text-muted-foreground/60 group-hover:text-primary transition-colors" />
         </div>
       </Card>
     </motion.div>
   );
 }
 
-/* ── Applied need card ── */
 function AppliedNeedCard({
-  applicationId: _applicationId,
-  message,
-  createdAt,
   need,
+  message,
+  appliedAt,
   index,
 }: {
-  applicationId: string;
-  message: string;
-  createdAt: string;
   need: NeedListItem;
+  message: string;
+  appliedAt: string;
   index: number;
 }) {
-  void _applicationId;
-  const isClosed = need.status === "closed";
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.3,
-        delay: Math.min(index * 0.04, 0.3),
-        ease: [0.16, 1, 0.3, 1],
-      }}
+      transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3), ease: [0.16, 1, 0.3, 1] }}
     >
       <Card
         onClick={() => navigate({ view: "need", id: need.id })}
-        className="p-4 rounded-2xl border-border/60 shadow-sm hover:shadow-md transition-shadow duration-300 cursor-pointer group"
+        className="glass p-5 border-border/50 hover:border-primary/40 hover:shadow-lift transition-all cursor-pointer group rounded-3xl"
       >
-        <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2 mb-1.5">
-              <h3 className="font-bold text-sm leading-7 line-clamp-2 group-hover:text-primary transition-colors flex-1">
-                {need.title}
-              </h3>
-              {isClosed && (
-                <Badge
-                  variant="secondary"
-                  className="shrink-0 text-[10px] h-5 rounded-md font-medium"
-                >
-                  بسته
-                </Badge>
-              )}
-            </div>
-            {message ? (
-              <p className="text-xs text-muted-foreground line-clamp-2 leading-6 mb-2 p-2 rounded-lg bg-muted/40">
-                {message}
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground italic line-clamp-1 leading-6 mb-2">
-                بدون پیام
-              </p>
-            )}
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <UserAvatar
-                name={need.user.name}
-                avatarUrl={need.user.avatarUrl}
-                verified={need.user.isVerifiedBadge}
-                size="xs"
-              />
-              <span className="font-semibold truncate max-w-[100px]">
-                {need.user.name}
-              </span>
-              <span className="text-muted-foreground/50">•</span>
-              <span className="inline-flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {timeAgoFa(createdAt)}
-              </span>
-            </div>
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-bold text-[15px] leading-7 line-clamp-2 group-hover:text-primary transition-colors flex-1">
+            {need.title}
+          </h3>
+          <Badge
+            variant="outline"
+            className="shrink-0 h-6 px-2 text-[10px] rounded-md border-gold/40 text-gold font-medium"
+          >
+            درخواست داده‌ام
+          </Badge>
+        </div>
+        <p className="text-[13px] text-muted-foreground leading-7 line-clamp-1 mb-3 whitespace-pre-wrap break-words">
+          {need.description}
+        </p>
+        {message && (
+          <div className="rounded-xl bg-background/40 border border-border/50 p-2.5 mb-3">
+            <p className="text-[10px] font-bold text-muted-foreground mb-0.5">پیام شما</p>
+            <p className="text-[12px] text-foreground/90 leading-5 line-clamp-2">{message}</p>
           </div>
-          <ChevronLeft className="w-4 h-4 text-muted-foreground/60 group-hover:text-primary transition-colors shrink-0 mt-2" />
+        )}
+        <div className="flex items-center justify-between gap-2 pt-3 border-t border-border/40">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate({ view: "profile", id: need.user.id });
+            }}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          >
+            <UserAvatar name={need.user.name} avatarUrl={need.user.avatarUrl} verified={need.user.isVerifiedBadge} size="sm" />
+            <span className="text-xs font-semibold truncate max-w-[100px]">{need.user.name}</span>
+          </button>
+          <span className="text-xs text-muted-foreground inline-flex items-center gap-1 nums-fa">
+            {timeAgoFa(appliedAt)}
+            <Icon name="chevronLeft" className="w-3.5 h-3.5 group-hover:text-primary transition-colors" />
+          </span>
         </div>
       </Card>
     </motion.div>
   );
 }
 
-/* ── Skeleton ── */
 function ListSkeleton() {
   return (
     <div className="space-y-3">
       {[...Array(4)].map((_, i) => (
-        <Card key={i} className="p-4 rounded-2xl border-border/60 shadow-sm">
-          <Skeleton className="h-5 w-3/4 rounded mb-2" />
-          <Skeleton className="h-12 w-full rounded mb-2" />
-          <div className="flex items-center gap-2">
-            <Skeleton className="w-7 h-7 rounded-full" />
+        <Card key={i} className="glass p-5 border-border/50 rounded-3xl space-y-3">
+          <Skeleton className="h-5 w-3/4 rounded" />
+          <Skeleton className="h-12 w-full rounded" />
+          <div className="flex items-center gap-2 pt-3 border-t border-border/40">
+            <Skeleton className="w-9 h-9 rounded-full" />
             <Skeleton className="h-3 w-24 rounded" />
           </div>
         </Card>

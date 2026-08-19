@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { motion, AnimatePresence, type PanInfo } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
@@ -13,13 +13,12 @@ import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, timeAgoFa, formatFaDate } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { CategoryWithSkills } from "@/lib/types";
 
-// ═════════════════════════════════════════════════════════════════
-// Types matching API responses
-// ═════════════════════════════════════════════════════════════════
+/* ═════════════════════════════════════════════════════════════════
+   Types matching API responses
+   ═════════════════════════════════════════════════════════════════ */
 
 type ExplorePost = {
   id: string;
@@ -77,13 +76,15 @@ type Comment = {
   replies: Comment[];
 };
 
-// ═════════════════════════════════════════════════════════════════
-// Helpers
-// ═════════════════════════════════════════════════════════════════
+type Tab = "posts" | "people";
 
-// Convert hex (#RRGGBB) to a soft tinted background using OKLCH chroma reduction
-function softTint(color: string | null | undefined): string {
-  if (!color) return "oklch(0.96 0.012 270)";
+/* ═════════════════════════════════════════════════════════════════
+   Helpers
+   ═════════════════════════════════════════════════════════════════ */
+
+// Convert any color (hex / oklch) to a soft tinted dark background
+function darkTint(color: string | null | undefined, alpha: number = 0.85): string {
+  if (!color) return "oklch(0.17 0.012 165)";
   if (color.startsWith("#")) {
     const hex = color.slice(1);
     const r = parseInt(hex.slice(0, 2), 16) / 255;
@@ -91,7 +92,7 @@ function softTint(color: string | null | undefined): string {
     const b = parseInt(hex.slice(4, 6), 16) / 255;
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
-    let h = 270;
+    let h = 165;
     if (max !== min) {
       const d = max - min;
       if (max === r) h = ((g - b) / d) % 6;
@@ -100,40 +101,14 @@ function softTint(color: string | null | undefined): string {
       h = h * 60;
       if (h < 0) h += 360;
     }
-    return `oklch(0.96 0.025 ${h.toFixed(0)})`;
+    return `oklch(0.2 0.03 ${h.toFixed(0)} / ${alpha})`;
   }
   return color;
 }
 
-// Subtle gradient tint for tile backgrounds (text-only posts)
-function softTintGradient(color: string | null | undefined): string {
-  if (!color) return "linear-gradient(135deg, oklch(0.97 0.012 270), oklch(0.94 0.018 270))";
-  if (color.startsWith("#")) {
-    const hex = color.slice(1);
-    const r = parseInt(hex.slice(0, 2), 16) / 255;
-    const g = parseInt(hex.slice(2, 4), 16) / 255;
-    const b = parseInt(hex.slice(4, 6), 16) / 255;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    let h = 270;
-    if (max !== min) {
-      const d = max - min;
-      if (max === r) h = ((g - b) / d) % 6;
-      else if (max === g) h = (b - r) / d + 2;
-      else h = (r - g) / d + 4;
-      h = h * 60;
-      if (h < 0) h += 360;
-    }
-    return `linear-gradient(135deg, oklch(0.97 0.025 ${h.toFixed(0)}), oklch(0.93 0.04 ${h.toFixed(0)})`;
-  }
-  return `linear-gradient(135deg, ${color}, ${color})`;
-}
-
-// ═════════════════════════════════════════════════════════════════
-// ExploreView — Instagram-like grid of featured posts + top talent people
-// ═════════════════════════════════════════════════════════════════
-
-type Tab = "posts" | "people";
+/* ═════════════════════════════════════════════════════════════════
+   ExploreView — Instagram-like grid of featured posts + top talent
+   ═════════════════════════════════════════════════════════════════ */
 
 export function ExploreView() {
   const [cats, setCats] = useState<CategoryWithSkills[]>([]);
@@ -193,45 +168,60 @@ export function ExploreView() {
     setSkillId("");
   }
 
+  const activeColor = currentCat?.color || "oklch(0.6 0.15 160)";
+
   return (
     <div className="max-w-5xl mx-auto pb-2">
-      {/* ═══ Hero Header ═══ */}
+      {/* ═══ IMMERSIVE HEADER ═══ */}
       <motion.header
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl bg-card p-5 sm:p-6 shadow-[0_8px_30px_-12px_oklch(0.5_0.22_275/0.25)] mb-4"
+        className="relative overflow-hidden rounded-b-[32px] glass-strong mb-4"
       >
-        {/* Decorative blobs */}
         <div
-          className="absolute -top-16 -left-10 w-56 h-56 rounded-full opacity-25 blur-3xl pointer-events-none"
-          style={{ background: "oklch(0.6 0.22 275)" }}
+          className="absolute inset-0 opacity-25"
+          style={{
+            background: `radial-gradient(circle at 80% 0%, ${activeColor} 0%, transparent 60%)`,
+          }}
         />
         <div
-          className="absolute -bottom-20 -right-12 w-64 h-64 rounded-full opacity-15 blur-3xl pointer-events-none"
-          style={{ background: "oklch(0.72 0.16 75)" }}
+          className="absolute -bottom-16 -left-12 w-64 h-64 rounded-full opacity-15 blur-3xl pointer-events-none"
+          style={{ background: "oklch(0.75 0.15 80)" }}
         />
-        <div className="relative flex items-center gap-4">
-          <div className="grid place-items-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 shrink-0">
-            <Icon name="sparkles" size={30} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
-              استعدادهای برتر
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1 leading-6">
-              بهترین پست‌ها و افراد همتیم را کشف کنید
-            </p>
+
+        <div className="relative p-6 sm:p-7">
+          <div className="flex items-center gap-4">
+            <motion.div
+              initial={{ scale: 0.5, rotate: -30 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 24, delay: 0.1 }}
+              className="grid place-items-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl text-primary-foreground shrink-0 shadow-lg"
+              style={{
+                background: `linear-gradient(135deg, ${activeColor}, oklch(0.4 0.1 160))`,
+                boxShadow: `0 8px 24px ${activeColor}40`,
+              }}
+            >
+              <Icon name="sparkles" size={28} />
+            </motion.div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
+                اکسپلور
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1 leading-6">
+                بهترین پست‌ها و استعدادهای برتر را کشف کنید
+              </p>
+            </div>
           </div>
         </div>
       </motion.header>
 
-      {/* ═══ Filters card ═══ */}
+      {/* ═══ FILTERS ═══ */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-        className="bg-card rounded-3xl p-4 sm:p-5 shadow-sm space-y-3 mb-4"
+        transition={{ duration: 0.4, delay: 0.05 }}
+        className="glass rounded-2xl p-4 mb-4 space-y-3"
       >
         <SearchableSelect
           label="دسته‌بندی"
@@ -263,16 +253,16 @@ export function ExploreView() {
             onClick={clearFilters}
             className="h-9 px-3.5 inline-flex items-center gap-1.5 rounded-full bg-muted text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors text-xs font-bold"
           >
-            <Icon name="x" size={14} className="-rtl:scale-x-100" />
+            <Icon name="x" size={14} />
             حذف فیلترها
           </button>
         )}
       </motion.div>
 
-      {/* ═══ Segmented tabs ═══ */}
+      {/* ═══ SEGMENTED TABS ═══ */}
       <div className="sticky top-0 z-30 -mx-1 px-1 pb-3">
-        <div className="relative flex p-1 bg-card rounded-2xl shadow-sm gap-1">
-          <TabsIndicator activeKey={tab} />
+        <div className="relative flex p-1 glass rounded-2xl gap-1">
+          <TabsIndicator activeKey={tab} color={activeColor} />
           <TabButton active={tab === "posts"} onClick={() => setTab("posts")}>
             <span>پست‌ها</span>
             {!loading && (
@@ -292,7 +282,7 @@ export function ExploreView() {
         </div>
       </div>
 
-      {/* ═══ Content ═══ */}
+      {/* ═══ CONTENT ═══ */}
       <AnimatePresence mode="wait">
         {loading ? (
           <motion.div
@@ -309,13 +299,13 @@ export function ExploreView() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.25 }}
           >
             {posts.length === 0 ? (
               <EmptyState
                 kind="generic"
                 title="پستی یافت نشد"
-                description="با فیلترهای انتخاب‌شده پست برجسته‌ای موجود نیست. فیلترها را تغییر دهید."
+                description="با فیلترهای انتخاب‌شده پست برجسته‌ای موجود نیست."
                 action={
                   (categoryId || skillId) ? (
                     <button
@@ -337,7 +327,7 @@ export function ExploreView() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.25 }}
           >
             {people.length === 0 ? (
               <EmptyState
@@ -365,21 +355,22 @@ export function ExploreView() {
   );
 }
 
-// ── Tabs indicator (animated pill behind active tab) ──
-function TabsIndicator({ activeKey }: { activeKey: Tab }) {
+/* ── Tabs indicator (animated pill) ── */
+function TabsIndicator({ activeKey, color }: { activeKey: Tab; color: string }) {
   return (
     <motion.div
       layout
       transition={{ type: "spring", stiffness: 380, damping: 32 }}
-      className="absolute inset-y-1 w-[calc(50%-0.25rem)] rounded-xl bg-primary shadow-md shadow-primary/20"
+      className="absolute inset-y-1 w-[calc(50%-0.25rem)] rounded-xl shadow-md"
       style={{
         right: activeKey === "posts" ? "calc(50% - 0.25rem)" : "0.25rem",
+        background: color,
+        boxShadow: `0 4px 12px ${color}50`,
       }}
     />
   );
 }
 
-// ── Tab button ──
 function TabButton({
   active,
   onClick,
@@ -394,9 +385,7 @@ function TabButton({
       onClick={onClick}
       className={cn(
         "relative z-10 flex-1 h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors",
-        active
-          ? "text-primary-foreground"
-          : "text-muted-foreground hover:text-foreground"
+        active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
       )}
     >
       {children}
@@ -404,300 +393,231 @@ function TabButton({
   );
 }
 
-// ═════════════════════════════════════════════════════════════════
-// PostsGrid — Instagram-like 2/3 column grid
-// ═════════════════════════════════════════════════════════════════
+/* ═════════════════════════════════════════════════════════════════
+   Posts Grid — Instagram-like, dark green glass tiles
+   ═════════════════════════════════════════════════════════════════ */
 
 function PostsGrid({ posts }: { posts: ExplorePost[] }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 sm:gap-2.5">
-      {posts.map((post, i) => (
-        <ExplorePostTile key={post.id} post={post} index={i} />
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+      {posts.map((p, i) => (
+        <PostTile key={p.id} post={p} index={i} />
       ))}
     </div>
   );
 }
 
-function ExplorePostTile({ post, index }: { post: ExplorePost; index: number }) {
-  const hasMedia = post.media && post.media.length > 0;
-  const firstMedia = hasMedia ? post.media[0] : null;
-  const isVideo = firstMedia?.type === "video";
-  const bgColor = softTintGradient(post.categoryColor);
-  const ringColor = post.user.mainCategoryColor || "var(--border)";
-  // Show like/comment counts only when > 0
-  const showStats = post.likeCount > 0 || post.commentCount > 0;
+function PostTile({ post, index }: { post: ExplorePost; index: number }) {
+  const hasMedia = post.media.length > 0;
+  const catColor = post.categoryColor || "oklch(0.6 0.15 160)";
+  const tileColor = darkTint(post.categoryColor, 0.7);
 
   return (
     <motion.button
-      type="button"
-      onClick={() => navigate({ view: "post", id: post.id })}
-      initial={{ opacity: 0, scale: 0.9, y: 8 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
       transition={{
-        duration: 0.4,
-        delay: Math.min(index * 0.05, 0.4),
+        duration: 0.35,
+        delay: Math.min(index * 0.04, 0.4),
         ease: [0.16, 1, 0.3, 1],
       }}
-      whileHover={{ y: -3 }}
-      whileTap={{ scale: 0.97 }}
-      className="group relative aspect-square overflow-hidden rounded-2xl sm:rounded-3xl bg-card shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-shadow duration-300 text-right block"
-      aria-label={`پست ${post.user.name}`}
+      whileTap={{ scale: 0.95 }}
+      onClick={() => navigate({ view: "post", id: post.id })}
+      className="relative aspect-square rounded-2xl overflow-hidden group text-right block"
     >
-      {/* Media or text-content background */}
-      {firstMedia ? (
-        isVideo ? (
-          <div className="absolute inset-0 bg-muted grid place-items-center overflow-hidden">
-            <video
-              src={firstMedia.url}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              muted
-              playsInline
-              preload="metadata"
-            />
-            <div className="absolute top-2 left-2 grid place-items-center w-7 h-7 rounded-full bg-black/65 text-white backdrop-blur-sm">
-              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </div>
-          </div>
-        ) : (
-          <img
-            src={firstMedia.url}
-            alt={post.content.slice(0, 40) || post.user.name}
-            loading="lazy"
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-        )
-      ) : (
+      {/* Background */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: hasMedia
+            ? `url(${post.media[0].url}) center/cover`
+            : `linear-gradient(135deg, ${tileColor}, ${darkTint(post.categoryColor, 0.9)})`,
+        }}
+      />
+
+      {/* Pattern overlay for text tiles */}
+      {!hasMedia && (
         <div
-          className="absolute inset-0 p-3.5 flex flex-col justify-between"
-          style={{ background: bgColor }}
-        >
-          {/* Top: category chip */}
-          <div className="flex items-start justify-between gap-1.5">
-            {post.categoryName ? (
-              <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full bg-card/85 backdrop-blur-sm text-foreground text-[10px] font-bold shadow-sm">
-                {post.categoryIcon ? <span>{post.categoryIcon}</span> : null}
-                <span className="truncate max-w-[80px]">{post.categoryName}</span>
-              </span>
-            ) : (
-              <span />
-            )}
-            {post.skillName && (
-              <span className="hidden sm:inline-flex items-center h-6 px-2 rounded-full bg-primary/15 text-primary text-[10px] font-bold">
-                {post.skillName}
-              </span>
-            )}
-          </div>
-          {/* Middle: content */}
-          <p className={cn(
-            "text-foreground/85 leading-6 line-clamp-6 sm:line-clamp-7 drop-shadow-sm",
-            post.content.length > 120 ? "text-[11px] sm:text-xs" : "text-xs sm:text-sm font-medium"
-          )}>
+          className="absolute inset-0 opacity-30 mix-blend-overlay"
+          style={{
+            background:
+              "radial-gradient(circle at 20% 20%, white 0%, transparent 30%), radial-gradient(circle at 80% 80%, white 0%, transparent 30%)",
+          }}
+        />
+      )}
+
+      {/* Dark bottom gradient */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+      {/* Category icon at top-right */}
+      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full glass-strong text-[10px] font-bold flex items-center gap-1">
+        {post.categoryIcon && <span>{post.categoryIcon}</span>}
+        <span className="text-foreground/90 truncate max-w-[80px]">
+          {post.categoryName || "عمومی"}
+        </span>
+      </div>
+
+      {/* Top Talent crown */}
+      {post.user.isTopTalent && (
+        <div className="absolute top-2 left-2 grid place-items-center w-6 h-6 rounded-full bg-gold text-black shadow-md">
+          <Icon name="crown" size={12} />
+        </div>
+      )}
+
+      {/* Text preview for text-only posts */}
+      {!hasMedia && (
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 px-3">
+          <p className="text-xs sm:text-sm text-foreground/90 line-clamp-3 text-center leading-5">
             {post.content}
           </p>
-          {/* Bottom: spacer */}
-          <div className="h-4" />
         </div>
       )}
 
-      {/* Top-right category chip (when media) */}
-      {firstMedia && post.categoryName && (
-        <div className="absolute top-2 right-2 z-10 max-w-[70%]">
-          <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full bg-black/55 text-white text-[10px] font-bold backdrop-blur-[2px]">
-            {post.categoryIcon ? <span>{post.categoryIcon}</span> : null}
-            <span className="truncate">{post.categoryName}</span>
+      {/* Bottom: poster + counts */}
+      <div className="absolute inset-x-0 bottom-0 p-2.5">
+        <div className="flex items-center gap-1.5">
+          <div
+            className="rounded-full p-0.5"
+            style={{
+              background: post.user.mainCategoryColor || catColor,
+            }}
+          >
+            <UserAvatar
+              name={post.user.name}
+              avatarUrl={post.user.avatarUrl}
+              gender={post.user.gender}
+              verified={post.user.isVerifiedBadge}
+              size="xs"
+              ringColor="transparent"
+            />
+          </div>
+          <span className="text-[11px] font-bold text-white truncate flex-1">
+            {post.user.name}
           </span>
         </div>
-      )}
-
-      {/* Hover overlay (desktop) */}
-      <div className="hidden lg:block absolute inset-0 bg-gradient-to-t from-black/0 via-black/0 to-black/0 group-hover:from-black/40 transition-colors duration-300" />
-
-      {/* Bottom overlay with poster info + counts */}
-      <div
-        className={cn(
-          "absolute inset-x-0 bottom-0 px-2.5 py-2 flex items-center gap-2 transition-colors",
-          firstMedia ? "bg-gradient-to-t from-black/85 via-black/55 to-transparent text-white" : "bg-gradient-to-t from-card/95 to-card/0 text-foreground"
-        )}
-      >
-        <UserAvatar
-          name={post.user.name}
-          avatarUrl={post.user.avatarUrl}
-          gender={post.user.gender}
-          ringColor={post.user.mainCategoryColor}
-          size="xs"
-        />
-        <span className={cn(
-          "flex-1 text-[11px] font-bold truncate",
-          firstMedia ? "text-white" : "text-foreground"
-        )}>
-          {post.user.name}
-        </span>
-        {showStats && (
-          <div className="flex items-center gap-2 shrink-0">
-            {post.likeCount > 0 && (
-              <span className={cn(
-                "flex items-center gap-0.5 text-[10px] font-bold",
-                firstMedia ? "text-white" : "text-rose"
-              )}>
-                <Icon name="heart" size={12} className={post.likedByMe ? "fill-current" : ""} />
-                {formatCount(post.likeCount)}
-              </span>
-            )}
-            {post.commentCount > 0 && (
-              <span className={cn(
-                "flex items-center gap-0.5 text-[10px] font-bold",
-                firstMedia ? "text-white" : "text-muted-foreground"
-              )}>
-                <Icon name="comment" size={12} />
-                {formatCount(post.commentCount)}
-              </span>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-2 mt-1.5 text-white/95">
+          <span className="flex items-center gap-0.5 text-[10px] font-bold">
+            <Icon name="heart" size={12} className={post.likedByMe ? "fill-rose text-rose" : ""} />
+            {formatCount(post.likeCount)}
+          </span>
+          <span className="flex items-center gap-0.5 text-[10px] font-bold">
+            <Icon name="comment" size={12} />
+            {formatCount(post.commentCount)}
+          </span>
+        </div>
       </div>
+
+      {/* Hover overlay */}
+      <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors" />
     </motion.button>
   );
 }
 
-// ═════════════════════════════════════════════════════════════════
-// PeopleGrid — top talent users
-// ═════════════════════════════════════════════════════════════════
+/* ═════════════════════════════════════════════════════════════════
+   People Grid
+   ═════════════════════════════════════════════════════════════════ */
 
 function PeopleGrid({ people }: { people: ExplorePerson[] }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
-      {people.map((person, i) => (
-        <PeopleTile key={person.id} person={person} index={i} />
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {people.map((p, i) => (
+        <PersonCard key={p.id} person={p} index={i} />
       ))}
     </div>
   );
 }
 
-function PeopleTile({ person, index }: { person: ExplorePerson; index: number }) {
+function PersonCard({ person, index }: { person: ExplorePerson; index: number }) {
+  const ringColor = person.mainCategoryColor || person.categories?.[0]?.color || "oklch(0.6 0.15 160)";
+  const location = [person.province, person.city].filter(Boolean).join("، ");
+
   return (
     <motion.button
-      type="button"
-      onClick={() => navigate({ view: "profile", id: person.id })}
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
-        duration: 0.4,
+        duration: 0.35,
         delay: Math.min(index * 0.05, 0.4),
         ease: [0.16, 1, 0.3, 1],
       }}
-      whileHover={{ y: -3 }}
-      whileTap={{ scale: 0.98 }}
-      className="group relative bg-card rounded-3xl p-4 sm:p-5 shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-shadow duration-300 flex flex-col items-center text-center text-right overflow-hidden"
+      whileTap={{ scale: 0.96 }}
+      onClick={() => navigate({ view: "profile", id: person.id })}
+      className="relative glass rounded-2xl p-4 flex flex-col items-center text-center overflow-hidden group"
     >
-      {/* Decorative corner glow */}
+      {/* Background glow */}
       <div
-        className="absolute -top-12 -right-12 w-32 h-32 rounded-full opacity-15 blur-2xl pointer-events-none"
-        style={{ backgroundColor: person.mainCategoryColor || "var(--primary)" }}
+        className="absolute -top-12 right-0 w-32 h-32 rounded-full opacity-25 blur-2xl pointer-events-none group-hover:opacity-40 transition-opacity"
+        style={{ background: ringColor }}
       />
 
-      {/* Avatar with category color ring */}
+      {/* Crown badge */}
+      {person.isTopTalent && (
+        <div className="absolute top-2 right-2 grid place-items-center w-6 h-6 rounded-full bg-gold text-black shadow-md">
+          <Icon name="crown" size={12} />
+        </div>
+      )}
+
+      {/* Avatar */}
       <div className="relative mb-3">
         <UserAvatar
           name={person.name}
           avatarUrl={person.avatarUrl}
-          gender={person.gender}
           verified={person.isVerifiedBadge}
-          ringColor={person.mainCategoryColor}
+          gender={person.gender}
           size="xl"
+          ringColor={ringColor}
         />
-        {person.isTopTalent && (
-          <span className="absolute -top-1 -right-1 grid place-items-center w-7 h-7 rounded-full bg-gold text-white shadow-md ring-2 ring-card">
-            <Icon name="crown" size={14} />
-          </span>
-        )}
       </div>
 
-      {/* Name + verified */}
-      <div className="flex items-center justify-center gap-1 mb-1 min-w-0 w-full">
-        <h3 className="font-bold text-sm truncate">{person.name}</h3>
-      </div>
+      {/* Name */}
+      <h3 className="font-bold text-sm truncate w-full">{person.name}</h3>
 
       {/* Bio */}
-      {person.bioShort ? (
-        <p className="text-xs text-muted-foreground line-clamp-2 leading-5 mb-2 min-h-[2.5rem]">
+      {person.bioShort && (
+        <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-5">
           {person.bioShort}
-        </p>
-      ) : (
-        <p className="text-xs text-muted-foreground/60 italic mb-2 min-h-[2.5rem]">
-          بدون توضیحات
         </p>
       )}
 
       {/* Categories */}
       {person.categories.length > 0 && (
-        <div className="flex flex-wrap items-center justify-center gap-1 mb-2">
+        <div className="flex flex-wrap justify-center gap-1 mt-2">
           {person.categories.slice(0, 2).map((c) => (
-            <Badge
+            <span
               key={c.id}
-              variant="secondary"
-              className="text-[10px] py-0 h-5 rounded-full font-medium"
+              className="text-[10px] px-1.5 py-0.5 rounded-full font-bold border"
+              style={{
+                background: darkTint(c.color, 0.7),
+                borderColor: c.color || "oklch(0.6 0.15 160)",
+                color: "oklch(0.85 0.04 165)",
+              }}
             >
-              {c.iconUrl ? `${c.iconUrl} ` : ""}
-              {c.name}
-            </Badge>
+              {c.iconUrl || "✨"} {c.name}
+            </span>
           ))}
-          {person.categories.length > 2 && (
-            <Badge variant="outline" className="text-[10px] py-0 h-5 rounded-full font-medium">
-              +{toFa(person.categories.length - 2)}
-            </Badge>
-          )}
         </div>
       )}
 
-      {/* Followers count */}
-      <div className="mt-auto flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
-        <Icon name="userPlus" size={13} />
-        <span className="font-bold text-foreground tabular-nums">
+      {/* Footer */}
+      <div className="mt-3 flex items-center justify-between w-full pt-2 border-t border-border/40 text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <Icon name="users" size={11} />
           {formatCount(person.followersCount)}
         </span>
-        <span>دنبال‌کننده</span>
+        {location && (
+          <span className="flex items-center gap-1 truncate">
+            <Icon name="mapPin" size={11} />
+            {location}
+          </span>
+        )}
       </div>
     </motion.button>
   );
 }
 
-// ═════════════════════════════════════════════════════════════════
-// Loading skeletons
-// ═════════════════════════════════════════════════════════════════
-
-function PostsGridSkeleton() {
-  return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 sm:gap-2.5">
-      {Array.from({ length: 9 }).map((_, i) => (
-        <Skeleton key={i} className="aspect-square rounded-2xl sm:rounded-3xl" />
-      ))}
-    </div>
-  );
-}
-
-function PeopleGridSkeleton() {
-  return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="bg-card rounded-3xl p-4 sm:p-5 flex flex-col items-center gap-3 shadow-sm"
-        >
-          <Skeleton className="w-20 h-20 rounded-full" />
-          <Skeleton className="w-24 h-4 rounded" />
-          <Skeleton className="w-full h-3 rounded" />
-          <Skeleton className="w-16 h-5 rounded-full" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ═════════════════════════════════════════════════════════════════
-// PostDetailView — Instagram-like full post + comments + replies
-// ═════════════════════════════════════════════════════════════════
+/* ═════════════════════════════════════════════════════════════════
+   Post Detail View — full-screen mobile (drag to close), inline desktop
+   ═════════════════════════════════════════════════════════════════ */
 
 export function PostDetailView({ id }: { id: string }) {
   const { user: me, loading: userLoading } = useUser();
@@ -706,18 +626,19 @@ export function PostDetailView({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Sheet drag-to-close on mobile
+  // Drag-to-close (mobile only)
   const [sheetY, setSheetY] = useState(0);
+  const dragControls = useRef<{ startY: number | null }>({ startY: null });
 
-  // Like state (local)
+  // Like state
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [liking, setLiking] = useState(false);
+  const [likeBounce, setLikeBounce] = useState(false);
 
   // Comment input
   const [commentInput, setCommentInput] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
-  const commentInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Reply state
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -725,11 +646,7 @@ export function PostDetailView({ id }: { id: string }) {
   const [sendingReply, setSendingReply] = useState(false);
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Follow state
-  const [following, setFollowing] = useState(false);
-  const [followingBusy, setFollowingBusy] = useState(false);
-
-  // ── Load post ──
+  // Load post
   const loadPost = useCallback(async () => {
     setLoading(true);
     setNotFound(false);
@@ -755,7 +672,6 @@ export function PostDetailView({ id }: { id: string }) {
     }
   }, [id]);
 
-  // ── Load comments ──
   const loadComments = useCallback(async () => {
     try {
       const data = await api<{ comments: Comment[] }>(`/api/posts/${id}/comments`);
@@ -770,14 +686,12 @@ export function PostDetailView({ id }: { id: string }) {
     loadComments();
   }, [loadPost, loadComments]);
 
-  // Focus reply input when opened
   useEffect(() => {
     if (replyingTo && replyInputRef.current) {
       setTimeout(() => replyInputRef.current?.focus(), 100);
     }
   }, [replyingTo]);
 
-  // ── Handlers ──
   async function toggleLike() {
     if (!me) {
       toast({ title: "برای لایک کردن وارد شوید" });
@@ -787,6 +701,10 @@ export function PostDetailView({ id }: { id: string }) {
     const wasLiked = liked;
     setLiked(!wasLiked);
     setLikeCount((c) => c + (wasLiked ? -1 : 1));
+    if (!wasLiked) {
+      setLikeBounce(true);
+      setTimeout(() => setLikeBounce(false), 600);
+    }
     setLiking(true);
     try {
       await apiPost(`/api/posts/${id}/like`);
@@ -800,19 +718,19 @@ export function PostDetailView({ id }: { id: string }) {
   }
 
   async function sendComment() {
-    if (!me) {
-      toast({ title: "برای کامنت گذاشتن وارد شوید" });
-      navigate({ view: "auth" });
-      return;
-    }
     const content = commentInput.trim();
-    if (!content) return;
+    if (!content || !me) return;
     setSendingComment(true);
     try {
-      await apiPost(`/api/posts/${id}/comments`, { content });
+      const res = await apiPost<{ id: string }>(`/api/posts/${id}/comments`, { content });
       setCommentInput("");
       await loadComments();
-      toast({ title: "کامنت شما ثبت شد ✅" });
+      // Optimistically update comment count visually if needed
+      if (post) {
+        setPost({ ...post, commentCount: post.commentCount + 1 });
+      }
+      toast({ title: "کامنت ارسال شد" });
+      void res;
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -820,31 +738,21 @@ export function PostDetailView({ id }: { id: string }) {
     }
   }
 
-  function startReply(commentId: string) {
-    if (!me) {
-      toast({ title: "برای پاسخ دادن وارد شوید" });
-      navigate({ view: "auth" });
-      return;
-    }
-    setReplyingTo(commentId);
-    setReplyInput("");
-  }
-
-  function cancelReply() {
-    setReplyingTo(null);
-    setReplyInput("");
-  }
-
   async function sendReply(parentId: string) {
     const content = replyInput.trim();
-    if (!content) return;
+    if (!content || !me) return;
     setSendingReply(true);
     try {
-      await apiPost(`/api/posts/${id}/comments`, { content, parentId });
+      await apiPost<{ id: string }>(`/api/posts/${id}/comments`, {
+        content,
+        parentId,
+      });
       setReplyInput("");
       setReplyingTo(null);
       await loadComments();
-      toast({ title: "پاسخ شما ثبت شد ✅" });
+      if (post) {
+        setPost({ ...post, commentCount: post.commentCount + 1 });
+      }
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -852,83 +760,85 @@ export function PostDetailView({ id }: { id: string }) {
     }
   }
 
-  async function toggleCommentReaction(commentId: string, type: "like" | "dislike") {
+  async function toggleCommentLike(commentId: string, type: "like" | "dislike") {
     if (!me) {
-      toast({ title: "برای واکنش وارد شوید" });
+      toast({ title: "برای واکنش نشان دادن وارد شوید" });
       navigate({ view: "auth" });
       return;
     }
-    const snapshot = comments;
-    setComments(updateCommentReaction(comments, commentId, type));
     try {
       const res = await apiPost<{ reaction: "like" | "dislike" | null }>(
         `/api/comments/${commentId}/like`,
         { type }
       );
-      setComments((prev) => syncCommentReaction(prev, commentId, res.reaction));
+      setComments((prev) =>
+        prev.map((c) => {
+          if (c.id === commentId) {
+            let delta = 0;
+            if (c.myReaction === "like" && res.reaction !== "like") delta = -1;
+            if (c.myReaction !== "like" && res.reaction === "like") delta = 1;
+            return {
+              ...c,
+              likeCount: Math.max(0, c.likeCount + delta),
+              myReaction: res.reaction,
+            };
+          }
+          // Replies
+          return {
+            ...c,
+            replies: c.replies.map((r) => {
+              if (r.id === commentId) {
+                let delta = 0;
+                if (r.myReaction === "like" && res.reaction !== "like") delta = -1;
+                if (r.myReaction !== "like" && res.reaction === "like") delta = 1;
+                return {
+                  ...r,
+                  likeCount: Math.max(0, r.likeCount + delta),
+                  myReaction: res.reaction,
+                };
+              }
+              return r;
+            }),
+          };
+        })
+      );
     } catch (e) {
-      setComments(snapshot);
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
     }
   }
 
-  async function toggleFollow() {
-    if (!me) {
-      toast({ title: "برای دنبال کردن وارد شوید" });
-      navigate({ view: "auth" });
-      return;
-    }
-    if (!post) return;
-    setFollowingBusy(true);
-    try {
-      const res = await apiPost<{ status: string }>("/api/connections", {
-        receiverId: post.user.id,
-      });
-      if (res.status === "accepted") {
-        setFollowing(true);
-        toast({ title: "ارتباط برقرار شد ✅" });
-      } else if (res.status === "pending-sent") {
-        setFollowing(true);
-        toast({ title: "درخواست دنبال کردن ارسال شد 📨" });
-      } else if (res.status === "pending-received") {
-        toast({ title: "این شخص به شما درخواست داده است. به ارتباطات مراجعه کنید." });
-      }
-    } catch (e) {
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
-    } finally {
-      setFollowingBusy(false);
-    }
+  /* Drag-to-close handlers (mobile only) */
+  function onDragStart(e: React.TouchEvent) {
+    dragControls.current.startY = e.touches[0].clientY;
   }
-
-  function goBack() {
-    if (typeof window !== "undefined") window.history.back();
+  function onDragMove(e: React.TouchEvent) {
+    if (dragControls.current.startY === null) return;
+    const delta = e.touches[0].clientY - dragControls.current.startY;
+    if (delta > 0) setSheetY(delta);
   }
-
-  // ── Drag-to-close on mobile (only when at top of scroll) ──
-  function onDragEnd(_: unknown, info: PanInfo) {
-    if (info.offset.y > 120) {
-      goBack();
+  function onDragEnd() {
+    if (sheetY > 120) {
+      window.history.back();
     }
     setSheetY(0);
+    dragControls.current.startY = null;
   }
 
-  // ── Loading state ──
-  if (loading) return <PostDetailSkeleton />;
+  if (loading || userLoading) return <PostDetailSkeleton />;
 
-  // ── Not found ──
   if (notFound || !post) {
     return (
-      <div className="lg:p-4 pt-safe pb-safe">
+      <div className="min-h-[60vh] grid place-items-center p-6">
         <EmptyState
           kind="generic"
           title="پست پیدا نشد"
-          description="ممکن است این پست حذف شده باشد یا دیگر برجسته نباشد."
+          description="ممکن است حذف شده باشد."
           action={
             <button
               onClick={() => navigate({ view: "explore" })}
-              className="h-10 px-5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors"
+              className="h-10 px-5 rounded-xl bg-primary text-primary-foreground font-bold text-sm"
             >
-              بازگشت به استعدادها
+              بازگشت به اکسپلور
             </button>
           }
         />
@@ -936,614 +846,550 @@ export function PostDetailView({ id }: { id: string }) {
     );
   }
 
-  const isOwner = me?.id === post.user.id;
-  const commentCount = comments.length;
-  const totalReplies = comments.reduce((acc, c) => acc + (c.replies?.length || 0), 0);
-  const totalComments = commentCount + totalReplies;
+  const catColor = post.categoryColor || "oklch(0.6 0.15 160)";
 
   return (
     <motion.div
-      initial={{ y: "100%" }}
-      animate={{ y: sheetY }}
-      transition={{ type: "spring", stiffness: 320, damping: 36 }}
-      drag="y"
-      dragConstraints={{ top: 0, bottom: 0 }}
-      dragElastic={0.4}
-      onDragEnd={onDragEnd}
-      className="fixed inset-0 z-50 bg-background flex flex-col pt-safe pb-safe lg:static lg:z-auto lg:inset-auto lg:pt-0 lg:pb-0 lg:cursor-default"
-      style={{ touchAction: "none" }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: sheetY }}
+      transition={{ type: "spring", stiffness: 380, damping: 32 }}
+      className="fixed inset-0 lg:static z-50 lg:z-auto bg-background lg:bg-transparent flex flex-col"
     >
       {/* Drag handle (mobile only) */}
-      <div className="lg:hidden shrink-0 pt-2 pb-1 flex justify-center bg-card/95 lg:bg-transparent">
-        <div className="w-10 h-1.5 rounded-full bg-foreground/20" />
+      <div
+        className="lg:hidden flex justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing"
+        onTouchStart={onDragStart}
+        onTouchMove={onDragMove}
+        onTouchEnd={onDragEnd}
+      >
+        <div className="w-10 h-1.5 rounded-full bg-muted-foreground/40" />
       </div>
 
-      {/* ═══ Header ═══ */}
-      <motion.header
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-        className="shrink-0 flex items-center gap-3 p-3 border-b border-border/60 bg-card/95 lg:bg-card lg:rounded-2xl lg:border lg:m-1 lg:shadow-sm"
-      >
-        {/* Back / Close button */}
-        <button
-          onClick={goBack}
-          className="shrink-0 grid place-items-center w-10 h-10 rounded-full hover:bg-foreground/5 active:scale-90 transition-all"
-          aria-label="بستن"
-        >
-          <Icon name="chevronRight" size={22} />
-        </button>
+      <div className="flex-1 overflow-y-auto slim-scroll">
+        <div className="max-w-2xl mx-auto p-4 lg:p-0 space-y-4">
+          {/* ── Back row ── */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => window.history.back()}
+              className="grid place-items-center w-10 h-10 rounded-full glass text-foreground hover:bg-white/5 transition-colors"
+              aria-label="بازگشت"
+            >
+              <Icon name="chevronRight" size={20} />
+            </button>
+            <span className="text-xs text-muted-foreground">
+              {timeAgoFa(post.createdAt)} · {formatFaDate(post.createdAt)}
+            </span>
+          </div>
 
-        {/* Poster avatar with category ring */}
-        <button
-          onClick={() => navigate({ view: "profile", id: post.user.id })}
-          className="shrink-0"
-          aria-label={post.user.name}
-        >
-          <UserAvatar
-            name={post.user.name}
-            avatarUrl={post.user.avatarUrl}
-            gender={post.user.gender}
-            verified={post.user.isVerifiedBadge}
-            ringColor={post.user.mainCategoryColor}
-            size="md"
-          />
-        </button>
-
-        <div className="flex-1 min-w-0">
-          <button
-            onClick={() => navigate({ view: "profile", id: post.user.id })}
-            className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-          >
-            <span className="font-bold text-sm truncate">{post.user.name}</span>
-            {post.user.isTopTalent && (
-              <span className="inline-flex items-center gap-0.5 h-4 px-1.5 rounded-full bg-gold/15 text-gold text-[9px] font-bold shrink-0">
-                <Icon name="award" size={10} />
-                استعداد برتر
-              </span>
-            )}
-          </button>
-          <p className="text-[11px] text-muted-foreground">
-            {timeAgoFa(post.createdAt)} · {formatFaDate(post.createdAt)}
-          </p>
-        </div>
-
-        {/* Follow button */}
-        {!isOwner && !userLoading && (
-          <button
-            onClick={toggleFollow}
-            disabled={followingBusy}
-            className={cn(
-              "shrink-0 h-9 px-4 rounded-full font-bold text-xs transition-all flex items-center gap-1.5",
-              following
-                ? "bg-muted text-muted-foreground border border-border"
-                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20",
-              followingBusy && "opacity-70"
-            )}
-          >
-            {followingBusy ? (
-              <Icon name="loader" size={14} className="animate-spin" />
-            ) : following ? (
-              <>
-                <Icon name="userCheck" size={14} />
-                دنبال‌شده
-              </>
-            ) : (
-              <>
-                <Icon name="userPlus" size={14} />
-                دنبال کردن
-              </>
-            )}
-          </button>
-        )}
-      </motion.header>
-
-      {/* ═══ Scrollable body ═══ */}
-      <div
-        className="flex-1 overflow-y-auto slim-scroll lg:overflow-visible"
-        style={{ touchAction: "pan-y" }}
-      >
-        <div className="max-w-2xl mx-auto px-3 py-4 sm:px-4 sm:py-5 space-y-5">
-          {/* Category + skill badges */}
-          {(post.categoryName || post.skillName) && (
-            <div className="flex flex-wrap items-center gap-2">
-              {post.categoryName && (
-                <Badge variant="secondary" className="text-xs py-1 px-2.5 rounded-lg font-medium">
-                  {post.categoryIcon ? `${post.categoryIcon} ` : ""}
-                  {post.categoryName}
-                </Badge>
-              )}
-              {post.skillName && (
-                <Badge
-                  variant="outline"
-                  className="text-xs py-1 px-2.5 rounded-lg border-primary/30 text-primary font-medium"
-                >
-                  {post.skillName}
-                </Badge>
-              )}
-            </div>
-          )}
-
-          {/* Post content — large beautiful typography */}
+          {/* ── Poster header card ── */}
           <motion.div
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.32, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <p className="text-[17px] sm:text-lg leading-8 sm:leading-9 whitespace-pre-wrap break-words text-foreground">
-              {post.content}
-            </p>
-          </motion.div>
-
-          {/* Media */}
-          {post.media.length > 0 && (
-            <div className="space-y-2">
-              {post.media.map((m, i) => (
-                <motion.div
-                  key={m.id}
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.4, delay: 0.04 * i, ease: [0.16, 1, 0.3, 1] }}
-                  className="relative overflow-hidden rounded-2xl bg-card shadow-sm"
-                >
-                  {m.type === "video" ? (
-                    <video
-                      src={m.url}
-                      controls
-                      playsInline
-                      className="w-full max-h-[70vh] object-contain"
-                    />
-                  ) : (
-                    <img
-                      src={m.url}
-                      alt={post.content.slice(0, 60) || post.user.name}
-                      className="w-full max-h-[70vh] object-cover"
-                    />
-                  )}
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          {/* Like button + counts */}
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.32, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
-            className="flex items-center gap-3 py-1"
+            className="glass rounded-2xl p-3 flex items-center gap-3"
           >
             <button
+              onClick={() => navigate({ view: "profile", id: post.user.id })}
+              className="shrink-0"
+            >
+              <UserAvatar
+                name={post.user.name}
+                avatarUrl={post.user.avatarUrl}
+                verified={post.user.isVerifiedBadge}
+                gender={post.user.gender}
+                size="lg"
+                ringColor={post.user.mainCategoryColor || catColor}
+              />
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => navigate({ view: "profile", id: post.user.id })}
+                  className="font-bold text-sm truncate hover:text-primary transition-colors"
+                >
+                  {post.user.name}
+                </button>
+                {post.user.isTopTalent && (
+                  <span className="grid place-items-center w-4 h-4 rounded-full bg-gold text-black shrink-0">
+                    <Icon name="crown" size={10} />
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {(post.categoryName || post.skillName) && (
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <span
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ background: catColor }}
+                    />
+                    {post.categoryName}
+                    {post.skillName && <span> · {post.skillName}</span>}
+                  </span>
+                )}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* ── Media or content ── */}
+          {post.media.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative rounded-2xl overflow-hidden bg-card"
+            >
+              {post.media[0].type === "video" ? (
+                <video
+                  src={post.media[0].url}
+                  controls
+                  className="w-full max-h-[60vh] object-contain"
+                />
+              ) : (
+                <img
+                  src={post.media[0].url}
+                  alt={post.content.slice(0, 50)}
+                  className="w-full max-h-[60vh] object-contain"
+                />
+              )}
+            </motion.div>
+          )}
+
+          {/* ── Content ── */}
+          {post.content && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass rounded-2xl p-4"
+            >
+              <p className="text-[15px] leading-8 whitespace-pre-wrap break-words">
+                {post.content}
+              </p>
+            </motion.div>
+          )}
+
+          {/* ── Action bar (Like with bounce + comments count) ── */}
+          <div className="flex items-center gap-2 glass rounded-2xl p-2.5">
+            <motion.button
+              whileTap={{ scale: 0.85 }}
               onClick={toggleLike}
               disabled={liking}
               className={cn(
-                "flex items-center gap-2 h-11 px-4 rounded-full font-bold text-sm transition-all active:scale-95 shadow-sm",
+                "flex items-center gap-2 h-10 px-3 rounded-xl font-bold text-sm transition-colors",
                 liked
-                  ? "bg-rose/10 text-rose shadow-rose/10"
-                  : "bg-muted text-muted-foreground hover:bg-rose/5 hover:text-rose"
+                  ? "text-rose"
+                  : "text-muted-foreground hover:text-rose"
               )}
             >
               <motion.span
-                key={liked ? "liked" : "unliked"}
-                initial={{ scale: 1 }}
-                whileTap={{ scale: 1.4 }}
-                transition={{ type: "spring", stiffness: 500, damping: 10 }}
+                animate={
+                  likeBounce
+                    ? { scale: [1, 1.5, 0.85, 1.2, 1] }
+                    : { scale: 1 }
+                }
+                transition={{ duration: 0.6 }}
               >
-                <Icon name="heart" size={20} className={liked ? "fill-current" : ""} />
+                <Icon
+                  name="heart"
+                  size={20}
+                  className={liked ? "fill-rose text-rose" : ""}
+                />
               </motion.span>
-              <span className="tabular-nums">{formatCount(likeCount)} لایک</span>
-            </button>
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Icon name="comment" size={16} />
-              <span className="tabular-nums">{formatCount(totalComments)} کامنت</span>
+              <span className="nums-fa">{formatCount(likeCount)}</span>
+            </motion.button>
+            <div className="flex items-center gap-2 h-10 px-3 text-muted-foreground text-sm font-bold">
+              <Icon name="comment" size={20} />
+              <span className="nums-fa">{formatCount(post.commentCount)}</span>
             </div>
-          </motion.div>
+            <button
+              onClick={() => {
+                if (navigator.share) {
+                  navigator.share({ url: window.location.href }).catch(() => {});
+                } else {
+                  navigator.clipboard?.writeText(window.location.href);
+                  toast({ title: "لینک کپی شد" });
+                }
+              }}
+              className="h-10 px-3 grid place-items-center text-muted-foreground hover:text-primary transition-colors mr-auto"
+              aria-label="اشتراک‌گذاری"
+            >
+              <Icon name="share" size={18} />
+            </button>
+          </div>
 
-          {/* Divider */}
-          <div className="border-t border-border/60" />
-
-          {/* ═══ Comments section ═══ */}
-          <section className="space-y-3">
-            <h3 className="font-bold text-base flex items-center gap-2">
-              <Icon name="comment" size={18} className="text-primary" />
+          {/* ── Comments section ── */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground px-1">
+              <Icon name="comment" size={14} />
               کامنت‌ها
-              <span className="text-xs text-muted-foreground font-normal tabular-nums">
-                ({toFa(commentCount)})
-              </span>
-            </h3>
+              <span className="text-[10px]">({toFa(comments.length)})</span>
+            </div>
 
             {comments.length === 0 ? (
-              <div className="text-center py-8 text-sm text-muted-foreground">
-                <div className="grid place-items-center w-12 h-12 mx-auto mb-2 rounded-full bg-muted">
-                  <Icon name="comment" size={20} className="opacity-50" />
-                </div>
-                <p>اولین نفر باشید که کامنت می‌گذارد.</p>
+              <div className="py-6 text-center">
+                <p className="text-xs text-muted-foreground">
+                  هنوز کامنتی گذاشته نشده. اولین نفر باش!
+                </p>
               </div>
             ) : (
-              <div className="space-y-3">
-                <AnimatePresence initial={false}>
-                  {comments.map((c, i) => (
-                    <CommentItem
-                      key={c.id}
-                      comment={c}
-                      depth={0}
-                      postId={id}
-                      onReply={startReply}
-                      replyingTo={replyingTo}
-                      replyInput={replyInput}
-                      setReplyInput={setReplyInput}
-                      sendingReply={sendingReply}
-                      sendReply={sendReply}
-                      cancelReply={cancelReply}
-                      replyInputRef={replyInputRef}
-                      onReact={toggleCommentReaction}
-                      index={i}
-                    />
-                  ))}
-                </AnimatePresence>
+              <div className="space-y-2">
+                {comments.map((c, i) => (
+                  <CommentItem
+                    key={c.id}
+                    c={c}
+                    index={i}
+                    currentUserId={me?.id}
+                    onLike={toggleCommentLike}
+                    onReply={(id) => {
+                      setReplyingTo(id);
+                      setReplyInput("");
+                    }}
+                    replyingTo={replyingTo}
+                    replyInput={replyInput}
+                    setReplyInput={setReplyInput}
+                    onSendReply={sendReply}
+                    sendingReply={sendingReply}
+                    onCancelReply={() => setReplyingTo(null)}
+                    replyInputRef={replyInputRef}
+                  />
+                ))}
               </div>
             )}
-          </section>
-
-          {/* Spacer for fixed bottom input */}
-          <div className="h-4 lg:h-0" />
+          </div>
         </div>
       </div>
 
-      {/* ═══ Sticky comment input ═══ */}
-      <div className="shrink-0 border-t border-border/60 bg-card/95 lg:bg-card lg:border lg:rounded-2xl lg:m-1 p-3 lg:shadow-sm">
-        <div className="max-w-2xl mx-auto flex items-end gap-2">
-          <Textarea
-            ref={commentInputRef}
-            value={commentInput}
-            onChange={(e) => setCommentInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendComment();
-              }
-            }}
-            placeholder="کامنت بنویسید..."
-            rows={1}
-            className="resize-none max-h-32 min-h-[44px] rounded-xl bg-muted/60 border-border/60 focus-visible:ring-1 focus-visible:ring-ring text-sm leading-6"
-          />
-          <button
-            onClick={sendComment}
-            disabled={!commentInput.trim() || sendingComment}
-            className={cn(
-              "shrink-0 grid place-items-center w-11 h-11 rounded-xl transition-all active:scale-90",
-              commentInput.trim() && !sendingComment
-                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:bg-primary/90"
-                : "bg-muted text-muted-foreground cursor-not-allowed"
-            )}
-            aria-label="ارسال"
-          >
-            {sendingComment ? (
-              <Icon name="loader" size={20} className="animate-spin" />
-            ) : (
-              <Icon name="send" size={20} className="-scale-x-100" />
-            )}
-          </button>
+      {/* ── Comment input (sticky bottom) ── */}
+      {me && (
+        <div className="shrink-0 border-t border-border/60 glass p-3 pb-safe">
+          <div className="max-w-2xl mx-auto flex items-end gap-2">
+            <div className="flex-1">
+              <Textarea
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendComment();
+                  }
+                }}
+                placeholder="کامنت بنویسید..."
+                className="flex-1 min-h-[44px] max-h-32 resize-none text-sm rounded-2xl pr-4 pl-3 py-2.5 border-border/60 focus-visible:ring-1 focus-visible:ring-primary/40"
+                rows={1}
+              />
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={sendComment}
+              disabled={!commentInput.trim() || sendingComment}
+              className="h-11 w-11 p-0 shrink-0 rounded-full bg-primary text-primary-foreground grid place-items-center shadow-lg shadow-primary/30 disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed"
+              aria-label="ارسال"
+            >
+              {sendingComment ? (
+                <Icon name="loader" size={18} className="animate-spin" />
+              ) : (
+                <Icon name="send" size={18} className="-scale-x-100" />
+              )}
+            </motion.button>
+          </div>
         </div>
-      </div>
+      )}
     </motion.div>
   );
 }
 
-// ═════════════════════════════════════════════════════════════════
-// CommentItem — recursive (handles replies nested under parents)
-// ═════════════════════════════════════════════════════════════════
-
+/* ── Single comment with replies ── */
 function CommentItem({
-  comment,
-  depth,
-  postId,
+  c,
+  index,
+  currentUserId,
+  onLike,
   onReply,
   replyingTo,
   replyInput,
   setReplyInput,
+  onSendReply,
   sendingReply,
-  sendReply,
-  cancelReply,
+  onCancelReply,
   replyInputRef,
-  onReact,
-  index,
 }: {
-  comment: Comment;
-  depth: number;
-  postId: string;
-  onReply: (commentId: string) => void;
+  c: Comment;
+  index: number;
+  currentUserId?: string;
+  onLike: (id: string, type: "like" | "dislike") => void;
+  onReply: (id: string) => void;
   replyingTo: string | null;
   replyInput: string;
   setReplyInput: (v: string) => void;
+  onSendReply: (parentId: string) => void;
   sendingReply: boolean;
-  sendReply: (parentId: string) => void;
-  cancelReply: () => void;
+  onCancelReply: () => void;
   replyInputRef: React.RefObject<HTMLTextAreaElement | null>;
-  onReact: (commentId: string, type: "like" | "dislike") => void;
-  index: number;
 }) {
-  const isReply = depth > 0;
-  const isReplyingHere = replyingTo === comment.id;
+  const isMine = c.user.id === currentUserId;
+  const liked = c.myReaction === "like";
+  const disliked = c.myReaction === "dislike";
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.28,
-        delay: Math.min(index * 0.03, 0.25),
-        ease: [0.16, 1, 0.3, 1],
-      }}
-      className={cn(
-        "flex gap-2.5",
-        isReply && "pr-3 sm:pr-4 border-r-2 border-border/40"
-      )}
+      transition={{ delay: Math.min(index * 0.03, 0.3) }}
+      className="space-y-2"
     >
-      {/* Avatar */}
-      <button
-        onClick={() => navigate({ view: "profile", id: comment.user.id })}
-        className="shrink-0"
-        aria-label={comment.user.name}
-      >
-        <UserAvatar
-          name={comment.user.name}
-          avatarUrl={comment.user.avatarUrl}
-          gender={comment.user.gender}
-          size={isReply ? "xs" : "sm"}
-        />
-      </button>
-
-      {/* Body */}
-      <div className="flex-1 min-w-0">
-        <div className="bg-muted/40 rounded-2xl px-3 py-2">
-          {/* Name + verified + top-talent badge */}
-          <div className="flex items-center gap-1 mb-0.5 flex-wrap">
-            <button
-              onClick={() => navigate({ view: "profile", id: comment.user.id })}
-              className="font-bold text-[13px] hover:text-primary transition-colors truncate"
-            >
-              {comment.user.name}
-            </button>
-            {comment.user.isTopTalent && (
-              <span className="inline-flex items-center gap-0.5 h-3.5 px-1 rounded-full bg-gold/15 text-gold text-[9px] font-bold">
-                <Icon name="award" size={9} />
+      <div className="flex gap-2.5">
+        <button
+          onClick={() => navigate({ view: "profile", id: c.user.id })}
+          className="shrink-0"
+        >
+          <UserAvatar
+            name={c.user.name}
+            avatarUrl={c.user.avatarUrl}
+            verified={false}
+            gender={c.user.gender}
+            size="sm"
+          />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="glass rounded-2xl rounded-tr-md p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <button
+                onClick={() => navigate({ view: "profile", id: c.user.id })}
+                className="font-bold text-xs hover:text-primary transition-colors"
+              >
+                {c.user.name}
+              </button>
+              {c.user.isTopTalent && (
+                <span className="grid place-items-center w-3.5 h-3.5 rounded-full bg-gold text-black">
+                  <Icon name="crown" size={8} />
+                </span>
+              )}
+              <span className="text-[10px] text-muted-foreground mr-auto">
+                {timeAgoFa(c.createdAt)}
               </span>
-            )}
+            </div>
+            <p className="text-sm leading-6 whitespace-pre-wrap break-words">
+              {c.content}
+            </p>
           </div>
-          <p className="text-[13px] leading-6 whitespace-pre-wrap break-words text-foreground">
-            {comment.content}
-          </p>
-        </div>
-
-        {/* Meta row: time + like/dislike + reply */}
-        <div className="flex items-center gap-3 mt-1.5 px-1 text-[11px] text-muted-foreground">
-          <span>{timeAgoFa(comment.createdAt)}</span>
-
-          {/* Like */}
-          <button
-            onClick={() => onReact(comment.id, "like")}
-            className={cn(
-              "flex items-center gap-1 font-bold transition-colors",
-              comment.myReaction === "like"
-                ? "text-primary"
-                : "text-muted-foreground hover:text-primary"
-            )}
-          >
-            <motion.span
-              whileTap={{ scale: 1.3 }}
-              transition={{ type: "spring", stiffness: 500, damping: 12 }}
-            >
-              <Icon
-                name="thumbsUp"
-                size={14}
-                className={comment.myReaction === "like" ? "fill-current" : ""}
-              />
-            </motion.span>
-            {comment.likeCount > 0 && (
-              <span className="tabular-nums">{toFa(comment.likeCount)}</span>
-            )}
-          </button>
-
-          {/* Dislike */}
-          <button
-            onClick={() => onReact(comment.id, "dislike")}
-            className={cn(
-              "flex items-center gap-1 font-bold transition-colors",
-              comment.myReaction === "dislike"
-                ? "text-rose"
-                : "text-muted-foreground hover:text-rose"
-            )}
-          >
-            <motion.span
-              whileTap={{ scale: 1.3 }}
-              transition={{ type: "spring", stiffness: 500, damping: 12 }}
-            >
-              <Icon
-                name="thumbsDown"
-                size={14}
-                className={comment.myReaction === "dislike" ? "fill-current" : ""}
-              />
-            </motion.span>
-          </button>
-
-          {/* Reply — only on top-level comments */}
-          {!isReply && (
+          {/* Actions */}
+          <div className="flex items-center gap-3 mt-1 px-1 text-[10px]">
             <button
-              onClick={() => onReply(comment.id)}
-              className="font-bold hover:text-foreground transition-colors"
+              onClick={() => onLike(c.id, "like")}
+              className={cn(
+                "flex items-center gap-1 font-bold transition-colors",
+                liked ? "text-rose" : "text-muted-foreground hover:text-rose"
+              )}
+            >
+              <Icon name="thumbsUp" size={11} className={liked ? "fill-rose" : ""} />
+              {c.likeCount > 0 && <span className="nums-fa">{toFa(c.likeCount)}</span>}
+            </button>
+            <button
+              onClick={() => onLike(c.id, "dislike")}
+              className={cn(
+                "flex items-center gap-1 font-bold transition-colors",
+                disliked ? "text-destructive" : "text-muted-foreground hover:text-destructive"
+              )}
+            >
+              <Icon name="thumbsDown" size={11} className={disliked ? "fill-destructive" : ""} />
+            </button>
+            <button
+              onClick={() => onReply(c.id)}
+              className="font-bold text-muted-foreground hover:text-foreground transition-colors"
             >
               پاسخ
             </button>
-          )}
-        </div>
-
-        {/* Inline reply input */}
-        <AnimatePresence initial={false}>
-          {isReplyingHere && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="overflow-hidden"
-            >
-              <div className="flex items-end gap-2 mt-2">
-                <Textarea
-                  ref={replyInputRef}
-                  value={replyInput}
-                  onChange={(e) => setReplyInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendReply(comment.id);
-                    }
-                    if (e.key === "Escape") cancelReply();
-                  }}
-                  placeholder={`پاسخ به ${comment.user.name}...`}
-                  rows={1}
-                  className="resize-none max-h-28 min-h-[40px] text-[13px] leading-6 rounded-xl bg-muted/60 border-border/60 focus-visible:ring-1 focus-visible:ring-ring"
-                />
-                <button
-                  onClick={() => sendReply(comment.id)}
-                  disabled={!replyInput.trim() || sendingReply}
-                  className={cn(
-                    "shrink-0 grid place-items-center w-10 h-10 rounded-xl transition-all active:scale-90",
-                    replyInput.trim() && !sendingReply
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground cursor-not-allowed"
-                  )}
-                  aria-label="ارسال پاسخ"
-                >
-                  {sendingReply ? (
-                    <Icon name="loader" size={16} className="animate-spin" />
-                  ) : (
-                    <Icon name="send" size={16} className="-scale-x-100" />
-                  )}
-                </button>
-                <button
-                  onClick={cancelReply}
-                  className="shrink-0 grid place-items-center w-10 h-10 rounded-xl text-muted-foreground hover:bg-foreground/5 active:scale-90 transition-all"
-                  aria-label="انصراف"
-                >
-                  <Icon name="x" size={16} />
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Nested replies */}
-        {comment.replies && comment.replies.length > 0 && (
-          <div className="mt-2 space-y-2">
-            {comment.replies.map((r, i) => (
-              <CommentItem
-                key={r.id}
-                comment={r}
-                depth={depth + 1}
-                postId={postId}
-                onReply={onReply}
-                replyingTo={replyingTo}
-                replyInput={replyInput}
-                setReplyInput={setReplyInput}
-                sendingReply={sendingReply}
-                sendReply={sendReply}
-                cancelReply={cancelReply}
-                replyInputRef={replyInputRef}
-                onReact={onReact}
-                index={i}
-              />
-            ))}
+            {isMine && (
+              <span className="font-bold text-muted-foreground mr-auto">(شما)</span>
+            )}
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Replies */}
+      {c.replies.length > 0 && (
+        <div className="pr-8 space-y-2">
+          {c.replies.map((r) => (
+            <ReplyItem
+              key={r.id}
+              r={r}
+              currentUserId={currentUserId}
+              onLike={onLike}
+              onReply={onReply}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Reply input */}
+      <AnimatePresence>
+        {replyingTo === c.id && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="pr-8 overflow-hidden"
+          >
+            <div className="flex items-end gap-2">
+              <Textarea
+                ref={replyInputRef}
+                value={replyInput}
+                onChange={(e) => setReplyInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    onSendReply(c.id);
+                  }
+                }}
+                placeholder={`پاسخ به ${c.user.name}...`}
+                className="flex-1 min-h-[40px] max-h-24 resize-none text-xs rounded-xl pr-3 pl-2 py-2 border-border/60 focus-visible:ring-1 focus-visible:ring-primary/40"
+                rows={1}
+              />
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => onSendReply(c.id)}
+                disabled={!replyInput.trim() || sendingReply}
+                className="h-9 w-9 p-0 shrink-0 rounded-full bg-primary text-primary-foreground grid place-items-center disabled:opacity-40"
+              >
+                {sendingReply ? (
+                  <Icon name="loader" size={14} className="animate-spin" />
+                ) : (
+                  <Icon name="send" size={14} className="-scale-x-100" />
+                )}
+              </motion.button>
+              <button
+                onClick={onCancelReply}
+                className="h-9 w-9 grid place-items-center rounded-full text-muted-foreground hover:text-foreground"
+              >
+                <Icon name="x" size={14} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
 
-// ═════════════════════════════════════════════════════════════════
-// PostDetailSkeleton
-// ═════════════════════════════════════════════════════════════════
+function ReplyItem({
+  r,
+  currentUserId,
+  onLike,
+  onReply,
+}: {
+  r: Comment;
+  currentUserId?: string;
+  onLike: (id: string, type: "like" | "dislike") => void;
+  onReply: (id: string) => void;
+}) {
+  const isMine = r.user.id === currentUserId;
+  const liked = r.myReaction === "like";
+  const disliked = r.myReaction === "dislike";
 
-function PostDetailSkeleton() {
   return (
-    <div className="space-y-4 max-w-2xl mx-auto">
-      <Skeleton className="h-14 rounded-2xl" />
-      <div className="flex gap-2">
-        <Skeleton className="h-6 w-20 rounded-lg" />
-        <Skeleton className="h-6 w-24 rounded-lg" />
-      </div>
-      <Skeleton className="h-32 rounded-xl" />
-      <Skeleton className="h-64 rounded-2xl" />
-      <Skeleton className="h-11 w-40 rounded-full" />
-      <Skeleton className="h-px w-full" />
-      <div className="space-y-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="flex gap-2.5">
-            <Skeleton className="w-9 h-9 rounded-full shrink-0" />
-            <div className="flex-1 space-y-1.5">
-              <Skeleton className="h-3 w-24 rounded" />
-              <Skeleton className="h-12 rounded-2xl" />
-            </div>
+    <div className="flex gap-2">
+      <button
+        onClick={() => navigate({ view: "profile", id: r.user.id })}
+        className="shrink-0"
+      >
+        <UserAvatar
+          name={r.user.name}
+          avatarUrl={r.user.avatarUrl}
+          verified={false}
+          gender={r.user.gender}
+          size="xs"
+        />
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="glass rounded-xl rounded-tr-md p-2.5">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <button
+              onClick={() => navigate({ view: "profile", id: r.user.id })}
+              className="font-bold text-[11px] hover:text-primary"
+            >
+              {r.user.name}
+            </button>
+            <span className="text-[10px] text-muted-foreground mr-auto">
+              {timeAgoFa(r.createdAt)}
+            </span>
           </div>
-        ))}
+          <p className="text-xs leading-5 whitespace-pre-wrap break-words">
+            {r.content}
+          </p>
+        </div>
+        <div className="flex items-center gap-3 mt-0.5 px-1 text-[10px]">
+          <button
+            onClick={() => onLike(r.id, "like")}
+            className={cn(
+              "flex items-center gap-1 font-bold transition-colors",
+              liked ? "text-rose" : "text-muted-foreground hover:text-rose"
+            )}
+          >
+            <Icon name="thumbsUp" size={10} className={liked ? "fill-rose" : ""} />
+            {r.likeCount > 0 && <span className="nums-fa">{toFa(r.likeCount)}</span>}
+          </button>
+          <button
+            onClick={() => onLike(r.id, "dislike")}
+            className={cn(
+              "flex items-center gap-1 font-bold transition-colors",
+              disliked ? "text-destructive" : "text-muted-foreground hover:text-destructive"
+            )}
+          >
+            <Icon name="thumbsDown" size={10} className={disliked ? "fill-destructive" : ""} />
+          </button>
+          <button
+            onClick={() => onReply(r.id)}
+            className="font-bold text-muted-foreground hover:text-foreground"
+          >
+            پاسخ
+          </button>
+          {isMine && (
+            <span className="font-bold text-muted-foreground mr-auto">(شما)</span>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-// ═════════════════════════════════════════════════════════════════
-// Comment reaction helpers (immutable updates for nested structures)
-// ═════════════════════════════════════════════════════════════════
+/* ═════════════════════════════════════════════════════════════════
+   Skeletons
+   ═════════════════════════════════════════════════════════════════ */
 
-function updateCommentReaction(
-  comments: Comment[],
-  commentId: string,
-  type: "like" | "dislike"
-): Comment[] {
-  return comments.map((c) => {
-    if (c.id === commentId) {
-      return applyOptimisticReaction(c, type);
-    }
-    if (c.replies && c.replies.length > 0) {
-      return { ...c, replies: updateCommentReaction(c.replies, commentId, type) };
-    }
-    return c;
-  });
+function PostsGridSkeleton() {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+      {[...Array(9)].map((_, i) => (
+        <Skeleton key={i} className="aspect-square rounded-2xl" />
+      ))}
+    </div>
+  );
 }
 
-function applyOptimisticReaction(c: Comment, type: "like" | "dislike"): Comment {
-  const prev = c.myReaction;
-  if (prev === type) {
-    return {
-      ...c,
-      myReaction: null,
-      likeCount: type === "like" ? Math.max(0, c.likeCount - 1) : c.likeCount,
-    };
-  }
-  return {
-    ...c,
-    myReaction: type,
-    likeCount:
-      prev === "like"
-        ? Math.max(0, c.likeCount - 1)
-        : type === "like"
-          ? c.likeCount + 1
-          : c.likeCount,
-  };
+function PeopleGridSkeleton() {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {[...Array(6)].map((_, i) => (
+        <Skeleton key={i} className="h-56 rounded-2xl" />
+      ))}
+    </div>
+  );
 }
 
-function syncCommentReaction(
-  comments: Comment[],
-  commentId: string,
-  serverReaction: "like" | "dislike" | null
-): Comment[] {
-  return comments.map((c) => {
-    if (c.id === commentId) {
-      return { ...c, myReaction: serverReaction };
-    }
-    if (c.replies && c.replies.length > 0) {
-      return { ...c, replies: syncCommentReaction(c.replies, commentId, serverReaction) };
-    }
-    return c;
-  });
+function PostDetailSkeleton() {
+  return (
+    <div className="max-w-2xl mx-auto p-4 lg:p-0 space-y-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="w-10 h-10 rounded-full" />
+        <Skeleton className="h-4 w-32 rounded" />
+      </div>
+      <Skeleton className="h-16 rounded-2xl" />
+      <Skeleton className="h-[60vh] rounded-2xl" />
+      <Skeleton className="h-24 rounded-2xl" />
+      <Skeleton className="h-12 rounded-2xl" />
+      <div className="space-y-2">
+        {[...Array(3)].map((_, i) => (
+          <Skeleton key={i} className="h-16 rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  );
 }

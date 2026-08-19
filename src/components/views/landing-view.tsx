@@ -10,39 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LogoMark, AuthIllustration } from "@/components/shared/illustrations";
+import { LogoMark } from "@/components/shared/illustrations";
 import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { toFa } from "@/lib/format";
 import type { CategoryWithSkills, TopTalentMyStatus } from "@/lib/types";
-
-// ── Feature definitions (use Icon names, not lucide components) ──
-const FEATURES = [
-  {
-    icon: "sparkles" as const,
-    title: "نمایش استعدادت",
-    desc: "پروفایل زیبا با گالری، دسته‌بندی و مهارت‌ها.",
-    tint: "bg-primary/10 text-primary",
-  },
-  {
-    icon: "compass" as const,
-    title: "کشف بر اساس مهارت",
-    desc: "فیلترهای زنجیره‌ای: دسته ← مهارت، استان ← شهر.",
-    tint: "bg-accent text-accent-foreground",
-  },
-  {
-    icon: "chat" as const,
-    title: "ارتباط مستقیم",
-    desc: "چت لحظه‌ای با استعدادهای دیگر در یک کلیک.",
-    tint: "bg-rose/10 text-rose",
-  },
-  {
-    icon: "rocket" as const,
-    title: "رشد و دیده‌شدن",
-    desc: "پست‌های محبوب، دنبال‌کنندگان و تیک تأیید.",
-    tint: "bg-gold/15 text-gold",
-  },
-];
 
 const TOP_TALENT_CONDITIONS = [
   {
@@ -69,24 +41,6 @@ const TOP_TALENT_CONDITIONS = [
 
 const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 
-// Stagger container variants
-const containerV = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.06, delayChildren: 0.05 },
-  },
-};
-const itemV = {
-  hidden: { opacity: 0, y: 14, scale: 0.98 },
-  show: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as const },
-  },
-};
-
 export function LandingView() {
   const [cats, setCats] = useState<CategoryWithSkills[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
@@ -99,94 +53,128 @@ export function LandingView() {
   }, []);
 
   return (
-    <div className="space-y-6 sm:space-y-8 max-w-3xl mx-auto">
-      {/* ══════ Hero — solid indigo, NO gradient ══════ */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl bg-primary text-primary-foreground p-7 sm:p-10"
-        style={{ boxShadow: "0 10px 40px rgba(79, 56, 165, 0.25)" }}
-      >
-        {/* Solid soft circles (NO gradient fills — just low-opacity solids) */}
-        <div className="absolute -top-16 -left-16 w-48 h-48 rounded-full bg-primary-foreground/10 animate-float" />
+    <div className="relative -mt-4">
+      {/* ══════ FULL-SCREEN DARK GREEN HERO ══════ */}
+      <section className="relative min-h-[88vh] md:min-h-[80vh] -mx-4 md:-mx-8 px-4 md:px-8 overflow-hidden">
+        {/* Ambient blobs — pure solid colors at low opacity, no gradient */}
         <div
-          className="absolute -bottom-20 -right-12 w-56 h-56 rounded-full bg-gold/15 animate-float"
-          style={{ animationDelay: "2s" }}
+          className="absolute -top-20 -right-20 w-[420px] h-[420px] rounded-full opacity-30 blur-3xl pointer-events-none"
+          style={{ backgroundColor: "oklch(0.6 0.15 160 / 0.6)" }}
         />
         <div
-          className="absolute top-1/3 -right-10 w-24 h-24 rounded-full bg-primary-foreground/8 animate-float"
-          style={{ animationDelay: "1s" }}
+          className="absolute top-1/3 -left-24 w-[360px] h-[360px] rounded-full opacity-20 blur-3xl pointer-events-none"
+          style={{ backgroundColor: "oklch(0.75 0.15 80 / 0.5)" }}
         />
-        {/* Subtle dot pattern (solid color, low opacity) */}
         <div
-          className="absolute inset-0 opacity-[0.07] pointer-events-none"
+          className="absolute -bottom-24 right-1/4 w-[300px] h-[300px] rounded-full opacity-10 blur-3xl pointer-events-none"
+          style={{ backgroundColor: "oklch(0.65 0.2 15 / 0.5)" }}
+        />
+        {/* Subtle dot pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
           style={{
             backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
-            backgroundSize: "24px 24px",
+            backgroundSize: "28px 28px",
           }}
         />
 
-        <div className="relative space-y-5">
-          {/* Logo row */}
-          <div className="flex items-center gap-3">
-            <div className="grid place-items-center w-12 h-12 rounded-2xl bg-primary-foreground/15">
-              <LogoMark className="w-8 h-8" />
-            </div>
-            <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">همتیم</span>
-          </div>
+        {/* Content overlay */}
+        <div className="relative min-h-[88vh] md:min-h-[80vh] flex flex-col">
+          {/* Top — small wordmark */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="pt-6 md:pt-10 flex items-center gap-2.5"
+          >
+            <span className="grid place-items-center w-9 h-9 rounded-xl bg-primary/15">
+              <LogoMark className="w-6 h-6" />
+            </span>
+            <span className="text-lg font-extrabold tracking-tight text-foreground/90">همتیم</span>
+          </motion.div>
 
-          {/* Headline */}
-          <h1 className="text-3xl sm:text-[2.75rem] font-extrabold leading-[1.15] tracking-tight">
-            استعدادت رو <span className="text-gold">کشف کن</span>
-            <br />
-            و به دنیا <span className="text-gold">نشون بده</span>
-          </h1>
-
-          {/* Subheadline */}
-          <p className="text-base sm:text-lg text-primary-foreground/80 leading-8 max-w-xl">
-            پلتفرم کشف و نمایش استعداد — هنر، ورزش، آشپزی و مهارت‌های خلاقانه.
-            پروفایل بساز، کارهات رو منتشر کن و با استعدادهای دیگر آشنا شو.
-          </p>
-
-          {/* CTA buttons */}
-          <div className="flex flex-wrap gap-3 pt-1">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate({ view: "auth" })}
-              className="inline-flex items-center gap-2 h-12 px-6 rounded-2xl bg-primary-foreground text-primary font-extrabold text-base hover:bg-primary-foreground/90 transition-colors"
+          {/* Center — big dramatic headline */}
+          <div className="flex-1 flex flex-col justify-center py-12">
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.08 }}
+              className="text-sm md:text-base font-bold text-primary tracking-widest mb-4 md:mb-6"
             >
-              شروع کنید
-              <Icon name="arrowLeft" size={18} strokeWidth={2.6} className="text-primary" />
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate({ view: "discover" })}
-              className="inline-flex items-center gap-2 h-12 px-6 rounded-2xl text-primary-foreground font-bold text-base hover:bg-primary-foreground/10 transition-colors"
+              ✦ شبکه‌ی کشف استعداد ✦
+            </motion.p>
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
+              className="text-5xl md:text-7xl font-black leading-[1.05] tracking-tight text-foreground"
             >
-              <Icon name="compass" size={18} strokeWidth={2.4} />
-              کشف استعدادها
-            </motion.button>
+              استعدادت
+              <br />
+              <span className="text-primary">رو به دنیا</span>
+              <br />
+              <span className="text-gold">نشون بده.</span>
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="mt-6 md:mt-8 text-base md:text-lg text-muted-foreground leading-8 max-w-xl"
+            >
+              پلتفرم کشف و نمایش استعداد — هنر، ورزش، آشپزی و مهارت‌های خلاقانه.
+              پروفایل بساز، کارهات رو منتشر کن و با استعدادهای دیگر آشنا شو.
+            </motion.p>
+
+            {/* CTA buttons */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.42 }}
+              className="mt-8 md:mt-10 flex flex-wrap gap-3"
+            >
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={() => navigate({ view: "auth" })}
+                className="inline-flex items-center gap-2 h-12 md:h-14 px-6 md:px-8 rounded-2xl bg-primary text-primary-foreground font-extrabold text-base hover:bg-primary/90 transition-colors"
+                style={{ boxShadow: "0 8px 30px oklch(0.6 0.15 160 / 0.35)" }}
+              >
+                شروع کنید
+                <Icon name="arrowLeft" size={18} strokeWidth={2.6} className="text-primary-foreground" />
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={() => navigate({ view: "discover" })}
+                className="inline-flex items-center gap-2 h-12 md:h-14 px-6 md:px-8 rounded-2xl glass text-foreground font-bold text-base hover:bg-muted/60 transition-colors"
+              >
+                <Icon name="compass" size={18} strokeWidth={2.4} className="text-primary" />
+                کشف استعدادها
+              </motion.button>
+            </motion.div>
           </div>
 
-          {/* Mini stat row */}
-          <div className="flex flex-wrap gap-7 pt-3">
-            <Stat value="۱۰۰٪" label="رایگان" />
-            <Stat value="بی‌نهایت" label="مهارت" />
-            <Stat value="لحظه‌ای" label="چت" />
-          </div>
+          {/* Bottom — minimal stats row */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.55 }}
+            className="pb-6 md:pb-10 flex flex-wrap items-end gap-x-8 gap-y-3"
+          >
+            <HeroStat value="۱۰۰٪" label="رایگان" tone="primary" />
+            <div className="hidden md:block w-px h-12 bg-border/60" />
+            <HeroStat value="بی‌نهایت" label="مهارت" tone="gold" />
+            <div className="hidden md:block w-px h-12 bg-border/60" />
+            <HeroStat value="لحظه‌ای" label="چت" tone="rose" />
+          </motion.div>
         </div>
-      </motion.section>
+      </section>
 
-      {/* ══════ Category quick-access — horizontal scroll ══════ */}
-      <motion.section
-        initial="hidden"
-        animate="show"
-        variants={containerV}
-        className="space-y-4"
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg sm:text-xl font-extrabold tracking-tight">دسته‌بندی‌ها</h2>
+      {/* ══════ CATEGORY PILLS — horizontal chip row ══════ */}
+      <section className="py-8 md:py-12">
+        <div className="flex items-end justify-between mb-5">
+          <div>
+            <p className="text-xs font-bold text-primary tracking-widest mb-1.5">دسته‌بندی‌ها</p>
+            <h2 className="text-2xl md:text-3xl font-black tracking-tight">دنبالِ چی هستی؟</h2>
+          </div>
           <button
             onClick={() => navigate({ view: "discover" })}
             className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:gap-1.5 transition-all"
@@ -197,166 +185,158 @@ export function LandingView() {
         </div>
 
         {loadingCats ? (
-          <div className="flex gap-3 overflow-hidden">
-            {[...Array(6)].map((_, i) => (
-              <Skeleton key={i} className="shrink-0 w-24 h-32 rounded-3xl" />
+          <div className="flex gap-2.5 overflow-hidden">
+            {[...Array(7)].map((_, i) => (
+              <Skeleton key={i} className="shrink-0 w-28 h-11 rounded-full" />
             ))}
           </div>
         ) : cats.length === 0 ? null : (
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1">
-            {cats.slice(0, 10).map((c, i) => (
+          <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-4 px-4 pb-2">
+            {cats.slice(0, 12).map((c, i) => (
               <motion.button
                 key={c.id}
-                variants={itemV}
-                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ delay: Math.min(i * 0.04, 0.4), ease: [0.16, 1, 0.3, 1] }}
+                whileTap={{ scale: 0.96 }}
                 onClick={() => navigate({ view: "category", id: c.id })}
-                className="shrink-0 w-24 sm:w-28 flex flex-col items-center gap-2.5 p-4 rounded-3xl bg-card hover:-translate-y-1 transition-transform"
-                style={{ boxShadow: "0 4px 20px rgba(20,20,40,0.06)" }}
+                className="shrink-0 inline-flex items-center gap-2 h-11 px-5 rounded-full glass border border-border/60 hover:border-primary/50 hover:bg-primary/8 transition-colors"
               >
-                <span className="grid place-items-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 text-3xl">
-                  {c.iconUrl || "✨"}
-                </span>
-                <span className="text-xs font-bold text-center line-clamp-2 leading-4">
-                  {c.name}
-                </span>
+                <span className="text-xl leading-none">{c.iconUrl || "✨"}</span>
+                <span className="text-sm font-bold text-foreground whitespace-nowrap">{c.name}</span>
               </motion.button>
             ))}
           </div>
         )}
-      </motion.section>
+      </section>
 
-      {/* ══════ Features — bento grid ══════ */}
-      <motion.section
-        initial="hidden"
-        animate="show"
-        variants={containerV}
-        className="space-y-4"
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg sm:text-xl font-extrabold tracking-tight">چرا همتیم؟</h2>
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground">
-            <Icon name="sparkles" size={14} className="text-gold" strokeWidth={2.4} />
-            امکانات
-          </span>
-        </div>
-        <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
-          {FEATURES.map((f) => (
-            <motion.div
-              key={f.title}
-              variants={itemV}
-              whileHover={{ y: -3 }}
-              className="p-5 sm:p-6 rounded-3xl bg-card"
-              style={{ boxShadow: "0 4px 24px rgba(20,20,40,0.07)" }}
-            >
-              <span className={`grid place-items-center w-12 h-12 rounded-2xl mb-4 ${f.tint}`}>
-                <Icon name={f.icon} size={22} strokeWidth={2.2} />
-              </span>
-              <h3 className="font-extrabold text-base mb-1.5">{f.title}</h3>
-              <p className="text-sm text-muted-foreground leading-6">{f.desc}</p>
-            </motion.div>
-          ))}
-        </div>
-      </motion.section>
+      {/* ══════ FEATURED VALUE PROPS — big stat trio ══════ */}
+      <section className="py-8 md:py-12 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+        <FeatureBlock
+          icon="sparkles"
+          title="نمایش استعداد"
+          desc="پروفایل زیبا با گالری، دسته‌بندی و مهارت‌ها."
+          tone="primary"
+        />
+        <FeatureBlock
+          icon="compass"
+          title="کشف بر اساس مهارت"
+          desc="فیلترهای زنجیره‌ای: دسته ← مهارت، استان ← شهر."
+          tone="gold"
+        />
+        <FeatureBlock
+          icon="chat"
+          title="ارتباط مستقیم"
+          desc="چت لحظه‌ای با استعدادهای دیگر در یک کلیک."
+          tone="rose"
+        />
+      </section>
 
-      {/* ══════ How it works — stepper ══════ */}
-      <motion.section
-        initial="hidden"
-        animate="show"
-        variants={containerV}
-        className="p-6 sm:p-8 rounded-3xl bg-card"
-        style={{ boxShadow: "0 4px 24px rgba(20,20,40,0.07)" }}
-      >
-        <div className="flex items-center gap-2 mb-6">
-          <span className="grid place-items-center w-9 h-9 rounded-xl bg-primary/10 text-primary">
-            <Icon name="grid" size={18} strokeWidth={2.4} />
-          </span>
-          <h2 className="text-xl font-extrabold tracking-tight">چطور کار می‌کند؟</h2>
+      {/* ══════ HOW IT WORKS — vertical timeline ══════ */}
+      <section className="py-8 md:py-12">
+        <div className="mb-6 md:mb-8">
+          <p className="text-xs font-bold text-primary tracking-widest mb-1.5">چطور کار می‌کند</p>
+          <h2 className="text-2xl md:text-3xl font-black tracking-tight">چهار قدم تا دیده‌شدن</h2>
         </div>
-        <div className="grid sm:grid-cols-4 gap-5 sm:gap-3 relative">
-          {[
-            { n: 1, label: "ثبت‌نام با موبایل و کد ملی" },
-            { n: 2, label: "تکمیل پروفایل و انتخاب مهارت" },
-            { n: 3, label: "پست بگذار و استعدادت رو نشون بده" },
-            { n: 4, label: "با دیگران ارتباط بگیر و تیم بساز" },
-          ].map((s, i) => (
-            <motion.div
-              key={s.n}
-              variants={itemV}
-              className="flex sm:flex-col items-center sm:text-center gap-3 sm:gap-3"
-            >
-              <div className="relative shrink-0">
-                <span className="grid place-items-center w-11 h-11 rounded-2xl bg-primary text-primary-foreground font-extrabold text-base">
-                  {toFa(s.n)}
-                </span>
-                {i < 3 && (
-                  <span className="hidden sm:block absolute top-1/2 -left-2.5 w-5 h-px bg-border" aria-hidden />
-                )}
-              </div>
-              <p className="text-sm font-bold leading-6">{s.label}</p>
-            </motion.div>
-          ))}
+        <div className="relative">
+          {/* Vertical line (RTL: right side) */}
+          <div className="absolute top-2 bottom-2 right-[19px] w-px bg-border/60" aria-hidden />
+          <div className="space-y-5 md:space-y-6">
+            {[
+              { n: 1, label: "ثبت‌نام با موبایل و کد ملی", desc: "ورود با شماره موبایل و کد ملی به‌سادگی و سریع." },
+              { n: 2, label: "تکمیل پروفایل و انتخاب مهارت", desc: "اطلاعات، عکس و مهارت‌های خود را اضافه کنید." },
+              { n: 3, label: "پست بگذار و استعدادت رو نشون بده", desc: "گالری بساز، کارهایت را منتشر کن و دیده شو." },
+              { n: 4, label: "با دیگران ارتباط بگیر و تیم بساز", desc: "چت کن، دنبال کن و تیم حرفه‌ای تشکیل بده." },
+            ].map((s, i) => (
+              <motion.div
+                key={s.n}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.08 + i * 0.08, ease: [0.16, 1, 0.3, 1] }}
+                className="flex items-start gap-4"
+              >
+                <div className="shrink-0 relative">
+                  <span className="grid place-items-center w-10 h-10 rounded-full bg-primary text-primary-foreground font-extrabold text-sm ring-4 ring-background">
+                    {toFa(s.n)}
+                  </span>
+                </div>
+                <div className="pt-1">
+                  <p className="text-base md:text-lg font-extrabold leading-tight">{s.label}</p>
+                  <p className="text-sm text-muted-foreground mt-1 leading-6">{s.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
-      </motion.section>
+      </section>
 
-      {/* ══════ Top Talent conditions + application form ══════ */}
+      {/* ══════ TOP TALENT ══════ */}
       <TopTalentSection />
 
-      {/* ══════ CTA bottom ══════ */}
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35, duration: 0.5 }}
-        className="relative overflow-hidden rounded-3xl bg-accent text-accent-foreground p-7 sm:p-10 text-center"
-        style={{ boxShadow: "0 4px 24px rgba(20,20,40,0.06)" }}
-      >
-        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-primary/10 animate-float" />
-        <div
-          className="absolute -bottom-10 -left-10 w-24 h-24 rounded-full bg-gold/15 animate-float"
-          style={{ animationDelay: "1s" }}
-        />
-        <div className="relative space-y-4">
-          <div className="flex justify-center">
-            <AuthIllustration className="w-32 h-40" />
+      {/* ══════ Final CTA — minimal ══════ */}
+      <section className="py-10 md:py-16">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative overflow-hidden rounded-3xl glass border border-border/60 p-8 md:p-12 text-center"
+        >
+          <div
+            className="absolute -top-20 -right-20 w-64 h-64 rounded-full opacity-25 blur-3xl pointer-events-none"
+            style={{ backgroundColor: "oklch(0.6 0.15 160 / 0.6)" }}
+          />
+          <div
+            className="absolute -bottom-20 -left-20 w-56 h-56 rounded-full opacity-20 blur-3xl pointer-events-none"
+            style={{ backgroundColor: "oklch(0.75 0.15 80 / 0.5)" }}
+          />
+          <div className="relative space-y-4">
+            <div className="flex justify-center">
+              <span className="grid place-items-center w-14 h-14 rounded-2xl bg-primary/15 text-primary">
+                <Icon name="rocket" size={28} strokeWidth={2.2} className="text-primary" />
+              </span>
+            </div>
+            <h2 className="text-2xl md:text-4xl font-black tracking-tight leading-tight">
+              آماده‌ی شروع هستی؟
+            </h2>
+            <p className="max-w-md mx-auto text-sm md:text-base text-muted-foreground leading-7">
+              همین حالا ثبت‌نام کن و به جامعه‌ی استعدادهای ایران بپیوند.
+            </p>
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => navigate({ view: "auth" })}
+              className="inline-flex items-center gap-2 h-12 md:h-14 px-8 rounded-2xl bg-primary text-primary-foreground font-extrabold text-base hover:bg-primary/90 transition-colors"
+              style={{ boxShadow: "0 8px 30px oklch(0.6 0.15 160 / 0.35)" }}
+            >
+              شروع کنید
+              <Icon name="arrowLeft" size={18} strokeWidth={2.6} className="text-primary-foreground" />
+            </motion.button>
+            {/* Trust badges */}
+            <div className="flex flex-wrap items-center justify-center gap-5 pt-3 text-xs font-bold text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <Icon name="badgeCheck" size={16} className="text-gold" strokeWidth={2.2} />
+                تیک تأیید
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Icon name="heart" size={16} className="text-rose" strokeWidth={2.2} />
+                پست‌های محبوب
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Icon name="users" size={16} className="text-primary" strokeWidth={2.2} />
+                تیم‌سازی
+              </span>
+            </div>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">آماده‌ی شروع هستی؟</h2>
-          <p className="max-w-md mx-auto leading-7 font-medium text-accent-foreground/75 text-sm sm:text-base">
-            همین حالا ثبت‌نام کن و به جامعه‌ی استعدادهای ایران بپیوند.
-          </p>
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate({ view: "auth" })}
-            className="inline-flex items-center gap-2 h-12 px-8 rounded-2xl bg-primary text-primary-foreground font-extrabold text-base hover:bg-primary/90 transition-colors"
-          >
-            شروع کنید
-            <Icon name="arrowLeft" size={18} strokeWidth={2.6} className="text-primary-foreground" />
-          </motion.button>
-
-          {/* Trust badges */}
-          <div className="flex flex-wrap items-center justify-center gap-5 pt-3 text-xs font-bold text-accent-foreground/70">
-            <span className="inline-flex items-center gap-1.5">
-              <Icon name="badgeCheck" size={16} className="text-gold" strokeWidth={2.2} />
-              تیک تأیید
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Icon name="heart" size={16} className="text-rose" strokeWidth={2.2} />
-              پست‌های محبوب
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Icon name="users" size={16} className="text-primary" strokeWidth={2.2} />
-              تیم‌سازی
-            </span>
-          </div>
-        </div>
-      </motion.section>
+        </motion.div>
+      </section>
 
       {/* ══════ Dev notice ══════ */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.45 }}
-        className="flex justify-center py-3"
+        className="flex justify-center pb-6"
       >
-        <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-muted/70 text-sm text-muted-foreground font-medium">
+        <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-muted/50 text-sm text-muted-foreground font-medium">
           <Icon name="sparkles" size={14} className="text-gold" strokeWidth={2.4} />
           توسعه‌ی این صفحه ادامه دارد
         </div>
@@ -365,18 +345,65 @@ export function LandingView() {
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+// ─── Hero Stat ─────────────────────────────────────────────────
+function HeroStat({
+  value,
+  label,
+  tone,
+}: {
+  value: string;
+  label: string;
+  tone: "primary" | "gold" | "rose";
+}) {
+  const colorClass = {
+    primary: "text-primary",
+    gold: "text-gold",
+    rose: "text-rose",
+  }[tone];
   return (
     <div className="flex flex-col">
-      <span className="text-xl sm:text-2xl font-extrabold text-gold">{value}</span>
-      <span className="text-[11px] sm:text-xs text-primary-foreground/70 font-medium mt-0.5">
-        {label}
-      </span>
+      <span className={`text-2xl md:text-3xl font-black tabular-nums ${colorClass}`}>{value}</span>
+      <span className="text-xs text-muted-foreground font-medium mt-0.5">{label}</span>
     </div>
   );
 }
 
-// ─── Top Talent Section: conditions + application form ─────────────
+// ─── Feature Block ─────────────────────────────────────────────
+function FeatureBlock({
+  icon,
+  title,
+  desc,
+  tone,
+}: {
+  icon: string;
+  title: string;
+  desc: string;
+  tone: "primary" | "gold" | "rose";
+}) {
+  const tint = {
+    primary: "bg-primary/12 text-primary",
+    gold: "bg-gold/15 text-gold",
+    rose: "bg-rose/12 text-rose",
+  }[tone];
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5 }}
+      whileHover={{ y: -3 }}
+      className="p-6 md:p-7 rounded-3xl glass border border-border/60"
+    >
+      <span className={`grid place-items-center w-12 h-12 rounded-2xl mb-4 ${tint}`}>
+        <Icon name={icon} size={22} strokeWidth={2.2} />
+      </span>
+      <h3 className="font-extrabold text-lg mb-1.5">{title}</h3>
+      <p className="text-sm text-muted-foreground leading-6">{desc}</p>
+    </motion.div>
+  );
+}
+
+// ─── Top Talent Section: redesigned banner + conditions + form ─────────
 function TopTalentSection() {
   const { user, loading: userLoading } = useUser();
   const [status, setStatus] = useState<TopTalentMyStatus | null>(null);
@@ -406,67 +433,63 @@ function TopTalentSection() {
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.32, duration: 0.5 }}
-      className="space-y-4 sm:space-y-5"
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5 }}
+      className="py-8 md:py-12 space-y-4 md:space-y-5"
       id="top-talent"
     >
-      {/* Header banner — solid indigo, calm */}
-      <div
-        className="relative overflow-hidden rounded-3xl bg-primary text-primary-foreground p-7 sm:p-8"
-        style={{ boxShadow: "0 10px 40px rgba(79, 56, 165, 0.20)" }}
-      >
-        <div className="absolute -top-10 -left-10 w-32 h-32 rounded-full bg-gold/15 animate-float" />
+      {/* Header — glass with gold accent */}
+      <div className="relative overflow-hidden rounded-3xl glass border border-gold/30 p-7 md:p-10">
         <div
-          className="absolute -bottom-12 -right-8 w-28 h-28 rounded-full bg-primary-foreground/10 animate-float"
-          style={{ animationDelay: "1.5s" }}
+          className="absolute -top-16 -right-12 w-56 h-56 rounded-full opacity-25 blur-3xl pointer-events-none"
+          style={{ backgroundColor: "oklch(0.75 0.15 80 / 0.6)" }}
         />
-        <div className="relative space-y-4">
+        <div
+          className="absolute -bottom-16 -left-12 w-48 h-48 rounded-full opacity-15 blur-3xl pointer-events-none"
+          style={{ backgroundColor: "oklch(0.6 0.15 160 / 0.5)" }}
+        />
+        <div className="relative space-y-5">
           <div className="flex items-center gap-3">
-            <div className="grid place-items-center w-12 h-12 rounded-2xl bg-gold/20">
+            <div className="grid place-items-center w-12 h-12 rounded-2xl bg-gold/15">
               <Icon name="crown" size={26} className="text-gold" strokeWidth={2.2} />
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight">
-              استعداد برتر شوید
-            </h2>
+            <p className="text-xs font-bold text-gold tracking-widest">استعداد برتر</p>
           </div>
-          <p className="text-sm sm:text-base text-primary-foreground/85 leading-7 max-w-xl">
-            کاربران منتخب ما با تیک استعداد برتر نمایش داده می‌شوند. اگر فکر
-            می‌کنید شرایط لازم را دارید، درخواست خود را ثبت کنید.
+          <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-[1.1]">
+            دنبال‌کنندگان بیشتری بگیر،
+            <br />
+            <span className="text-gold">تیک تأیید بگیر.</span>
+          </h2>
+          <p className="text-sm md:text-base text-muted-foreground leading-7 max-w-xl">
+            کاربران منتخب ما با تیک استعداد برتر نمایش داده می‌شوند. اگر فکر می‌کنید
+            شرایط لازم را دارید، درخواست خود را ثبت کنید.
           </p>
         </div>
       </div>
 
-      {/* Conditions list — calm card */}
-      <div className="p-6 sm:p-7 rounded-3xl bg-card space-y-5" style={{ boxShadow: "0 4px 24px rgba(20,20,40,0.07)" }}>
-        <div className="space-y-1.5">
-          <h3 className="text-lg font-extrabold flex items-center gap-2">
-            <Icon name="sparkles" size={20} className="text-primary" strokeWidth={2.4} />
-            شرایط انتخاب شما به عنوان استعداد برتر
-          </h3>
-          <p className="text-xs text-muted-foreground leading-5">
-            برای بررسی درخواست شما، موارد زیر باید احراز شوند.
-          </p>
-        </div>
-
+      {/* Conditions — minimal list */}
+      <div className="rounded-3xl glass border border-border/60 p-6 md:p-8 space-y-4">
+        <h3 className="text-lg md:text-xl font-extrabold flex items-center gap-2">
+          <Icon name="sparkles" size={20} className="text-primary" strokeWidth={2.4} />
+          شرایط لازم
+        </h3>
         <div className="grid sm:grid-cols-2 gap-3">
           {TOP_TALENT_CONDITIONS.map((c, i) => (
             <motion.div
               key={c.title}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 + i * 0.04 }}
-              className="flex items-start gap-3 p-4 rounded-2xl bg-muted/50"
+              transition={{ delay: 0.1 + i * 0.05 }}
+              className="flex items-start gap-3 p-4 rounded-2xl bg-muted/40"
             >
               <span className="grid place-items-center w-10 h-10 rounded-xl bg-primary/10 text-primary shrink-0">
                 <Icon name={c.icon} size={20} strokeWidth={2.2} />
               </span>
               <div className="min-w-0">
                 <p className="font-bold text-sm leading-5">{c.title}</p>
-                <p className="text-xs text-muted-foreground mt-1 leading-5">
-                  {c.desc}
-                </p>
+                <p className="text-xs text-muted-foreground mt-1 leading-5">{c.desc}</p>
               </div>
             </motion.div>
           ))}
@@ -474,7 +497,7 @@ function TopTalentSection() {
       </div>
 
       {/* Form / status / login gate */}
-      <div className="p-6 sm:p-7 rounded-3xl bg-card" style={{ boxShadow: "0 4px 24px rgba(20,20,40,0.07)" }}>
+      <div className="rounded-3xl glass border border-border/60 p-6 md:p-8">
         {userLoading || statusLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-7 w-48 rounded-xl" />
@@ -487,7 +510,7 @@ function TopTalentSection() {
           <StatusMessage status={status} />
         ) : (
           <TopTalentForm
-            initialRejected={status?.status === "rejected" ? status.rejectReason : null}
+            initialRejected={status?.status === "rejected" ? (status.rejectReason ?? null) : null}
             onSubmitted={loadStatus}
           />
         )}
@@ -520,7 +543,6 @@ function LoginGate() {
 }
 
 function StatusMessage({ status }: { status: TopTalentMyStatus }) {
-  // status !== "rejected" guaranteed by parent
   if (status.status === "approved") {
     return (
       <div className="text-center space-y-4 py-4">
@@ -536,8 +558,6 @@ function StatusMessage({ status }: { status: TopTalentMyStatus }) {
       </div>
     );
   }
-
-  // pending
   return (
     <div className="text-center space-y-4 py-4">
       <div className="grid place-items-center w-14 h-14 rounded-2xl bg-gold/15 text-gold mx-auto">
@@ -571,7 +591,6 @@ function TopTalentForm({
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Revoke object URLs when they change to avoid memory leaks
   useEffect(() => {
     return () => {
       if (previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
@@ -594,13 +613,9 @@ function TopTalentForm({
       toast({ title: "خطا", description: err, variant: "destructive" });
       return;
     }
-
-    // Build a local preview immediately
     if (previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     const localUrl = URL.createObjectURL(file);
     setPreviewUrl(localUrl);
-
-    // Upload to the server
     setUploading(true);
     try {
       const fd = new FormData();
@@ -622,7 +637,6 @@ function TopTalentForm({
         description: (e as Error).message,
         variant: "destructive",
       });
-      // Clear preview on failure
       if (localUrl.startsWith("blob:")) URL.revokeObjectURL(localUrl);
       setPreviewUrl("");
       setNationalIdPhotoUrl("");
@@ -667,7 +681,6 @@ function TopTalentForm({
         title: "درخواست ثبت شد ✅",
         description: "درخواست شما در حال بررسی است.",
       });
-      // Reset form
       clearPhoto();
       setPhoneNumber("");
       setSocialMediaId("");
@@ -697,20 +710,16 @@ function TopTalentForm({
         </p>
       </div>
 
-      {/* Previously-rejected notice */}
       {initialRejected && (
-        <div className="flex items-start gap-2 p-3 rounded-2xl bg-rose/8">
+        <div className="flex items-start gap-2 p-3 rounded-2xl bg-rose/10">
           <Icon name="alert" size={16} className="text-rose shrink-0 mt-0.5" strokeWidth={2.2} />
           <div>
             <p className="text-xs font-bold text-rose">درخواست قبلی رد شد</p>
-            <p className="text-[11px] text-rose/80 mt-0.5 leading-5">
-              {initialRejected}
-            </p>
+            <p className="text-[11px] text-rose/80 mt-0.5 leading-5">{initialRejected}</p>
           </div>
         </div>
       )}
 
-      {/* National ID photo upload */}
       <div className="space-y-2">
         <Label>عکس کارت ملی *</Label>
         <input
@@ -725,7 +734,7 @@ function TopTalentForm({
           }}
         />
         {previewUrl ? (
-          <div className="relative rounded-2xl overflow-hidden bg-muted/40" style={{ boxShadow: "0 2px 12px rgba(20,20,40,0.06)" }}>
+          <div className="relative rounded-2xl overflow-hidden bg-muted/40">
             <img
               src={previewUrl}
               alt="پیش‌نمایش کارت ملی"
@@ -735,9 +744,9 @@ function TopTalentForm({
               type="button"
               onClick={clearPhoto}
               disabled={uploading}
-              className="absolute top-2 left-2 grid place-items-center w-8 h-8 rounded-full bg-card text-rose hover:bg-card"
+              className="absolute top-2 left-2 grid place-items-center w-8 h-8 rounded-full bg-card text-rose"
               aria-label="حذف عکس"
-              style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+              style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}
             >
               <Icon name="x" size={16} className="text-rose" strokeWidth={2.4} />
             </button>
@@ -775,7 +784,6 @@ function TopTalentForm({
         )}
       </div>
 
-      {/* Phone number */}
       <div className="space-y-2">
         <Label htmlFor="tt-phone">شماره تلفن اصلی *</Label>
         <Input
@@ -789,7 +797,6 @@ function TopTalentForm({
         />
       </div>
 
-      {/* Social media ID */}
       <div className="space-y-2">
         <Label htmlFor="tt-social">آیدی شبکه‌های اجتماعی</Label>
         <Input
@@ -806,7 +813,6 @@ function TopTalentForm({
         </p>
       </div>
 
-      {/* Description */}
       <div className="space-y-2">
         <Label htmlFor="tt-desc">متن توضیح (اختیاری)</Label>
         <Textarea

@@ -64,37 +64,33 @@ function renderView(route: Route) {
   }
 }
 
-// ── "Edge Navigation" — premium pattern: chrome lives only at screen edges ──
+// ── "Standard Tab Bar" — clean, professional, iOS-quality ──
 
-// Top-level views: no back button shown
+// Top-level views: no back button shown on detail pages
 const TOP_LEVEL = new Set([
-  "feed", "explore", "discover", "talents", "needs", "following", "dashboard", "settings",
+  "feed", "explore", "discover", "talents", "needs", "following", "dashboard", "settings", "my-profile",
 ]);
 
-// Primary destinations (mobile sheet row + desktop sidebar top group)
-const PRIMARY_NAV = [
-  { key: "feed", label: "خانه", icon: "home" as const },
-  { key: "explore", label: "اکسپلور", icon: "sparkles" as const },
-  { key: "discover", label: "کشف", icon: "compass" as const },
-  { key: "talents", label: "استعدادها", icon: "users" as const },
-  { key: "needs", label: "نیازمندی", icon: "briefcase" as const },
+// Mobile bottom tab bar (5 tabs)
+const MOBILE_TABS = [
+  { key: "feed", label: "خانه", icon: "home" as const, route: { view: "feed" } as Route },
+  { key: "explore", label: "اکسپلور", icon: "sparkles" as const, route: { view: "explore" } as Route },
+  { key: "discover", label: "کشف", icon: "compass" as const, route: { view: "discover" } as Route },
+  { key: "talents", label: "استعدادها", icon: "users" as const, route: { view: "talents" } as Route },
+  { key: "profile", label: "پروفایل", icon: "user" as const, route: null },
 ];
 
-// Secondary destinations (mobile sheet grid + desktop sidebar bottom group)
-const SECONDARY_NAV = [
-  { key: "dashboard", label: "داشبورد", icon: "grid" as const },
-  { key: "following", label: "دنبال‌شده", icon: "userCheck" as const },
-  { key: "connections", label: "ارتباطات", icon: "userPlus" as const },
-  { key: "my-needs", label: "نیازمندی‌های من", icon: "briefcase" as const },
-  { key: "tickets", label: "تیکت‌ها", icon: "ticket" as const },
-  { key: "settings", label: "تنظیمات", icon: "settings" as const },
+// Desktop top nav (center cluster)
+const DESKTOP_NAV = [
+  { key: "feed", label: "خانه", route: { view: "feed" } as Route },
+  { key: "explore", label: "اکسپلور", route: { view: "explore" } as Route },
+  { key: "discover", label: "کشف", route: { view: "discover" } as Route },
+  { key: "talents", label: "استعدادها", route: { view: "talents" } as Route },
+  { key: "needs", label: "نیازمندی", route: { view: "needs" } as Route },
 ];
 
-// Soft premium shadows
-const SOFT_SHADOW = "shadow-[0_4px_18px_rgba(20,20,40,0.08)]";
-const FLOAT_SHADOW = "shadow-[0_8px_28px_rgba(20,20,40,0.12)]";
-const FAB_SHADOW = "shadow-[0_14px_34px_rgba(20,20,40,0.22)]";
-const ROSE_GLOW = "shadow-[0_6px_18px_rgba(196,60,108,0.32)]";
+// Soft premium shadows (kept subtle, no rose tint on active chrome)
+const FAB_SHADOW = "shadow-[0_10px_30px_rgba(0,0,0,0.32)]";
 
 export function AppShell({ children }: { children?: React.ReactNode }) {
   const route = useNav((s) => s.route);
@@ -102,7 +98,6 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
   const { user, fetchUser, loading } = useUser();
   const [unread, setUnread] = useState(0);
   const [chatUnread, setChatUnread] = useState(0);
-  const [menuOpen, setMenuOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
   // Init nav + fetch user
@@ -144,13 +139,6 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [route.view, (route as any).id, (route as any).conversationId]);
 
-  // Close mobile menu on browser navigation (hashchange)
-  useEffect(() => {
-    const handler = () => setMenuOpen(false);
-    window.addEventListener("hashchange", handler);
-    return () => window.removeEventListener("hashchange", handler);
-  }, []);
-
   // Auth / Onboarding = full screen, no chrome
   if (route.view === "auth" || route.view === "onboarding") {
     return (
@@ -166,7 +154,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
   }
 
   const activeView = route.view;
-  const showBack = !TOP_LEVEL.has(activeView) && activeView !== "auth";
+  const showBack = !TOP_LEVEL.has(activeView);
 
   function goBack() {
     if (typeof window !== "undefined") window.history.back();
@@ -188,10 +176,19 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
     return activeView === key;
   }
 
+  function handleTabClick(tab: typeof MOBILE_TABS[number]) {
+    if (tab.key === "profile") {
+      if (user) navigate({ view: "my-profile" });
+      else navigate({ view: "auth" });
+    } else if (tab.route) {
+      navigate(tab.route);
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* ═══ Desktop sidebar — RTL: right side, icon-only, expands on hover ═══ */}
-      <DesktopSidebar
+      {/* ═══ Desktop: clean top bar (glass, logo start, nav center, actions end) ═══ */}
+      <DesktopTopBar
         isActive={isActive}
         user={user}
         loading={loading}
@@ -199,16 +196,24 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
         chatUnread={chatUnread}
       />
 
-      {/* ═══ Mobile top chrome — corner floating buttons only ═══ */}
-      <MobileTopChrome
-        showBack={showBack}
-        goBack={goBack}
-        user={user}
-        loading={loading}
-        unread={unread}
-      />
+      {/* ═══ Mobile: floating top-left back button (detail pages only) ═══ */}
+      {showBack && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8, x: -10 }}
+          animate={{ opacity: 1, scale: 1, x: 0 }}
+          exit={{ opacity: 0, scale: 0.8, x: -10 }}
+          transition={{ type: "spring", stiffness: 500, damping: 28 }}
+          onClick={goBack}
+          whileTap={{ scale: 0.88 }}
+          className="md:hidden fixed top-4 left-4 z-40 grid place-items-center w-10 h-10 rounded-full glass-strong text-foreground"
+          style={{ boxShadow: "0 4px 18px rgba(0,0,0,0.3)" }}
+          aria-label="بازگشت"
+        >
+          <Icon name="arrowLeft" size={20} strokeWidth={2.4} />
+        </motion.button>
+      )}
 
-      {/* ═══ Mobile chat FAB — bottom-left, sits above menu FAB ═══ */}
+      {/* ═══ Mobile: floating chat FAB (bottom-left, above tab bar) ═══ */}
       {user && activeView !== "chat" && (
         <motion.button
           initial={{ scale: 0, opacity: 0 }}
@@ -217,30 +222,35 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
           whileTap={{ scale: 0.88 }}
           onClick={() => navigate({ view: "chat" })}
           className={cn(
-            "md:hidden fixed bottom-24 left-4 z-30 grid place-items-center rounded-full bg-card text-foreground",
-            FLOAT_SHADOW
+            "md:hidden fixed left-4 z-40 grid place-items-center rounded-full",
+            "bg-primary text-primary-foreground",
+            FAB_SHADOW
           )}
-          style={{ width: "52px", height: "52px" }}
+          style={{
+            width: "56px",
+            height: "56px",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
+          }}
           aria-label="چت"
         >
-          <Icon name="chat" size={22} strokeWidth={2.2} className="text-foreground" />
+          <Icon name="chat" size={24} strokeWidth={2.2} className="text-primary-foreground" />
           {chatUnread > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-extrabold ring-2 ring-card">
+            <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1 grid place-items-center rounded-full bg-rose text-white text-[11px] font-extrabold ring-2 ring-background">
               {chatUnread > 9 ? toFa(9) + "+" : toFa(chatUnread)}
             </span>
           )}
         </motion.button>
       )}
 
-      {/* ═══ Main content — full-bleed except sidebar reservation on desktop ═══ */}
-      <main ref={mainRef} className="flex-1 w-full md:pr-16">
-        <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-16 md:pt-8 pb-32 md:pb-12">
+      {/* ═══ Main content ═══ */}
+      <main ref={mainRef} className="flex-1 w-full">
+        <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-4 md:pt-24 pb-28 md:pb-12">
           <AnimatePresence mode="wait">
             <motion.div
               key={routeKey}
-              initial={{ opacity: 0, y: 18, scale: 0.985 }}
+              initial={{ opacity: 0, y: 14, scale: 0.99 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.985 }}
+              exit={{ opacity: 0, y: -8, scale: 0.99 }}
               transition={{ type: "spring", stiffness: 280, damping: 28 }}
             >
               {renderView(route)}
@@ -249,22 +259,19 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
         </div>
       </main>
 
-      {/* ═══ Mobile menu FAB + radial bottom sheet ═══ */}
-      <MobileMenuFab
-        open={menuOpen}
-        setOpen={setMenuOpen}
+      {/* ═══ Mobile: standard bottom tab bar (edge-to-edge glass) ═══ */}
+      <MobileTabBar
+        tabs={MOBILE_TABS}
         isActive={isActive}
+        onTabClick={handleTabClick}
         user={user}
-        loading={loading}
-        unread={unread}
-        chatUnread={chatUnread}
       />
     </div>
   );
 }
 
-// ── Desktop: vertical icon rail that expands on hover (RTL → right side) ──
-function DesktopSidebar({
+// ── Desktop top bar: clean, glass, logo start, nav center, actions end ──
+function DesktopTopBar({
   isActive,
   user,
   loading,
@@ -277,299 +284,80 @@ function DesktopSidebar({
   unread: number;
   chatUnread: number;
 }) {
-  const [expanded, setExpanded] = useState(false);
-
-  // Sidebar order: primary group, then secondary group, then chat + notifications
-  const lowerItems = [
-    { key: "chat", label: "چت", icon: "chat" as const, badge: chatUnread },
-    { key: "notifications", label: "اعلان‌ها", icon: "bell" as const, badge: unread },
-  ];
-
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: expanded ? 220 : 72 }}
-      transition={{ type: "spring", stiffness: 380, damping: 36 }}
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
-      className="hidden md:flex fixed top-0 right-0 bottom-0 z-30 flex-col bg-sidebar border-l border-sidebar-border overflow-hidden"
-      style={{ boxShadow: "0 0 50px rgba(20,20,40,0.04)" }}
+    <header
+      className="hidden md:flex fixed top-0 inset-x-0 z-40 h-16 glass-strong border-b border-border/60"
     >
-      {/* ── Logo (top) ── */}
-      <div className="h-16 shrink-0 flex items-center pe-2 ps-2">
+      <div className="mx-auto w-full max-w-7xl px-6 flex items-center justify-between gap-6">
+        {/* ── Start: Logo + wordmark ── */}
         <button
           onClick={() => navigate({ view: "feed" })}
-          className="w-12 h-12 mx-auto shrink-0 grid place-items-center rounded-2xl hover:bg-muted/60 transition-colors"
+          className="flex items-center gap-2.5 shrink-0"
           aria-label="همتیم"
         >
-          <LogoMark className="w-8 h-8" />
+          <span className="grid place-items-center w-10 h-10 rounded-xl bg-primary/12">
+            <LogoMark className="w-7 h-7" />
+          </span>
+          <span className="text-xl font-extrabold tracking-tight text-foreground">همتیم</span>
         </button>
-        <motion.span
-          initial={false}
-          animate={{ opacity: expanded ? 1 : 0, x: expanded ? 0 : 8 }}
-          transition={{ duration: 0.15, delay: expanded ? 0.08 : 0 }}
-          className="text-xl font-extrabold tracking-tight whitespace-nowrap text-foreground"
-        >
-          همتیم
-        </motion.span>
-      </div>
 
-      {/* ── Nav (middle, scrollable) ── */}
-      <nav className="flex-1 px-2 py-2 flex flex-col gap-1 overflow-y-auto no-scrollbar">
-        {PRIMARY_NAV.map((item) => (
-          <SidebarNavButton
-            key={item.key}
-            item={item}
-            expanded={expanded}
-            active={isActive(item.key)}
-          />
-        ))}
-
-        <div className="my-1.5 mx-2 h-px bg-border" />
-
-        {SECONDARY_NAV.map((item) => (
-          <SidebarNavButton
-            key={item.key}
-            item={item}
-            expanded={expanded}
-            active={isActive(item.key)}
-          />
-        ))}
-
-        <div className="my-1.5 mx-2 h-px bg-border" />
-
-        {lowerItems.map((item) => (
-          <SidebarNavButton
-            key={item.key}
-            item={item}
-            expanded={expanded}
-            active={isActive(item.key)}
-            badge={item.badge}
-          />
-        ))}
-      </nav>
-
-      {/* ── Profile / login (bottom) ── */}
-      <div className="shrink-0 p-2 border-t border-sidebar-border">
-        {user ? (
-          <button
-            onClick={() => navigate({ view: "my-profile" })}
-            className={cn(
-              "w-full h-12 rounded-2xl transition-colors flex items-center",
-              expanded ? "ps-2 gap-3" : "justify-center"
-            )}
-            aria-label="پروفایل من"
-          >
-            <span className="shrink-0">
-              <UserAvatar
-                name={user.name}
-                avatarUrl={user.profile?.avatarUrl}
-                verified={user.isVerifiedBadge}
-                gender={user.profile?.gender}
-                size="sm"
-              />
-            </span>
-            <AnimatePresence>
-              {expanded && (
-                <motion.span
-                  initial={{ opacity: 0, x: 8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 8 }}
-                  transition={{ duration: 0.15, delay: 0.08 }}
-                  className="text-sm font-bold whitespace-nowrap truncate text-foreground"
-                >
-                  {user.name}
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </button>
-        ) : loading ? null : (
-          <button
-            onClick={() => navigate({ view: "auth" })}
-            className={cn(
-              "w-full h-12 rounded-2xl bg-primary text-primary-foreground transition-colors flex items-center",
-              expanded ? "ps-2 gap-3 justify-start" : "justify-center"
-            )}
-            aria-label="ورود"
-          >
-            <span className="w-9 h-9 shrink-0 grid place-items-center rounded-full bg-primary-foreground/15">
-              <Icon name="user" size={20} className="text-primary-foreground" />
-            </span>
-            <AnimatePresence>
-              {expanded && (
-                <motion.span
-                  initial={{ opacity: 0, x: 8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 8 }}
-                  transition={{ duration: 0.15, delay: 0.08 }}
-                  className="text-sm font-extrabold whitespace-nowrap"
-                >
-                  ورود / ثبت‌نام
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </button>
-        )}
-      </div>
-    </motion.aside>
-  );
-}
-
-// ── Desktop sidebar nav button (icon + sliding label) ──
-function SidebarNavButton({
-  item,
-  expanded,
-  active,
-  badge = 0,
-}: {
-  item: { key: string; label: string; icon: string };
-  expanded: boolean;
-  active: boolean;
-  badge?: number;
-}) {
-  return (
-    <button
-      onClick={() => navigate({ view: item.key as Route["view"] } as Route)}
-      className={cn(
-        "relative w-full h-11 rounded-2xl transition-colors flex items-center",
-        active
-          ? "bg-rose/10"
-          : "hover:bg-muted/60"
-      )}
-      style={active ? { boxShadow: "0 4px 14px rgba(196,60,108,0.16)" } : undefined}
-    >
-      {/* Active accent bar (RTL: right edge = start) */}
-      {active && (
-        <motion.span
-          layoutId="sidebar-active-bar"
-          className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-full bg-rose"
-        />
-      )}
-      {/* Icon slot */}
-      <span
-        className={cn(
-          "w-12 h-11 grid place-items-center shrink-0",
-          active ? "text-rose" : "text-foreground/75"
-        )}
-      >
-        <span className="relative">
-          <Icon name={item.icon as any} size={22} strokeWidth={active ? 2.6 : 2} />
-          {badge > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 grid place-items-center rounded-full bg-rose text-white text-[9px] font-extrabold ring-2 ring-sidebar">
-              {badge > 9 ? toFa(9) + "+" : toFa(badge)}
-            </span>
-          )}
-        </span>
-      </span>
-      {/* Label (slides in on expand) */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.span
-            initial={{ opacity: 0, x: 8 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 8 }}
-            transition={{ duration: 0.15, delay: 0.08 }}
-            className={cn(
-              "text-sm font-bold whitespace-nowrap",
-              active ? "text-rose" : "text-foreground"
-            )}
-          >
-            {item.label}
-          </motion.span>
-        )}
-      </AnimatePresence>
-    </button>
-  );
-}
-
-// ── Mobile top chrome — corner floating circles ──
-function MobileTopChrome({
-  showBack,
-  goBack,
-  user,
-  loading,
-  unread,
-}: {
-  showBack: boolean;
-  goBack: () => void;
-  user: any;
-  loading: boolean;
-  unread: number;
-}) {
-  return (
-    <div className="md:hidden fixed top-0 inset-x-0 z-30 pt-safe pointer-events-none">
-      <div className="px-4 pt-3 flex items-center justify-between gap-2">
-        {/* Right corner (RTL start) — Back on detail pages, else logo mark */}
-        <div className="pointer-events-auto">
-          <AnimatePresence mode="wait">
-            {showBack ? (
-              <motion.button
-                key="back"
-                initial={{ opacity: 0, scale: 0.8, rotate: -30 }}
-                animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                exit={{ opacity: 0, scale: 0.8, rotate: 30 }}
-                transition={{ type: "spring", stiffness: 500, damping: 28 }}
-                onClick={goBack}
-                whileTap={{ scale: 0.86 }}
+        {/* ── Center: nav links ── */}
+        <nav className="flex items-center gap-1">
+          {DESKTOP_NAV.map((item) => {
+            const active = isActive(item.key);
+            return (
+              <button
+                key={item.key}
+                onClick={() => navigate(item.route)}
                 className={cn(
-                  "grid place-items-center w-11 h-11 rounded-full bg-card text-foreground",
-                  SOFT_SHADOW
+                  "relative h-10 px-4 rounded-xl text-sm font-bold transition-colors",
+                  active
+                    ? "text-primary-foreground bg-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                 )}
-                aria-label="بازگشت"
               >
-                <Icon name="chevronRight" size={22} strokeWidth={2.6} />
-              </motion.button>
-            ) : (
-              <motion.button
-                key="logo"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ type: "spring", stiffness: 500, damping: 28 }}
-                whileTap={{ scale: 0.86 }}
-                onClick={() => navigate({ view: "feed" })}
-                className={cn(
-                  "grid place-items-center w-11 h-11 rounded-full bg-card",
-                  SOFT_SHADOW
-                )}
-                aria-label="همتیم"
-              >
-                <LogoMark className="w-7 h-7" />
-              </motion.button>
-            )}
-          </AnimatePresence>
-        </div>
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
 
-        {/* Left corner (RTL end) — Notifications + Profile (or login button) */}
-        <div className="flex items-center gap-2 pointer-events-auto">
+        {/* ── End: Actions (chat, notifications, profile / login) ── */}
+        <div className="flex items-center gap-2 shrink-0">
           {user ? (
             <>
-              <motion.button
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: "spring", stiffness: 500, damping: 28 }}
-                whileTap={{ scale: 0.86 }}
-                onClick={() => navigate({ view: "notifications" })}
-                className={cn(
-                  "relative grid place-items-center w-11 h-11 rounded-full bg-card",
-                  SOFT_SHADOW
+              {/* Chat */}
+              <button
+                onClick={() => navigate({ view: "chat" })}
+                className="relative grid place-items-center w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                aria-label="چت"
+              >
+                <Icon name="chat" size={20} strokeWidth={2.2} />
+                {chatUnread > 0 && (
+                  <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-extrabold">
+                    {chatUnread > 9 ? toFa(9) + "+" : toFa(chatUnread)}
+                  </span>
                 )}
+              </button>
+              {/* Notifications */}
+              <button
+                onClick={() => navigate({ view: "notifications" })}
+                className="relative grid place-items-center w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
                 aria-label="اعلان‌ها"
               >
-                <Icon name="bell" size={20} strokeWidth={2.2} className="text-foreground" />
+                <Icon name="bell" size={20} strokeWidth={2.2} />
                 {unread > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-extrabold">
+                  <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-extrabold">
                     {unread > 9 ? toFa(9) + "+" : toFa(unread)}
                   </span>
                 )}
-              </motion.button>
-              <motion.button
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: "spring", stiffness: 500, damping: 28 }}
-                whileTap={{ scale: 0.86 }}
+              </button>
+              {/* More menu (secondary destinations) */}
+              <DesktopMoreMenu />
+              {/* Avatar */}
+              <button
                 onClick={() => navigate({ view: "my-profile" })}
-                className="relative"
+                className="shrink-0 ms-1"
                 aria-label="پروفایل من"
               >
                 <UserAvatar
@@ -577,310 +365,171 @@ function MobileTopChrome({
                   avatarUrl={user.profile?.avatarUrl}
                   verified={user.isVerifiedBadge}
                   gender={user.profile?.gender}
-                  size="md"
-                  className="ring-2 ring-card"
+                  size="sm"
                 />
-              </motion.button>
+              </button>
             </>
           ) : loading ? null : (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: "spring", stiffness: 500, damping: 28 }}
-              whileTap={{ scale: 0.92 }}
+            <button
               onClick={() => navigate({ view: "auth" })}
-              className={cn(
-                "grid place-items-center h-11 px-5 rounded-full bg-card font-extrabold text-sm text-foreground",
-                SOFT_SHADOW
-              )}
+              className="inline-flex items-center gap-1.5 h-10 px-5 rounded-xl bg-primary text-primary-foreground font-extrabold text-sm hover:bg-primary/90 transition-colors"
             >
-              ورود
-            </motion.button>
+              ورود / ثبت‌نام
+            </button>
           )}
         </div>
       </div>
+    </header>
+  );
+}
+
+// ── Desktop: "more" dropdown for secondary destinations (connections, my-needs, tickets, settings, dashboard, following) ──
+function DesktopMoreMenu() {
+  const [open, setOpen] = useState(false);
+  const items = [
+    { label: "داشبورد", icon: "grid" as const, route: { view: "dashboard" } as Route },
+    { label: "دنبال‌شده", icon: "userCheck" as const, route: { view: "following" } as Route },
+    { label: "ارتباطات", icon: "userPlus" as const, route: { view: "connections" } as Route },
+    { label: "نیازمندی‌های من", icon: "briefcase" as const, route: { view: "my-needs" } as Route },
+    { label: "تیکت‌ها", icon: "ticket" as const, route: { view: "tickets" } as Route },
+    { label: "تنظیمات", icon: "settings" as const, route: { view: "settings" } as Route },
+  ];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="grid place-items-center w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+        aria-label="بیشتر"
+      >
+        <Icon name="grid" size={20} strokeWidth={2.2} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.96 }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              className="absolute end-0 mt-2 w-56 rounded-2xl glass-strong border border-border/60 overflow-hidden z-40"
+              style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.4)" }}
+            >
+              <div className="p-1.5">
+                {items.map((item, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      navigate(item.route);
+                      setOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 h-11 px-3 rounded-xl text-sm font-bold text-foreground hover:bg-muted/60 transition-colors"
+                  >
+                    <Icon name={item.icon} size={18} strokeWidth={2.2} className="text-muted-foreground" />
+                    <span className="flex-1 text-start">{item.label}</span>
+                  </button>
+                ))}
+                <div className="my-1 mx-2 h-px bg-border/60" />
+                <button
+                  onClick={async () => {
+                    await apiPost("/api/auth/logout");
+                    useUser.getState().setUser(null);
+                    setOpen(false);
+                    toast({ title: "خارج شدید" });
+                    navigate({ view: "feed" });
+                  }}
+                  className="w-full flex items-center gap-3 h-11 px-3 rounded-xl text-sm font-bold text-rose hover:bg-rose/10 transition-colors"
+                >
+                  <Icon name="logout" size={18} strokeWidth={2.4} className="text-rose" />
+                  <span className="flex-1 text-start">خروج</span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-// ── Mobile menu FAB + bottom sheet with nav grid ──
-function MobileMenuFab({
-  open,
-  setOpen,
+// ── Mobile: standard bottom tab bar (edge-to-edge glass, 5 tabs, iOS-quality) ──
+function MobileTabBar({
+  tabs,
   isActive,
+  onTabClick,
   user,
-  loading,
-  unread,
-  chatUnread,
 }: {
-  open: boolean;
-  setOpen: (v: boolean) => void;
+  tabs: typeof MOBILE_TABS;
   isActive: (key: string) => boolean;
+  onTabClick: (tab: typeof MOBILE_TABS[number]) => void;
   user: any;
-  loading: boolean;
-  unread: number;
-  chatUnread: number;
 }) {
-  // Build secondary items with badges
-  const secondaryItems = [
-    { key: "chat", label: "چت", icon: "chat" as const, badge: chatUnread },
-    { key: "notifications", label: "اعلان‌ها", icon: "bell" as const, badge: unread },
-    ...SECONDARY_NAV,
-  ];
-
   return (
-    <>
-      {/* Backdrop */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => setOpen(false)}
-            className="md:hidden fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px]"
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Bottom sheet */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 380, damping: 32 }}
-            className="md:hidden fixed bottom-0 inset-x-0 z-40 pb-safe"
-          >
-            <div
-              className="bg-card rounded-t-[32px] overflow-hidden"
-              style={{ boxShadow: "0 -14px 60px rgba(20,20,40,0.18)" }}
+    <nav
+      className="md:hidden fixed bottom-0 inset-x-0 z-40 glass-strong border-t border-border/60 pb-safe"
+      style={{ boxShadow: "0 -6px 24px rgba(0,0,0,0.25)" }}
+    >
+      <div className="grid grid-cols-5 h-16">
+        {tabs.map((tab) => {
+          const active = isActive(tab.key);
+          return (
+            <motion.button
+              key={tab.key}
+              onClick={() => onTabClick(tab)}
+              whileTap={{ scale: 0.92 }}
+              transition={{ type: "spring", stiffness: 500, damping: 22 }}
+              className="relative flex flex-col items-center justify-center gap-1 py-2"
+              aria-label={tab.label}
             >
-              {/* Drag handle */}
-              <div className="pt-3 pb-1 grid place-items-center">
-                <div className="w-10 h-1.5 rounded-full bg-foreground/15" />
-              </div>
-
-              {/* Header */}
-              <div className="px-5 pb-4 pt-1 flex items-center justify-between">
-                <div>
-                  <p className="text-base font-extrabold text-foreground">منوی همتیم</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">یکی از بخش‌ها را انتخاب کنید</p>
-                </div>
-                <button
-                  onClick={() => setOpen(false)}
-                  className="grid place-items-center w-9 h-9 rounded-full bg-muted text-muted-foreground"
-                  aria-label="بستن"
-                >
-                  <Icon name="x" size={18} strokeWidth={2.6} />
-                </button>
-              </div>
-
-              {/* Primary tiles — 5 in a row */}
-              <div className="px-4">
-                <div className="grid grid-cols-5 gap-1.5">
-                  {PRIMARY_NAV.map((item, i) => {
-                    const active = isActive(item.key);
-                    return (
-                      <motion.button
-                        key={item.key}
-                        initial={{ opacity: 0, y: 18, scale: 0.85 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{
-                          delay: 0.06 + i * 0.04,
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 22,
-                        }}
-                        onClick={() => {
-                          navigate({ view: item.key as Route["view"] } as Route);
-                          setOpen(false);
-                        }}
-                        className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl active:scale-95 transition-transform"
-                      >
-                        <div
-                          className={cn(
-                            "w-12 h-12 grid place-items-center rounded-2xl transition-colors",
-                            active ? "bg-rose text-white" : "bg-primary/5 text-primary"
-                          )}
-                          style={
-                            active
-                              ? { boxShadow: "0 6px 18px rgba(196,60,108,0.32)" }
-                              : undefined
-                          }
-                        >
-                          <Icon name={item.icon} size={22} strokeWidth={active ? 2.6 : 2.2} />
-                        </div>
-                        <span
-                          className={cn(
-                            "text-[11px] font-bold leading-tight text-center",
-                            active ? "text-rose" : "text-foreground"
-                          )}
-                        >
-                          {item.label}
-                        </span>
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div className="mx-5 my-3 h-px bg-border" />
-
-              {/* Secondary tiles — 4-col grid */}
-              <div className="px-4">
-                <div className="grid grid-cols-4 gap-1.5">
-                  {secondaryItems.map((item, i) => {
-                    const active = isActive(item.key);
-                    return (
-                      <motion.button
-                        key={item.key}
-                        initial={{ opacity: 0, y: 14, scale: 0.9 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{
-                          delay: 0.22 + i * 0.035,
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 22,
-                        }}
-                        onClick={() => {
-                          navigate({ view: item.key as Route["view"] } as Route);
-                          setOpen(false);
-                        }}
-                        className="flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-2xl active:scale-95 transition-transform"
-                      >
-                        <div
-                          className={cn(
-                            "relative w-11 h-11 grid place-items-center rounded-2xl transition-colors",
-                            active ? "bg-rose/15 text-rose" : "bg-muted text-foreground"
-                          )}
-                        >
-                          <Icon name={item.icon} size={20} strokeWidth={active ? 2.6 : 2.2} />
-                          {item.badge ? (
-                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-extrabold ring-2 ring-card">
-                              {item.badge > 9 ? toFa(9) + "+" : toFa(item.badge)}
-                            </span>
-                          ) : null}
-                        </div>
-                        <span
-                          className={cn(
-                            "text-[11px] font-bold leading-tight text-center",
-                            active ? "text-rose" : "text-foreground"
-                          )}
-                        >
-                          {item.label}
-                        </span>
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Account section */}
-              <div className="px-5 py-4 mt-2 border-t border-border flex items-center justify-between gap-3">
-                {user ? (
-                  <>
-                    <button
-                      onClick={() => {
-                        navigate({ view: "my-profile" });
-                        setOpen(false);
-                      }}
-                      className="flex items-center gap-3 min-w-0"
-                    >
-                      <UserAvatar
-                        name={user.name}
-                        avatarUrl={user.profile?.avatarUrl}
-                        verified={user.isVerifiedBadge}
-                        gender={user.profile?.gender}
-                        size="md"
-                      />
-                      <div className="text-right min-w-0">
-                        <p className="text-sm font-extrabold text-foreground line-clamp-1">{user.name}</p>
-                        <p className="text-[11px] text-muted-foreground">مشاهده پروفایل من</p>
-                      </div>
-                    </button>
-                    <button
-                      onClick={async () => {
-                        await apiPost("/api/auth/logout");
-                        useUser.getState().setUser(null);
-                        setOpen(false);
-                        toast({ title: "خارج شدید" });
-                        navigate({ view: "feed" });
-                      }}
-                      className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-rose/10 text-rose font-bold text-sm shrink-0"
-                    >
-                      <Icon name="logout" size={18} strokeWidth={2.4} className="text-rose" />
-                      <span>خروج</span>
-                    </button>
-                  </>
-                ) : loading ? null : (
-                  <button
-                    onClick={() => {
-                      navigate({ view: "auth" });
-                      setOpen(false);
-                    }}
-                    className="w-full h-11 rounded-full bg-primary text-primary-foreground font-extrabold text-sm"
-                  >
-                    ورود / ثبت‌نام
-                  </button>
+              {active && (
+                <motion.span
+                  layoutId="active-tab-pill"
+                  className="absolute inset-x-3 inset-y-1.5 rounded-2xl bg-primary/12"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              <span
+                className={cn(
+                  "relative grid place-items-center w-7 h-7 transition-colors",
+                  active ? "text-primary" : "text-muted-foreground"
                 )}
-              </div>
-
-              {/* Bottom spacer to clear FAB */}
-              <div className="h-20" aria-hidden />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* The FAB itself — rotates + swaps icon */}
-      <motion.button
-        onClick={() => setOpen(!open)}
-        whileTap={{ scale: 0.9 }}
-        animate={{ rotate: open ? 90 : 0 }}
-        transition={{ type: "spring", stiffness: 500, damping: 24 }}
-        className={cn(
-          "md:hidden fixed bottom-6 right-6 z-50 grid place-items-center rounded-full",
-          open ? "bg-rose text-white" : "bg-primary text-primary-foreground"
-        )}
-        style={{
-          width: "56px",
-          height: "56px",
-          boxShadow: open
-            ? "0 14px 34px rgba(196,60,108,0.4)"
-            : "0 14px 34px rgba(20,20,40,0.22)",
-        }}
-        aria-label={open ? "بستن منو" : "باز کردن منو"}
-      >
-        <AnimatePresence mode="wait" initial={false}>
-          {open ? (
-            <motion.span
-              key="x"
-              initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
-              animate={{ rotate: 0, opacity: 1, scale: 1 }}
-              exit={{ rotate: 90, opacity: 0, scale: 0.5 }}
-              transition={{ type: "spring", stiffness: 500, damping: 24 }}
-              className="grid place-items-center"
-            >
-              <Icon name="x" size={26} strokeWidth={2.6} />
-            </motion.span>
-          ) : (
-            <motion.span
-              key="grid"
-              initial={{ rotate: 90, opacity: 0, scale: 0.5 }}
-              animate={{ rotate: 0, opacity: 1, scale: 1 }}
-              exit={{ rotate: -90, opacity: 0, scale: 0.5 }}
-              transition={{ type: "spring", stiffness: 500, damping: 24 }}
-              className="grid place-items-center"
-            >
-              <Icon name="grid" size={24} strokeWidth={2.4} />
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </motion.button>
-    </>
+              >
+                {/* For profile tab, use filled icon when active */}
+                <Icon
+                  name={tab.icon}
+                  size={24}
+                  strokeWidth={active ? 2.6 : 2.0}
+                  className={active ? "text-primary" : "text-muted-foreground"}
+                />
+                {/* Profile tab: show avatar when logged in */}
+                {tab.key === "profile" && user && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-background grid place-items-center ring-1 ring-border">
+                    <span
+                      className="block rounded-full"
+                      style={{
+                        width: "10px",
+                        height: "10px",
+                        backgroundColor: user.isVerifiedBadge
+                          ? "oklch(0.75 0.15 80)"
+                          : "oklch(0.6 0.15 160)",
+                      }}
+                    />
+                  </span>
+                )}
+              </span>
+              <span
+                className={cn(
+                  "relative text-[10px] font-bold leading-none transition-colors",
+                  active ? "text-primary" : "text-muted-foreground"
+                )}
+              >
+                {tab.label}
+              </span>
+            </motion.button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }

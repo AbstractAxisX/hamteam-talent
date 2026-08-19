@@ -1313,3 +1313,205 @@ Stage Summary:
 - Premium iOS-quality: 32px border-radius sheet, 44/52/56px circular buttons, soft diffuse shadows, rose-tinted active glow, spring physics everywhere, stagger entrances, AnimatePresence for all transitions.
 - Noir Rose palette respected — ZERO blue/indigo. All icons via `Icon` component (NO lucide-react).
 - ZERO lint errors, ZERO compile errors, dev server healthy.
+
+---
+Task ID: REBUILD-2
+Agent: fullstack-rebuilder
+Task: COMPLETE REBUILD of Profile, Explore, and Chat views — Dark Green Glass Theme
+
+Work Log:
+- READ worklog.md (recent entries — last agent was SHELL-V2 Edge Navigation redesign with Noir Rose palette, but globals.css now declares a DARK GREEN theme: --primary oklch(0.6 0.15 160), --background oklch(0.12 0.01 165), --card oklch(0.17 0.012 165), --gold oklch(0.75 0.15 80), --rose oklch(0.65 0.2 15); .glass utility class for blur+saturate backdrop).
+- Read all shared infrastructure: src/lib/types.ts (ProfileDetail, PostWithRelations, ProfileMeta, CategoryWithSkills, etc.), src/lib/api-client.ts (api/apiPost), src/lib/use-user.ts (zustand store), src/lib/nav.ts (hash router with `navigate({view, id})`), src/lib/format.ts (toFa, timeAgoFa, formatCount, formatFaDate), src/lib/geo.ts (getProvinceName).
+- Read shared components: src/components/shared/icon.tsx (icon map — NO `checkCheck` or `checkSingle` keys, so old chat-view's tick icons fell back to `home`!), src/components/shared/user-avatar.tsx (accepts `ringColor` prop — sets wrapper background, `size` up to "2xl" = w-28 h-28), src/components/shared/post-card.tsx, src/components/shared/empty-state.tsx, src/components/shared/searchable-select.tsx.
+- Read API routes: /api/profile/[id]/route.ts (returns ProfileDetail with `followersCount` + `followingCount` + `connectionStatus`), /api/profile/[id]/meta/route.ts (returns ProfileMeta with `mainCategoryId` + `isTopTalent`), /api/categories/route.ts (returns categories with `color` field — hex string from admin), /api/posts/route.ts (supports `?userId=xxx` filter), /api/explore/posts/route.ts + /api/explore/people/route.ts (return ExplorePost/ExplorePerson shapes with `categoryColor` + `mainCategoryColor`), /api/posts/[id]/comments/route.ts (GET comments with replies, POST new comment), /api/comments/[id]/like/route.ts (toggle like/dislike), /api/posts/[id]/like/route.ts (POST toggle like), /api/chat/conversations/route.ts (returns `{conversations, requests, unreadCount}`), /api/chat/conversations/[id]/messages/route.ts, /api/chat/start/route.ts, /api/chat/conversations/[id]/respond/route.ts, /api/chat/conversations/[id]/read/route.ts.
+- Read existing chat-view.tsx (~1184 lines) to understand the existing socket.io pattern (io("/", {path:"/", query:{XTransformPort:"3003"}, auth:{userId}}), "message"/"typing"/"join" events, optimistic temp-XXX ids, dedup by content match). Identified the double-send bug root cause: socket "message" handler falls back to APPENDING a new entry when it can't find the temp (because the temp was already replaced by a 5s poll that merges server messages). No dedup set existed.
+
+### 1. PROFILE-VIEW (profile-view.tsx — 882 lines, COMPLETELY REWRITTEN)
+
+**Design Direction: "Immersive Header with Avatar Break"**
+- Header: solid dark green background with category color gradient (`linear-gradient(180deg, {ringColor-shaded} → oklch(0.13 0.012 165))`), category color stripe at the very top (1.5px), soft glow blob in the corner with category color, gold accent blob.
+- Avatar: BREAKS the header boundary (overlaps by 50%) using `translate-y-1/2` inside a spring-animated container (stiffness 320, damping 26, delay 0.1). Avatar is wrapped in a gradient ring container with the category color (gradient from `ringColor` → `oklch(0.4 0.08 160)`), `UserAvatar` with `ringColor="transparent"` (the wrapper handles the ring).
+- Username (`@username`) displayed prominently in mono font below the name, colored emerald (`oklch(0.6 0.1 150)`).
+- Top Talent crown badge: spring-rotated in (-30° → 0°), gold-tinted background pill with `crown` icon and "استعداد برتر" label.
+- "ارتباطات" (connections count) — NOT followers/following. Displayed as `formatCount(profile.followersCount + profile.followingCount)` in a 3-up stat grid alongside "پست‌ها" and "تخصص‌ها".
+- Location chip + joined date chip below username (glass pills with mapPin/calendar icons).
+- Action buttons: connection button (changes per status: pending-sent = disabled "ارسال شد" with clock icon, pending-received = gold "تأیید ارتباط" button, none = primary "ارتباط" with userPlus icon, accepted = primary "پیام" button that starts a chat via /api/chat/start). Self = "ویرایش" + "رزومه PDF" buttons (PDF opens via `window.open('/api/resume/USERID')`).
+- Pill tabs: درباره | رزومه | پست‌ها — animated `layoutId="profile-tab-pill"` motion.div behind active tab, colored with the category ringColor. Active tab text is dark (`oklch(0.1 0.01 160)`) on the colored pill. Each tab shows count badge.
+- About tab: glass cards for bio long, then categories with colored dot + skills as colored chips (background uses `shadeColor()` helper to tint the category color darker for the chip bg, full color for border, very light tint for text). Phone card if `phoneVisible`.
+- Resume tab: PDF download button (glass card with briefcase icon, opens /api/resume/USERID), experiences as a vertical timeline (line + dot markers, glass cards with job title, organization, skill name, date range, description, category pill), educations as glass cards with gold accent.
+- Posts tab: standard `PostCard` components from `@/components/shared/post-card`. Lazy-loads via `/api/posts?userId=profile.userId` when tab opened. Resets posts when profile id changes (fixed stale posts bug).
+- Loading: full ProfileSkeleton with skeleton header + avatar + stats + tabs. EmptyState for not found.
+- Helpers: `shadeColor()` converts hex to an oklch tint (parses RGB → HSL → oklch with given lightness/hue/alpha). Used everywhere for tinted chips and backgrounds.
+
+### 2. EXPLORE-VIEW (explore-view.tsx — ~1100 lines, COMPLETELY REWRITTEN)
+
+**Design Direction: "Instagram-like Dark Green Glass Grid"**
+- Header: `glass-strong` rounded-b-[32px] with radial gradient overlay using the active category color, gold accent blob, large 2xl sparkles icon in a gradient rounded-2xl container (gradient from activeColor → oklch(0.4 0.1 160), colored shadow). Title "اکسپلور" 3xl black.
+- Filters card: glass rounded-2xl, two SearchableSelects (category + skill), clear button.
+- Tabs: sticky top, glass rounded-2xl, animated pill (`TabsIndicator` uses `layout` spring), category-colored active state.
+- PostsGrid: 2 cols mobile, 3 cols sm+. Each tile = `PostTile` — square aspect, dark green glass background using `darkTint()` helper (parses hex → oklch tint at 0.7 alpha for the bg, 0.9 alpha for the gradient end). 
+  - Text tiles: linear-gradient bg + radial-pattern overlay (mix-blend-overlay) + content preview centered.
+  - Media tiles: `url(...)` background cover.
+  - Dark bottom gradient overlay.
+  - Top-right: glass pill with category icon + name.
+  - Top-left: gold crown for top talent.
+  - Bottom: avatar with category color ring (UserAvatar size xs with `ringColor="transparent"`, wrapper has the color bg), poster name, heart icon (filled rose if liked), comment icon, like/comment counts in white.
+  - Framer-motion whileTap scale 0.95, spring entrance with stagger delay.
+- PeopleGrid: 2 cols mobile, 3 cols sm+. Each `PersonCard` = glass rounded-2xl, background glow blob with mainCategoryColor, gold crown badge for top talent, UserAvatar size xl with `ringColor={mainCategoryColor}`, name, bio, category chips with colored borders, footer with followers count + location.
+- PostDetailView (exported, used by AppShell for `#/post/ID` route): full-screen mobile (fixed inset-0 z-50, drag-to-close via onTouchStart/Move/End on a drag handle at top), inline desktop (lg:static). 
+  - Drag-to-close: track startY in ref, calculate delta, setSheetY(delta) if delta > 0, on end if sheetY > 120 call `window.history.back()`. Animate via `motion.div animate={{y: sheetY}}` spring.
+  - Poster header card (glass) with avatar (lg size with mainCategoryColor ring), name + crown + category/skill line. Navigates to profile on click.
+  - Media display (image or video, max-h-[60vh]).
+  - Content card (glass, 15px text, leading-8).
+  - Action bar: like button with BOUNCE animation (`animate={likeBounce ? {scale: [1, 1.5, 0.85, 1.2, 1]} : {scale: 1}}` 0.6s duration), heart icon filled rose when liked, comment count, share button (uses navigator.share or clipboard with toast).
+  - Comments section: comment count header, list of `CommentItem` (each with avatar, glass bubble rounded-tr-md, name + crown + time, content, action row with thumbsUp/thumbsDown/reply, "(شما)" tag if mine). Replies rendered as nested `ReplyItem`. Reply input animates in via AnimatePresence.
+  - Comment input (sticky bottom): Textarea + send button with `whileTap={{scale:0.9}}` and `whileHover={{scale:1.05}}`. Enter to send, Shift+Enter for newline.
+
+### 3. CHAT-VIEW (chat-view.tsx — ~870 lines, COMPLETELY REWRITTEN)
+
+**Design Direction: "Full-screen iOS-quality Chat"**
+- Layout: `fixed inset-0 z-50 lg:static lg:grid lg:grid-cols-[360px_1fr]` — full-screen mobile with list/thread swap, two-pane desktop.
+- ChatListPanel: glass lg:rounded-3xl. Mobile header (icon + title + subtitle), animated tabs (پیام‌ها | درخواست‌ها) with `layoutId="list-tab-pill"` spring, search input.
+- ConversationRow: motion.div with spring entrance, avatar (md) with rose unread badge (bg-rose text-white), name + time + last message preview, "در انتظار" pill for pending requests, accept/reject buttons for incoming requests.
+- ChatThread: bg-background lg:rounded-3xl. Header: bg-primary text-primary-foreground with back button, other user's avatar + name + status pill (typing animation dots / "در ارتباط" / "درخواست ارسال شد" / "درخواست پیام جدید" / bio short). Messages container with custom slim-scroll.
+- Message bubbles: own = `bg-primary text-primary-foreground rounded-2xl rounded-tl-md`. Other = `glass border border-border/60 rounded-2xl rounded-tr-md`. Each shows time-ago + tick indicators on last-in-group.
+- **Double-tick (✓✓) for seen**: created inline `SingleTick` and `DoubleTick` SVG components (NOT using `Icon` because the icon map has no `checkCheck`/`checkSingle` keys, and old chat-view fell back to `home` icon — a bug). Single tick = pending or sent-but-not-seen. Double tick = `readAt` is set. Color matches WhatsApp convention (lighter when pending/sent, brighter when seen).
+- Input area: Textarea (resize-none, max-h-32) + circular send button (h-11 w-11 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30, whileTap scale 0.9, whileHover scale 1.05). Enter to send, Shift+Enter for newline. Helper text below with sparkles icon.
+- Pending states: my-pending = gold-tinted notice box, their-pending = inline accept/reject buttons.
+
+**Double-send bug FIX (the critical fix):**
+- Added `processedIdsRef = useRef<Set<string>>(new Set())` to dedup ALL processed message ids (both real ids from server and `temp-XXX` ids from optimistic sends).
+- In `loadMessages()`: when fresh messages arrive, ALL their ids are added to the set so we never re-process them.
+- In socket "message" handler: FIRST check `processedIdsRef.current.has(msg.id)` — if already processed, skip the activeConv update (only fire the side-effect of marking read). This means if the optimistic temp was already replaced by a 5s `pollReadStatus()` call, the socket "message" event won't ADD a duplicate.
+- In `pollReadStatus()` (renamed from `pollMessages`): no longer blindly replaces messages. Instead, builds an `existingMap` of `id → message`, then maps over server messages to MERGE readAt fields into existing local copies (preserves local instance identity), and only APPENDS server messages that don't exist locally (true "new from another device" case) — and marks those as processed.
+- In `handleSend()`: when creating the optimistic temp message, immediately `processedIdsRef.current.add(tempId)` so the dedup guard doesn't reject it. Also added an extra `prev.messages.some((m) => m.id === tempId)` check before adding the optimistic message (defense-in-depth).
+- Result: a single sent message produces exactly ONE entry in the UI, even when both the socket broadcast AND the 5s poll race to confirm it.
+
+### Verification
+- `bun run lint` → exit 0, ZERO errors on all 3 new files (initial run passed cleanly; subsequent runs after my small post-write fix (reset posts on profile id change) also clean).
+- `tail /home/z/my-project/dev.log` → ✓ Compiled in 226-846ms ranges, ZERO compile errors. All API routes return 200: GET /api/profile/cmsg6dtcs008hof3ej2udbypo 200, GET /api/profile/.../meta 200, GET /api/explore/posts? 200, GET /api/explore/people? 200, GET /api/chat/conversations 200, GET /api/notifications 200. NO runtime errors, NO React hydration warnings, NO 500 errors. Chat-service (port 3003) running with `bun --hot index.ts`.
+- `grep lucide-react` on all 3 new files → ZERO matches. ALL icons via the shared `Icon` component (home, search, sparkles, bell, chat, user, userPlus, ticket, logout, settings, x, chevronRight/Left/Up/Down, briefcase, users, userCheck, userMultiple, heart, share, comment, thumbsUp, thumbsDown, send, award, crown, medal, plus, image, imagePlus, upload, shield, calendar, mapPin, pencil, trash, check, checkCircle, alert, info, badgeCheck, checkSquare, compass, rocket, arrowLeft, arrowRight, phone, lock, loader, clock, mail, grid, menu, settings01, logout02, userIdentifier). Custom inline SVG only for double-tick/single-tick (which don't exist in the icon map).
+- App is functional: API calls work end-to-end (explore posts + people + comments + likes + chat conversations + chat start). All routes preserved (no API/schema/admin/app-shell changes).
+
+Stage Summary:
+- 3 files completely rewritten: src/components/views/profile-view.tsx (882 lines), src/components/views/explore-view.tsx (~1100 lines), src/components/views/chat-view.tsx (~870 lines).
+- Each view has a STRUCTURALLY DIFFERENT design: profile = immersive header with avatar break + pill tabs + glass cards with category color accents; explore = Instagram-like glass grid + full-screen mobile post detail with drag-to-close + comments with like/dislike/replies + bounce-animated like button; chat = iOS-quality bubbles + double-tick seen SVGs + spring-animated tabs + rose unread badges + full-screen mobile swap to two-pane desktop.
+- Dark Green Glass theme locked: deep dark green-black bg (oklch(0.12 0.01 165)), dark green-grey glass cards (oklch(0.17 0.012 165) + backdrop-blur(20px) saturate(180%)), vibrant emerald primary (oklch(0.6 0.15 160)), gold for verified + top talent crown, rose for likes + unread badges.
+- Fixed the chat double-send bug with a `processedIdsRef` Set + smarter `pollReadStatus` that merges instead of replaces.
+- All Persian text, `toFa()` for numbers, `timeAgoFa()`/`formatFaDate()`/`formatCount()` for formatting.
+- ZERO lint errors, ZERO compile errors, ZERO runtime errors. Dev server healthy, all 3 views load and call APIs successfully.
+
+---
+Task ID: REBUILD-3
+Agent: fullstack-developer (12 Views Rebuild — Dark Green Theme)
+
+Work Log:
+- Read worklog.md and previous agent-ctx/SHELL-V2-shell-designer.md (AppShell redesign record) for context.
+- Read all shared infra: src/components/shared/{icon,user-avatar,empty-state,post-card,searchable-select,illustrations}.tsx, src/lib/{nav,api-client,use-user,format,settings,geo,types,auth,db}.ts, src/app/globals.css (Dark Green palette), src/components/app-shell.tsx (route→view switch confirmed).
+- Inspected all relevant API routes: /api/needs (GET+POST), /api/needs/[id] (GET+PUT+DELETE), /api/needs/[id]/apply (POST), /api/needs/my-needs (GET), /api/talents (GET), /api/posts (GET), /api/connections (GET+POST), /api/connections/[id] (PATCH), /api/notifications (GET+POST), /api/tickets (GET+POST), /api/tickets/[id] (GET+POST), /api/tickets/[id]/close (POST), /api/feed/following (GET), /api/categories (GET).
+- Read existing versions of all 12 views to understand previous patterns (so my rebuilds are structurally DIFFERENT — not just retreads).
+- Inspected src/components/ui/{button,card,badge,skeleton,input,textarea,label,tabs,dialog}.tsx for shadcn imports.
+- Overwrote 12 view files in src/components/views/:
+  1. discover-view.tsx — DiscoverView() with: glass hero header (compass icon, glow background blobs), search bar, full-width SearchableSelect filters (category, skill, province, city) all stacked with labels + "همه" option, two-tab switcher (پست‌ها | کاربران) with primary glow active state, sort pills (recent/popular for posts; followers/recent for users), active filter chips with remove buttons, results grid. Uses TalentMiniCard for users tab, PostCard for posts tab.
+  2. talents-view.tsx — TalentsView() + exported TalentCardLarge. Glass hero with stats, full-width 4-line filter card (line 1 category, line 2 skill, line 3 text search input, line 4 province+city 2-col grid), mobile/desktop sort pills split. TalentCardLarge: UserAvatar lg with ringColor, name+verified, bio line-clamp-2, up to 3 category badges with overflow count, footer with follower count + "مشاهده" link.
+  3. needs-view.tsx — NeedsView() with hero header (briefcase, create button), sort+filter toggle, collapsible filter card with SearchableSelect grid (category, skill, province, city), NeedCard: title, status/applied badges, 2-line description, category+skill badges (max 3 with +N overflow), location, footer with owner avatar (clickable) + application count + time-ago + chevron.
+  4. need-detail-view.tsx — NeedDetailView({id}) with: back button, hero card with title + status badges + meta row (time, date, location), category+skill badges, description with whitespace-pre-wrap, attachments list with file icon + name + size + link, owner footer (avatar clickable). ApplySection: 3-state AnimatePresence (loading→auth/login prompt OR applied-success OR closed-error OR apply form). Apply form: Textarea with 1000 char counter + Send button. Owner-only applications section with max-h-96 slim-scroll, each app shows avatar (clickable), name, bio, time, message.
+  5. create-need-view.tsx — CreateNeedView() with hero, form card: title (120-char counter), description (5000-char counter), SearchableSelect category, skills as toggleable badge chips (max 10 — toast when exceeded), province+city grid (optional), attachments list (add/remove rows with name + URL inputs, max 8). Login prompt for guests. Submit → POST /api/needs → navigate to need detail.
+  6. my-needs-view.tsx — MyNeedsView() with hero + 2 stat tiles (posted/applied counts), two Tabs (ارسالی | درخواست‌های من) with badge counts. PostedNeedCard: title + باز/بسته badge + description + category/skill badges + footer (application count, time, chevron). AppliedNeedCard: title + درخواست داده‌ام gold badge + description (1 line) + message-in-box (line-clamp-2) + owner (clickable avatar) + applied time + chevron.
+  7. connections-view.tsx — ConnectionsView() with glass hero header (users icon + 3 stat tiles), three Tabs (دریافتی | ارتباطات | ارسالی) with badge counts. PendingCard: UserAvatar lg + ringColor + name (clickable) + bioShort + time + دو دکمه پذیرش/رد (primary + rose-outline). AcceptedCard: same PersonRow + چت button (POST /api/chat/start → navigate chat). SentCard: same + gold "در انتظار پاسخ" badge with clock icon. PATCH /api/connections/[id] with action accept/reject (via api() with method:"PATCH" since api-client only exports apiPost for POST).
+  8. notifications-view.tsx — NotificationsView() with hero header (bell icon + unread count badge on the icon container + "خواندن همه" button when unread>0). 5 categorized tabs: همه | نیازمندی | ارتباط | چت | سراسری — each with badge count from data.counts. NotifIconAndColor map: job_match→briefcase/primary, connection→userPlus/gold, chat→chat/success, broadcast→sparkles/rose, default→bell/muted. Each card: tinted icon container + title (with unread dot for unread) + body (line-clamp-2) + time-ago + chevron if has link. Optimistic markOneRead + parse link hash → navigate to need/profile/chat/etc. markAllRead via POST /api/notifications { action: "markAllRead" }.
+  9. tickets-view.tsx — TicketsView() with hero (ticket icon + refresh + "تیکت جدید" button + count subtitle). TicketCard: subject + باز/بسته badge + footer (reply count + time + chevron). CreateTicketDialog: shadcn Dialog with subject (200-char) + body (5000-char) + counter + submit → POST /api/tickets → navigate to ticket detail. Login prompt for guests.
+  10. ticket-detail-view.tsx — TicketDetailView({id}) with: back button, hero card (subject + باز/بسته badge + meta row), owner info card (avatar clickable + role label + close button for owner/admin), body text, replies thread (max-h-480 slim-scroll) with own/others bubbles — own: primary bg, others: glass — each with avatar + name + پشتیبانی badge for admin + time, reply form (Textarea + 5000-char counter + Send button) when ticket is open, closed-state card with checkCircle icon when closed. POST /api/tickets/[id] for reply, POST /api/tickets/[id]/close for closing.
+  11. settings-view.tsx — SettingsView() with glass hero (settings icon), 4 Sections: (1) Theme mode — 3 options (روشن/تیره/سیستم) using Icon name (sparkles/spark/phone) instead of lucide; (2) Theme color — DISABLED, shows locked-card with lock icon + explanatory text; (3) Font — FONTS from settings.ts, each button shows sample text in font stack + check icon on active; (4) About — explanation text + 2 mini stat tiles (نسخه ۱.۰.۰ + ساخته‌شده با ❤ همتیم). Logout shortcut card with logout02 icon + helper text.
+  12. following-view.tsx — FollowingView() with glass hero (heart icon + glow blobs + "دنبال‌شده‌ها" title), sort pills (recent/popular), "پیدا کردن افراد" button to discover. Fetches /api/feed/following?sort= and renders PostCard list. Login prompt + EmptyState (پستی از دنبال‌شده‌ها نیست) with CTA to discover.
+
+- Lint fix: First run of `bun run lint` after writing all 12 files returned exit 0 with ZERO errors and ZERO warnings — no further fixes needed.
+- Dev log: `tail -100 dev.log` shows only "✓ Compiled" success messages + Prisma queries + 200 OK API responses. ZERO compile errors. ZERO runtime errors.
+- All 12 view exports confirmed routed in app-shell.tsx (DiscoverView, TalentsView, NeedsView, NeedDetailView, CreateNeedView, MyNeedsView, ConnectionsView, NotificationsView, TicketsView, TicketDetailView, SettingsView, FollowingView).
+
+Design Discipline:
+- ZERO blue/indigo — uses Dark Green palette from globals.css (--primary emerald-green oklch(0.6 0.15 160), --background deep dark green-black oklch(0.12 0.01 165), --card dark green-grey oklch(0.17 0.012 165), --gold oklch(0.75 0.15 80), --rose oklch(0.65 0.2 15)).
+- All icons via `Icon` from `@/components/shared/icon` (hugeicons) — ZERO lucide-react imports in any of the 12 view files.
+- `.glass` class for premium glass-blur cards everywhere; `.glass-strong` for unread notif + tab stats.
+- Shadows: `shadow-soft`, `shadow-card`, `shadow-lift`, `shadow-float`, `shadow-glow` for emerald-tinted glow.
+- Framer Motion: page-load staggered entrances (delay = min(index * 0.04-0.05, 0.25-0.4)), ease [0.16, 1, 0.3, 1] cubic-out, AnimatePresence for tab transitions, whileHover y:-2 on cards.
+- All Persian text + toFa() numerals throughout (via `@/lib/format`).
+- Mobile-first responsive: 1-col mobile, 2-col sm, 3-col lg for talents; max-w-2xl/3xl/4xl/5xl/6xl mx-auto per view.
+- RTL-friendly: text-right on names, icon-first ordering, chevronLeft/arrowLeft for "next" semantics.
+
+Stage Summary:
+- 12 view files completely rebuilt in src/components/views/: discover-view, talents-view, needs-view, need-detail-view, create-need-view, my-needs-view, connections-view, notifications-view, tickets-view, ticket-detail-view, settings-view, following-view.
+- Each view has structurally DIFFERENT layout (hero glass header patterns, filter card placements, list/grid, tabs variants) — no two look alike.
+- Reused all shared infra: Icon (NOT lucide), UserAvatar with gender+ringColor+verified, EmptyState with illustrations, PostCard, SearchableSelect, api/apiPost, useUser, navigate, format helpers (toFa/timeAgoFa/formatCount/formatFaDate), PROVINCES/geo, useSettings/FONTS, shadcn/ui.
+- Did NOT modify any API route, prisma schema, admin views, or app-shell — only the 12 view files (as instructed).
+- ZERO lint errors, ZERO compile errors, dev server healthy (✓ Compiled + 200 OK responses).
+- Login-prompt + EmptyState + loading skeletons for every guest/empty/loading state.
+- All toast feedback in Persian with variant destructive for errors.
+- Forms have char counters, max-length validation, and graceful submit loading spinners (no lucide dependency — inline SVG spinner).
+
+---
+Task ID: REBUILD-1
+Agent: shell-rebuilder
+Task: Complete ground-up rebuild of AppShell, LandingView, AuthView, DashboardView for همتیم (HamTeam) Persian RTL talent discovery platform — DARK GREEN theme + STANDARD bottom tab bar (mobile) + clean top bar (desktop)
+
+Work Log:
+- Read `/home/z/my-project/worklog.md`, `/home/z/my-project/agent-ctx/SHELL-V2-shell-designer.md` (previous Edge Navigation iteration — to be REPLACED), `/home/z/my-project/src/components/shared/icon.tsx` (66 icon names available), `/home/z/my-project/src/app/globals.css` (Dark Green palette: bg `oklch(0.12 0.01 165)`, card `oklch(0.17 0.012 165)`, primary emerald `oklch(0.6 0.15 160)`, gold `oklch(0.75 0.15 80)`, rose `oklch(0.65 0.2 15)`, `.glass` + `.glass-strong` with `backdrop-filter: blur()`), `/home/z/my-project/src/lib/{nav,use-user,api-client,format,types}.ts`, `/home/z/my-project/src/components/shared/{user-avatar,illustrations,empty-state,post-card}.tsx`, `/home/z/my-project/src/components/views/{feed-view,landing-view,auth-view,dashboard-view}.tsx` (all previous versions to overwrite), `/home/z/my-project/src/app/{layout,page,globals.css}` and recent `dev.log`.
+- OVERWROTE 4 files with COMPLETELY NEW visual language (zero carryover from previous Edge Navigation iteration):
+  1. `src/components/app-shell.tsx` (~360 lines, 4 components) — STANDARD bottom tab bar (mobile, edge-to-edge glass, 5 tabs with layoutId-animated pill) + clean desktop top bar (glass, logo start, nav center, actions end) + floating chat FAB (bottom-left, primary emerald, above tab bar with safe-area-aware calc positioning) + back button on detail pages (top-LEFT small circle, glass-strong). Auth/Onboarding/Admin full screen (no chrome). All 24 view imports + `renderView(route)` switch preserved.
+  2. `src/components/views/landing-view.tsx` (~600 lines) — full-screen dark green hero (min-h 88vh) with massive dramatic headline (text-5xl → text-7xl, emerald+gold accents) + ambient solid-color blobs + horizontal pill chips for categories (NOT big cards) + 3-col feature trio + vertical timeline for "how it works" + redesigned Top Talent section (glass banner with gold border, conditions grid, full form) + final CTA glass card + dev notice.
+  3. `src/components/views/auth-view.tsx` (~270 lines) — full-screen dark green immersive (NOT split layout) with ambient blobs + top wordmark row + centered `glass-strong` card with AnimatePresence x-transitions between Info and OTP steps. Spring-animated shield icon header for OTP. Demo OTP box with primary code. 4-slot InputOTP. Big primary login button with green glow shadow.
+  4. `src/components/views/dashboard-view.tsx` (~370 lines) — full-width hero greeting glass card with avatar (xl size, primary ring) + greeting + Persian date + 3-col inline stats grid (دنبال‌شده/مرتبط/هم‌مهارت) + horizontal pill chips quick actions (6 chips, primary filled for "ثبت نیازمندی") + vertical timeline of followed posts (avatars at timeline dots + content cards with like buttons using optimistic updates) + horizontal tall cards for relevant talents + compact 2/3-col grid for same-skill people.
+
+Preserved critical patterns:
+- `{renderView(route)}` (NOT `children ?? renderView(route)`)
+- `Icon` component for ALL icons (NO lucide-react)
+- `"use client"` at top of all 4 files
+- All Persian text, `toFa()` for numbers, `formatCount`/`timeAgoFa`/`formatFaDate`
+- Logout flow: `apiPost("/api/auth/logout")` → `useUser.getState().setUser(null)` → `toast` → `navigate({view: "feed"})`
+- Scroll-to-top on route change (mainRef + window, smooth)
+- Unread notification + chat badge polling every 15s
+- Auth/Onboarding/Admin = full screen, no chrome
+
+Color discipline:
+- ZERO blue/indigo (palette locked Dark Green)
+- Background: `oklch(0.12 0.01 165)` (deep dark green-black)
+- Cards: `oklch(0.17 0.012 165)` via `.glass` class (with backdrop-filter blur 20px saturate 180%)
+- Primary: `oklch(0.6 0.15 160)` (vibrant emerald) — used for active tab, CTAs, badges
+- Gold: `oklch(0.75 0.15 80)` — verified badges, top-talent accents
+- Rose: `oklch(0.65 0.2 15)` — unread badges, like buttons, logout
+- Text: `oklch(0.93 0.01 140)` (light green-white)
+
+Animations (all framer-motion):
+- Mobile tab pill: spring layoutId="active-tab-pill" (stiffness 400, damping 30) for morphing between tabs
+- Page transitions: opacity + scale + y, spring 280/28
+- FAB entrance: scale 0→1 spring 500/25 with 0.15s delay
+- Back button entrance: opacity 0→1 + scale 0.8→1 + x -10→0, spring 500/28
+- Tab tap: whileTap scale 0.92 spring 500/22
+- More menu dropdown: opacity + y + scale spring 400/30
+- Stagger entrances: 0.04*i delays capped at 0.4s
+
+Lint + TypeScript fixes:
+- Initial `bun run lint` → exit 0 (clean)
+- `npx tsc --noEmit --skipLibCheck` flagged 2 issues in my files:
+  1. `app-shell.tsx(157,50)`: `activeView !== "auth"` comparison unintentional (TS knows auth returns early). Fixed by removing `&& activeView !== "auth"` from `showBack` calculation.
+  2. `landing-view.tsx(513,13)`: `status.rejectReason` is `string | null | undefined` but prop expects `string | null`. Fixed with `status.rejectReason ?? null` to coerce undefined to null.
+- Re-ran `bun run lint` → exit 0 (clean)
+- Re-ran `npx tsc --noEmit --skipLibCheck` on my 4 files → ZERO errors
+
+Verification:
+- `bun run lint` → exit 0, ZERO errors
+- `npx tsc --noEmit --skipLibCheck` (filtered to my 4 files) → ZERO errors
+- `curl http://localhost:3000/` → HTTP 200 (page loads, initial compile 5.7s, subsequent ~500ms)
+- `tail -50 dev.log` → all 200 responses, ZERO compile errors, ZERO runtime errors, ZERO hydration errors
+- Only warning: cross-origin request from preview-chat space-z.ai (cosmetic, not blocking)
+
+Stage Summary:
+- 4 files completely rewritten with TOTALLY NEW visual language — zero carryover from previous "Edge Navigation" iteration:
+  - **Navigation**: STANDARD bottom tab bar (edge-to-edge glass-strong, 5 tabs, layoutId-animated pill, iOS-quality) — REPLACES floating corner circles + menu FAB + bottom sheet
+  - **Landing**: full-screen dark green hero with massive dramatic headline + horizontal pill chips for categories — REPLACES hero card + bento grid
+  - **Auth**: centered glass-strong card on full-screen dark green ambient — REPLACES split-screen
+  - **Dashboard**: full-width hero greeting + vertical timeline of followed posts + horizontal scroll sections — REPLACES card grid
+- Premium iOS-quality: 40/56px circular buttons, 24px blur glass, spring physics everywhere, stagger entrances, layoutId morphing, ambient solid-color blobs (NO gradient fills)
+- ZERO blue/indigo (palette locked Dark Green)
+- All Persian text, `toFa()` for numbers, RTL-respecting layouts
+- ZERO lint errors, ZERO compile errors, ZERO runtime errors — dev server healthy
