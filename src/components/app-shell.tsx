@@ -77,7 +77,6 @@ const MOBILE_TABS = [
   { key: "explore", label: "اکسپلور", icon: "sparkles" as const, route: { view: "explore" } as Route },
   { key: "discover", label: "کشف", icon: "compass" as const, route: { view: "discover" } as Route },
   { key: "talents", label: "استعدادها", icon: "users" as const, route: { view: "talents" } as Route },
-  { key: "profile", label: "پروفایل", icon: "user" as const, route: null },
 ];
 
 // Desktop top nav (center cluster)
@@ -259,12 +258,14 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
         </div>
       </main>
 
-      {/* ═══ Mobile: standard bottom tab bar (edge-to-edge glass) ═══ */}
+      {/* ═══ Mobile: bottom tab bar (4 tabs + more sheet) ═══ */}
       <MobileTabBar
         tabs={MOBILE_TABS}
         isActive={isActive}
         onTabClick={handleTabClick}
         user={user}
+        unread={unread}
+        chatUnread={chatUnread}
       />
     </div>
   );
@@ -453,83 +454,173 @@ function DesktopMoreMenu() {
   );
 }
 
-// ── Mobile: standard bottom tab bar (edge-to-edge glass, 5 tabs, iOS-quality) ──
+// ── Mobile: bottom tab bar (4 tabs + "more" button that opens sheet) ──
 function MobileTabBar({
   tabs,
   isActive,
   onTabClick,
   user,
+  unread,
+  chatUnread,
 }: {
   tabs: typeof MOBILE_TABS;
   isActive: (key: string) => boolean;
   onTabClick: (tab: typeof MOBILE_TABS[number]) => void;
   user: any;
+  unread: number;
+  chatUnread: number;
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const moreItems = [
+    { key: "my-profile", label: "پروفایل", icon: "user" as const, route: { view: "my-profile" } as Route },
+    { key: "chat", label: "چت", icon: "chat" as const, route: { view: "chat" } as Route, badge: chatUnread },
+    { key: "notifications", label: "اعلان‌ها", icon: "bell" as const, route: { view: "notifications" } as Route, badge: unread },
+    { key: "connections", label: "ارتباطات", icon: "userPlus" as const, route: { view: "connections" } as Route },
+    { key: "my-needs", label: "نیازمندی‌های من", icon: "briefcase" as const, route: { view: "my-needs" } as Route },
+    { key: "dashboard", label: "داشبورد", icon: "grid" as const, route: { view: "dashboard" } as Route },
+    { key: "following", label: "دنبال‌شده", icon: "userCheck" as const, route: { view: "following" } as Route },
+    { key: "edit-profile", label: "ویرایش پروفایل", icon: "pencil" as const, route: { view: "edit-profile" } as Route },
+    { key: "tickets", label: "تیکت‌ها", icon: "ticket" as const, route: { view: "tickets" } as Route },
+    { key: "settings", label: "تنظیمات", icon: "settings" as const, route: { view: "settings" } as Route },
+  ];
+
   return (
-    <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 glass-strong border-t border-border/60 pb-safe"
-      style={{ boxShadow: "0 -6px 24px rgba(0,0,0,0.25)" }}
-    >
-      <div className="grid grid-cols-5 h-16">
-        {tabs.map((tab) => {
-          const active = isActive(tab.key);
-          return (
-            <motion.button
-              key={tab.key}
-              onClick={() => onTabClick(tab)}
-              whileTap={{ scale: 0.92 }}
-              transition={{ type: "spring", stiffness: 500, damping: 22 }}
-              className="relative flex flex-col items-center justify-center gap-1 py-2"
-              aria-label={tab.label}
+    <>
+      <nav
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 glass-strong border-t border-border/60 pb-safe"
+        style={{ boxShadow: "0 -6px 24px rgba(0,0,0,0.08)" }}
+      >
+        <div className="grid grid-cols-5 h-16">
+          {tabs.map((tab) => {
+            const active = isActive(tab.key);
+            return (
+              <motion.button
+                key={tab.key}
+                onClick={() => onTabClick(tab)}
+                whileTap={{ scale: 0.92 }}
+                transition={{ type: "spring", stiffness: 500, damping: 22 }}
+                className="relative flex flex-col items-center justify-center gap-1"
+                aria-label={tab.label}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="active-tab-pill"
+                    className="absolute inset-x-3 inset-y-1.5 rounded-2xl bg-primary/10"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+                <span className={cn("relative grid place-items-center w-7 h-7 transition-colors", active ? "text-primary" : "text-muted-foreground")}>
+                  <Icon name={tab.icon} size={24} strokeWidth={active ? 2.6 : 2.0} />
+                </span>
+                <span className={cn("relative text-[10px] font-bold leading-none transition-colors", active ? "text-primary" : "text-muted-foreground")}>
+                  {tab.label}
+                </span>
+              </motion.button>
+            );
+          })}
+          {/* More button — opens swipe-up sheet */}
+          <motion.button
+            onClick={() => setMoreOpen(true)}
+            whileTap={{ scale: 0.92 }}
+            transition={{ type: "spring", stiffness: 500, damping: 22 }}
+            className="relative flex flex-col items-center justify-center gap-1"
+            aria-label="بیشتر"
+          >
+            <span className="relative grid place-items-center w-7 h-7 text-muted-foreground">
+              <Icon name="more" size={24} strokeWidth={2.0} />
+            </span>
+            <span className="relative text-[10px] font-bold leading-none text-muted-foreground">بیشتر</span>
+          </motion.button>
+        </div>
+      </nav>
+
+      {/* Swipe-up "More" sheet */}
+      <AnimatePresence>
+        {moreOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMoreOpen(false)}
+              className="md:hidden fixed inset-0 z-40 bg-black/30"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+              className="md:hidden fixed bottom-0 inset-x-0 z-50 pb-safe"
             >
-              {active && (
-                <motion.span
-                  layoutId="active-tab-pill"
-                  className="absolute inset-x-3 inset-y-1.5 rounded-2xl bg-primary/12"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-              <span
-                className={cn(
-                  "relative grid place-items-center w-7 h-7 transition-colors",
-                  active ? "text-primary" : "text-muted-foreground"
+              <div className="glass-strong rounded-t-[28px] border-t border-border/40 overflow-hidden" style={{ boxShadow: "0 -12px 40px rgba(0,0,0,0.15)" }}>
+                {/* Drag handle */}
+                <div className="pt-3 pb-1 grid place-items-center">
+                  <div className="w-10 h-1 rounded-full bg-border" />
+                </div>
+                {/* Header */}
+                <div className="px-5 pt-2 pb-3 flex items-center justify-between">
+                  <h3 className="font-bold text-base">منوی بیشتر</h3>
+                  <button onClick={() => setMoreOpen(false)} className="grid place-items-center w-8 h-8 rounded-full bg-muted">
+                    <Icon name="x" size={16} />
+                  </button>
+                </div>
+                {/* User card */}
+                {user && (
+                  <button
+                    onClick={() => { navigate({ view: "my-profile" }); setMoreOpen(false); }}
+                    className="mx-4 mb-3 flex items-center gap-3 p-3 rounded-2xl bg-accent w-[calc(100%-2rem)] text-right"
+                  >
+                    <UserAvatar name={user.name} avatarUrl={user.profile?.avatarUrl} verified={user.isVerifiedBadge} gender={user.profile?.gender} size="md" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm truncate">{user.name}</p>
+                      {user.username && <p className="text-xs text-muted-foreground truncate" dir="ltr">@{user.username}</p>}
+                    </div>
+                    <Icon name="chevronRight" size={16} className="text-muted-foreground" />
+                  </button>
                 )}
-              >
-                {/* For profile tab, use filled icon when active */}
-                <Icon
-                  name={tab.icon}
-                  size={24}
-                  strokeWidth={active ? 2.6 : 2.0}
-                  className={active ? "text-primary" : "text-muted-foreground"}
-                />
-                {/* Profile tab: show avatar when logged in */}
-                {tab.key === "profile" && user && (
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-background grid place-items-center ring-1 ring-border">
-                    <span
-                      className="block rounded-full"
-                      style={{
-                        width: "10px",
-                        height: "10px",
-                        backgroundColor: user.isVerifiedBadge
-                          ? "oklch(0.75 0.15 80)"
-                          : "oklch(0.6 0.15 160)",
+                {/* Grid of items */}
+                <div className="px-4 pb-5 grid grid-cols-4 gap-2">
+                  {moreItems.map((item) => (
+                    <button
+                      key={item.key}
+                      onClick={() => { navigate(item.route); setMoreOpen(false); }}
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-2xl hover:bg-muted/50 transition-colors active:scale-95"
+                    >
+                      <div className="relative grid place-items-center w-12 h-12 rounded-2xl bg-primary/10 text-primary">
+                        <Icon name={item.icon} size={22} strokeWidth={2.2} />
+                        {item.badge ? (
+                          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-bold">
+                            {item.badge > 9 ? "۹+" : item.badge}
+                          </span>
+                        ) : null}
+                      </div>
+                      <span className="text-[11px] font-medium text-center leading-tight">{item.label}</span>
+                    </button>
+                  ))}
+                  {user && (
+                    <button
+                      onClick={async () => {
+                        await apiPost("/api/auth/logout");
+                        useUser.getState().setUser(null);
+                        setMoreOpen(false);
+                        toast({ title: "خارج شدید" });
+                        navigate({ view: "feed" });
                       }}
-                    />
-                  </span>
-                )}
-              </span>
-              <span
-                className={cn(
-                  "relative text-[10px] font-bold leading-none transition-colors",
-                  active ? "text-primary" : "text-muted-foreground"
-                )}
-              >
-                {tab.label}
-              </span>
-            </motion.button>
-          );
-        })}
-      </div>
-    </nav>
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-2xl hover:bg-rose/5 transition-colors active:scale-95"
+                    >
+                      <div className="grid place-items-center w-12 h-12 rounded-2xl bg-rose/10 text-rose">
+                        <Icon name="logout" size={22} strokeWidth={2.2} />
+                      </div>
+                      <span className="text-[11px] font-medium text-rose text-center leading-tight">خروج</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
