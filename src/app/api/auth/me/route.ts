@@ -8,10 +8,12 @@ export async function GET() {
   const safe: SafeUser = {
     id: user.id,
     phone: user.phone,
+    username: user.username,
     name: user.name,
     role: "user",
     isVerifiedBadge: user.isVerifiedBadge,
     isBanned: user.isBanned,
+    isTopTalent: user.isTopTalent,
     createdAt: user.createdAt.toISOString(),
     profile: user.profile
       ? {

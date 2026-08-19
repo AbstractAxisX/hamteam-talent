@@ -4,10 +4,12 @@ import type { Category, Skill } from "@prisma/client";
 export type SafeUser = {
   id: string;
   phone: string;
+  username: string | null;
   name: string;
   role: string;
   isVerifiedBadge: boolean;
   isBanned: boolean;
+  isTopTalent: boolean;
   createdAt: string;
   profile: {
     id: string;

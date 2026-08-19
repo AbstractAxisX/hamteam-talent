@@ -15,6 +15,7 @@ datasource db {
 model User {
   id              String    @id @default(cuid())
   phone           String    @unique
+  username        String?   @unique
   name            String
   isVerifiedBadge Boolean   @default(false)
   isBanned        Boolean   @default(false)

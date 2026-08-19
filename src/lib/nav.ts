@@ -24,6 +24,7 @@ export type Route =
   | { view: "tickets" }
   | { view: "ticket"; id: string }
   | { view: "settings" }
+  | { view: "onboarding" }
   | { view: "admin" }
   | { view: "auth" };
 
@@ -53,6 +54,7 @@ function parseHash(): Route {
     case "tickets": return { view: "tickets" };
     case "ticket": return { view: "ticket", id: rest[0] || "" };
     case "settings": return { view: "settings" };
+    case "onboarding": return { view: "onboarding" };
     case "admin": return { view: "admin" };
     case "auth": return { view: "auth" };
     default: return { view: "feed" };

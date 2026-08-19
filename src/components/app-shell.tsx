@@ -46,6 +46,7 @@ import { NotificationsView } from "@/components/views/notifications-view";
 import { TicketsView } from "@/components/views/tickets-view";
 import { TicketDetailView } from "@/components/views/ticket-detail-view";
 import { SettingsView } from "@/components/views/settings-view";
+import { OnboardingView } from "@/components/views/onboarding-view";
 import { AdminView } from "@/components/views/admin-view";
 import { apiPost } from "@/lib/api-client";
 import { toast } from "@/hooks/use-toast";
@@ -73,6 +74,7 @@ function renderView(route: Route) {
     case "tickets": return <TicketsView />;
     case "ticket": return <TicketDetailView id={route.id} />;
     case "settings": return <SettingsView />;
+    case "onboarding": return <OnboardingView />;
     case "admin": return <AdminView />;
     case "auth": return <AuthView />;
     default: return <FeedView />;
@@ -136,8 +138,8 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [route.view, (route as any).id, (route as any).conversationId]);
 
-  // Auth = full screen
-  if (route.view === "auth") {
+  // Auth / Onboarding = full screen
+  if (route.view === "auth" || route.view === "onboarding") {
     return (
       <div className="min-h-screen flex flex-col">
         <main className="flex-1">{renderView(route)}</main>
