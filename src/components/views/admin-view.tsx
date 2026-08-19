@@ -131,18 +131,38 @@ const TX = {
   ringPrimary: "focus-visible:ring-[oklch(0.5_0.15_250)]/30",
 };
 
-// Preset palette for category colors (warm + cool mix, no indigo/blue)
+// Preset palette for category colors (30 colors)
 const PRESET_CATEGORY_COLORS: string[] = [
   "#0d9488", // teal
-  "#16a34a", // emerald green
-  "#ca8a04", // gold
-  "#dc2626", // red
-  "#db2777", // pink
-  "#9333ea", // purple
-  "#f97316", // orange
-  "#0284c7", // sky
-  "#475569", // slate
+  "#0f766e", // dark teal
+  "#16a34a", // green
+  "#15803d", // dark green
   "#65a30d", // lime
+  "#84cc16", // light lime
+  "#ca8a04", // gold
+  "#eab308", // yellow
+  "#f97316", // orange
+  "#ea580c", // dark orange
+  "#dc2626", // red
+  "#b91c1c", // dark red
+  "#e11d48", // rose
+  "#be123c", // crimson
+  "#db2777", // pink
+  "#ec4899", // light pink
+  "#9333ea", // purple
+  "#7c3aed", // violet
+  "#6366f1", // indigo
+  "#3b82f6", // blue
+  "#0284c7", // sky blue
+  "#0891b2", // cyan
+  "#0e7490", // dark cyan
+  "#14b8a6", // turquoise
+  "#475569", // slate
+  "#334155", // dark slate
+  "#78716c", // stone
+  "#a16207", // brown
+  "#1f2937", // charcoal
+  "#6b7280", // gray
 ];
 
 type AdminInfo = { id: string; name: string; username: string } | null;

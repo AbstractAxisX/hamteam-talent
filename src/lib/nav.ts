@@ -78,7 +78,9 @@ interface NavState {
 }
 
 export const useNav = create<NavState>((set) => ({
-  route: typeof window !== "undefined" ? parseHash() : { view: "feed" },
+  // Always start with "feed" on both server and client to prevent hydration mismatch.
+  // The actual route is synced after mount in init().
+  route: { view: "feed" },
   setRoute: (r) => {
     if (typeof window !== "undefined") {
       window.location.hash = routeToHash(r);
@@ -87,6 +89,8 @@ export const useNav = create<NavState>((set) => ({
   },
   init: () => {
     if (typeof window === "undefined") return () => {};
+    // Sync route from hash after mount (avoids SSR hydration mismatch)
+    set({ route: parseHash() });
     const handler = () => set({ route: parseHash() });
     window.addEventListener("hashchange", handler);
     return () => window.removeEventListener("hashchange", handler);
