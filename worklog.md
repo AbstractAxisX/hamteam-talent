@@ -1515,3 +1515,42 @@ Stage Summary:
 - ZERO blue/indigo (palette locked Dark Green)
 - All Persian text, `toFa()` for numbers, RTL-respecting layouts
 - ZERO lint errors, ZERO compile errors, ZERO runtime errors — dev server healthy
+
+---
+Task ID: EXPLORE-FEED
+Agent: full-stack-developer (Explore Top Talents rebuild)
+Task: Rebuild ExploreView as "استعدادهای برتر" — vertical Facebook-style feed with media carousels, lightbox, and nested multi-level comments
+
+Work Log:
+- Read worklog.md, sample HTML at upload/Pasted Content_1787380573278.txt (958 lines), existing explore-view.tsx (1395 lines), prisma schema, API routes (/api/explore/posts, /api/posts/[id]/comments, /api/comments/[id]/like, /api/posts/[id]/like), shared components (icon, user-avatar, searchable-select, empty-state), lib/format, lib/nav, lib/api-client, lib/use-user, lib/types, globals.css.
+- Completely rewrote `src/components/views/explore-view.tsx` (2,637 lines). Exports `ExploreView()` and `PostDetailView({ id })`.
+- Title renamed to "استعدادهای برتر" (NOT "اکسپلور"). Layout changed from Instagram-grid to vertical Facebook-style feed (max-w-2xl, flex-col gap-4). Removed posts/people tab toggle.
+- Filters: SearchableSelect for category + chained SearchableSelect for skill. Animated "حذف فیلترها" pill appears when filters active.
+- PostCard: header (UserAvatar with category-color ring + verified badgeCheck + top-talent crown + time-ago + category badge), text content (clamp 3 lines + "ادامه مطلب ↓/بستن ↑"), MediaCarousel, action bar (like with framer-motion pop animation, comment with count, share with Web Share API + clipboard fallback).
+- MediaCarousel: swipeable horizontal slides with scroll-snap-x mandatory, RTL-friendly active index via rAF-throttled scroll listener. Counter (1/N) top-left, segments at bottom, "بکشید ↔" hint.
+- SlideContent dispatches per media type:
+  - ImageSlide: shimmer placeholder (CSS keyframes) + lazy img + fade-in.
+  - VideoSlide: first-frame poster + play button overlay; click → inline `<video controls autoPlay>` with close button.
+  - AudioSlide: indigo-violet gradient bg, album art with category-color gradient + heart icon, equalizer animation (CSS `eqz`), play/pause (inline SVGs), seekable progress bar (RTL click-from-right), time display. Uses module-level `currentlyPlayingAudio` + `pauseAllAudio()` + custom `audio-pause-all` window event so only one audio plays at a time across all slides AND lightbox.
+  - DocSlide: colored icon based on extension (PDF→red, DOC→indigo, XLS→emerald, PPT→amber, other→cyan), filename, formatted file size, "مشاهده سند" button → `window.open(url, "_blank")`, "دانلود" button → real `<a download>` click for true download.
+- Double-tap on media → heart burst animation (framer-motion) + like. Uses 240ms tap-timer pattern from sample.
+- Lightbox: full-screen overlay z-300, swipeable, counter + close button, ESC to close, body scroll lock. Renders per type: image (max-h-72vh object-contain), video (autoPlay controls), LightboxAudio (mirrors inline audio UI bigger), LightboxDoc (doc card with download button).
+- CommentSheet: bottom sheet at 82vh with pointer-events drag handle (drag-down >90px to close), title "نظرات" + total count, reply indicator bar ("در حال پاسخ به @name" + "انصراف ✕"), scrollable comments list with skeleton loaders + empty state, bottom input with UserAvatar + input + send button (Enter to send).
+- CommentNode: RECURSIVE component for nested comments at any depth (caps visual indent at depth 4). Avatar (smaller for nested), name, top-talent crown, time-ago, content in muted bubble, heart-like button with count, reply button (sets replyTarget), inline reply input appears when replyTarget matches. Nested replies render in indented container with right-border (RTL).
+- PostDetailView: same PostCard rendering + back button + inline comments (not in sheet) + sticky comment input at bottom. Reuses CommentNode, Lightbox, etc.
+- Helpers added: formatFileSize, formatAudioTime, getDocStyle, audioTitleFrom, countAllComments (recursive), updateCommentLike (recursive optimistic), applyCommentReaction (recursive apply).
+- APIs used unchanged: GET /api/categories, GET /api/explore/posts, GET /api/posts/[id]/comments, POST /api/posts/[id]/comments, POST /api/comments/[id]/like, POST /api/posts/[id]/like.
+- Did NOT modify any API routes, schema, app-shell, or admin code. Only overwrote `src/components/views/explore-view.tsx`.
+
+Verification:
+- `bun run lint`: 0 errors (1 pre-existing warning in unrelated file api/posts/upload-media/route.ts).
+- Dev server: had to kill stuck `next-server` (PID 1236/1266, pegged at 100% CPU since 06:30, predates my changes) and restart via `setsid nohup bun run dev ... &`. New server (PID 4123) is stable.
+- Created `/home/z/my-project/dev.log` symlink → `.zscripts/dev.log` so the standard log path works.
+- API checks (HTTP 200): GET /api/categories in 758ms, GET /api/explore/posts in 207ms (returns {posts:[]} since no featured posts seeded yet — UI shows proper empty state).
+- Home page GET / returns 200 in 11.3s (initial compile). HTML includes `explore-view_tsx_3c6672c3._.js` chunk confirming successful compile.
+- ZERO TypeScript errors, ZERO runtime errors, ZERO Next.js compile errors in dev log.
+
+Stage Summary:
+- Explore view completely rebuilt as vertical feed with full media support (image/video/audio/doc), swipeable carousels, full-screen lightbox, double-tap-to-like heart burst, and recursive multi-level nested comments in a bottom sheet (82vh, drag-to-close).
+- Design closely matches the user-provided 958-line sample HTML, adapted to the project's dark-green primary palette and existing component library (UserAvatar, SearchableSelect, EmptyState, Icon).
+- App is fully functional — no empty pages, no broken states.

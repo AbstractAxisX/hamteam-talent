@@ -1,6 +1,20 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+/* ════════════════════════════════════════════════════════════════════
+   ExploreView — "استعدادهای برتر" (Top Talents)
+   Vertical Facebook-style feed of featured posts from top-talent users.
+   Supports image / video / audio / document media, swipeable carousels,
+   full-screen lightbox, double-tap-to-like heart burst, and nested
+   multi-level comments in a bottom sheet.
+   ════════════════════════════════════════════════════════════════════ */
+
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
@@ -12,13 +26,22 @@ import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, timeAgoFa, formatFaDate } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { CategoryWithSkills } from "@/lib/types";
 
-/* ═════════════════════════════════════════════════════════════════
-   Types matching API responses
-   ═════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════════
+   Types
+   ════════════════════════════════════════════════════════════════════ */
+
+type MediaType = "image" | "video" | "audio" | "doc" | string;
+
+type PostMedia = {
+  id: string;
+  url: string;
+  type: MediaType;
+  fileName: string | null;
+  fileSize: number;
+};
 
 type ExplorePost = {
   id: string;
@@ -33,7 +56,7 @@ type ExplorePost = {
   likeCount: number;
   commentCount: number;
   likedByMe: boolean;
-  media: { id: string; url: string; type: string }[];
+  media: PostMedia[];
   user: {
     id: string;
     name: string;
@@ -43,21 +66,6 @@ type ExplorePost = {
     isVerifiedBadge: boolean;
     mainCategoryColor: string | null;
   };
-};
-
-type ExplorePerson = {
-  id: string;
-  name: string;
-  isVerifiedBadge: boolean;
-  isTopTalent: boolean;
-  bioShort: string;
-  avatarUrl: string | null;
-  gender: string | null;
-  province: string | null;
-  city: string | null;
-  categories: { id: string; name: string; iconUrl: string | null; color: string | null }[];
-  mainCategoryColor: string | null;
-  followersCount: number;
 };
 
 type Comment = {
@@ -76,52 +84,141 @@ type Comment = {
   replies: Comment[];
 };
 
-type Tab = "posts" | "people";
-
-/* ═════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════════════
    Helpers
-   ═════════════════════════════════════════════════════════════════ */
+   ════════════════════════════════════════════════════════════════════ */
 
-// Convert any color (hex / oklch) to a soft tinted dark background
-function darkTint(color: string | null | undefined, alpha: number = 0.85): string {
-  if (!color) return "oklch(0.17 0.012 165)";
-  if (color.startsWith("#")) {
-    const hex = color.slice(1);
-    const r = parseInt(hex.slice(0, 2), 16) / 255;
-    const g = parseInt(hex.slice(2, 4), 16) / 255;
-    const b = parseInt(hex.slice(4, 6), 16) / 255;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    let h = 165;
-    if (max !== min) {
-      const d = max - min;
-      if (max === r) h = ((g - b) / d) % 6;
-      else if (max === g) h = (b - r) / d + 2;
-      else h = (r - g) / d + 4;
-      h = h * 60;
-      if (h < 0) h += 360;
-    }
-    return `oklch(0.2 0.03 ${h.toFixed(0)} / ${alpha})`;
-  }
-  return color;
+function formatFileSize(bytes: number): string {
+  if (!bytes) return "—";
+  if (bytes < 1024) return `${toFa(bytes)} بایت`;
+  if (bytes < 1024 * 1024) return `${toFa((bytes / 1024).toFixed(1))} KB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${toFa((bytes / (1024 * 1024)).toFixed(1))} MB`;
+  return `${toFa((bytes / (1024 * 1024 * 1024)).toFixed(2))} GB`;
 }
 
-/* ═════════════════════════════════════════════════════════════════
-   ExploreView — Instagram-like grid of featured posts + top talent
-   ═════════════════════════════════════════════════════════════════ */
+function formatAudioTime(sec: number): string {
+  if (!isFinite(sec) || isNaN(sec)) return "—:—";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return toFa(`${m}:${s < 10 ? "0" : ""}${s}`);
+}
+
+type DocStyle = {
+  /** tailwind classes for the icon container background + text color */
+  cls: string;
+  /** short label, e.g. "PDF", "DOC" */
+  label: string;
+  /** inline svg path content for the icon */
+  svg: React.ReactNode;
+};
+
+function getDocStyle(fileName: string | null): DocStyle {
+  const ext = (fileName || "").toLowerCase().split(".").pop() || "";
+  if (ext === "pdf")
+    return {
+      cls: "bg-rose-100 text-rose-600 shadow-[0_10px_26px_rgba(220,38,38,0.22)]",
+      label: "PDF",
+      svg: (
+        <>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </>
+      ),
+    };
+  if (ext === "doc" || ext === "docx")
+    return {
+      cls: "bg-indigo-100 text-indigo-600 shadow-[0_10px_26px_rgba(79,70,229,0.22)]",
+      label: "DOC",
+      svg: (
+        <>
+          <polyline points="4 7 4 4 20 4 20 7" />
+          <line x1="9" y1="20" x2="15" y2="20" />
+          <line x1="12" y1="4" x2="12" y2="20" />
+        </>
+      ),
+    };
+  if (ext === "xls" || ext === "xlsx" || ext === "csv")
+    return {
+      cls: "bg-emerald-100 text-emerald-600 shadow-[0_10px_26px_rgba(22,163,74,0.22)]",
+      label: "XLS",
+      svg: (
+        <>
+          <line x1="18" y1="20" x2="18" y2="10" />
+          <line x1="12" y1="20" x2="12" y2="4" />
+          <line x1="6" y1="20" x2="6" y2="14" />
+        </>
+      ),
+    };
+  if (ext === "ppt" || ext === "pptx")
+    return {
+      cls: "bg-amber-100 text-amber-600 shadow-[0_10px_26px_rgba(217,119,6,0.22)]",
+      label: "PPT",
+      svg: (
+        <>
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        </>
+      ),
+    };
+  // default → cyan / general file
+  return {
+    cls: "bg-cyan-100 text-cyan-600 shadow-[0_10px_26px_rgba(8,145,178,0.22)]",
+    label: ext ? ext.toUpperCase().slice(0, 3) : "FILE",
+    svg: (
+      <>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+      </>
+    ),
+  };
+}
+
+function audioTitleFrom(media: PostMedia): string {
+  if (media.fileName) {
+    const withoutExt = media.fileName.replace(/\.[^/.]+$/, "");
+    if (withoutExt) return withoutExt;
+  }
+  return "موسیقی";
+}
+
+/** Module-level registry for the currently-playing audio element, so we can
+ *  pause everything else when one starts. */
+let currentlyPlayingAudio: HTMLAudioElement | null = null;
+function pauseAllAudio(except?: HTMLAudioElement) {
+  if (currentlyPlayingAudio && currentlyPlayingAudio !== except) {
+    try {
+      currentlyPlayingAudio.pause();
+    } catch {
+      /* ignore */
+    }
+    currentlyPlayingAudio = null;
+  }
+  window.dispatchEvent(new CustomEvent("audio-pause-all", { detail: { except } }));
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   ExploreView — main feed page
+   ════════════════════════════════════════════════════════════════════ */
 
 export function ExploreView() {
   const [cats, setCats] = useState<CategoryWithSkills[]>([]);
   const [posts, setPosts] = useState<ExplorePost[]>([]);
-  const [people, setPeople] = useState<ExplorePerson[]>([]);
-  const [tab, setTab] = useState<Tab>("posts");
   const [loading, setLoading] = useState(true);
   const [catsLoading, setCatsLoading] = useState(true);
 
   const [categoryId, setCategoryId] = useState("");
   const [skillId, setSkillId] = useState("");
 
-  // Load categories once
+  // Comment sheet target post
+  const [commentsForPost, setCommentsForPost] = useState<ExplorePost | null>(
+    null
+  );
+
   useEffect(() => {
     api<{ categories: CategoryWithSkills[] }>("/api/categories")
       .then((d) => setCats(d.categories))
@@ -134,32 +231,25 @@ export function ExploreView() {
     [cats, categoryId]
   );
 
-  // Load posts + people whenever filters change (debounced)
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const postParams = new URLSearchParams();
-      if (categoryId) postParams.set("categoryId", categoryId);
-      if (skillId) postParams.set("skillId", skillId);
-      const peopleParams = new URLSearchParams();
-      if (categoryId) peopleParams.set("categoryId", categoryId);
-
-      const [postsRes, peopleRes] = await Promise.all([
-        api<{ posts: ExplorePost[] }>(`/api/explore/posts?${postParams.toString()}`),
-        api<{ people: ExplorePerson[] }>(`/api/explore/people?${peopleParams.toString()}`),
-      ]);
-      setPosts(postsRes.posts);
-      setPeople(peopleRes.people);
+      const params = new URLSearchParams();
+      if (categoryId) params.set("categoryId", categoryId);
+      if (skillId) params.set("skillId", skillId);
+      const res = await api<{ posts: ExplorePost[] }>(
+        `/api/explore/posts?${params.toString()}`
+      );
+      setPosts(res.posts);
     } catch {
       setPosts([]);
-      setPeople([]);
     } finally {
       setLoading(false);
     }
   }, [categoryId, skillId]);
 
   useEffect(() => {
-    const t = setTimeout(load, 200);
+    const t = setTimeout(load, 180);
     return () => clearTimeout(t);
   }, [load]);
 
@@ -168,60 +258,53 @@ export function ExploreView() {
     setSkillId("");
   }
 
-  const activeColor = currentCat?.color || "oklch(0.6 0.15 160)";
+  const activeColor = currentCat?.color || "oklch(0.55 0.13 160)";
 
   return (
-    <div className="max-w-5xl mx-auto pb-2">
-      {/* ═══ IMMERSIVE HEADER ═══ */}
+    <div className="max-w-2xl mx-auto pb-2">
+      {/* ═══ Header ═══ */}
       <motion.header
-        initial={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-b-[32px] glass-strong mb-4"
+        className="relative overflow-hidden rounded-b-[28px] glass-strong mb-3"
       >
         <div
-          className="absolute inset-0 opacity-25"
+          className="absolute inset-0 opacity-20 pointer-events-none"
           style={{
-            background: `radial-gradient(circle at 80% 0%, ${activeColor} 0%, transparent 60%)`,
+            background: `radial-gradient(circle at 85% 0%, ${activeColor} 0%, transparent 55%)`,
           }}
         />
-        <div
-          className="absolute -bottom-16 -left-12 w-64 h-64 rounded-full opacity-15 blur-3xl pointer-events-none"
-          style={{ background: "oklch(0.75 0.15 80)" }}
-        />
-
-        <div className="relative p-6 sm:p-7">
-          <div className="flex items-center gap-4">
-            <motion.div
-              initial={{ scale: 0.5, rotate: -30 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: "spring", stiffness: 380, damping: 24, delay: 0.1 }}
-              className="grid place-items-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl text-primary-foreground shrink-0 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${activeColor}, oklch(0.4 0.1 160))`,
-                boxShadow: `0 8px 24px ${activeColor}40`,
-              }}
-            >
-              <Icon name="sparkles" size={28} />
-            </motion.div>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
-                اکسپلور
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1 leading-6">
-                بهترین پست‌ها و استعدادهای برتر را کشف کنید
-              </p>
-            </div>
+        <div className="relative px-5 py-5 sm:px-6 sm:py-6 flex items-center gap-4">
+          <motion.div
+            initial={{ scale: 0.6, rotate: -20 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 360, damping: 22, delay: 0.1 }}
+            className="grid place-items-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl text-primary-foreground shrink-0 shadow-lg"
+            style={{
+              background: `linear-gradient(135deg, ${activeColor}, oklch(0.4 0.09 160))`,
+              boxShadow: `0 8px 24px ${activeColor}40`,
+            }}
+          >
+            <Icon name="crown" size={28} />
+          </motion.div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
+              استعدادهای برتر
+            </h1>
+            <p className="text-[12.5px] text-muted-foreground mt-0.5 leading-6">
+              بهترین کارهای استعدادهای برتر جامعهٔ همتیم
+            </p>
           </div>
         </div>
       </motion.header>
 
-      {/* ═══ FILTERS ═══ */}
+      {/* ═══ Filters ═══ */}
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.05 }}
-        className="glass rounded-2xl p-4 mb-4 space-y-3"
+        transition={{ duration: 0.4, delay: 0.04 }}
+        className="glass rounded-2xl p-3.5 mb-4 space-y-2.5 shadow-card"
       >
         <SearchableSelect
           label="دسته‌بندی"
@@ -237,416 +320,1848 @@ export function ExploreView() {
           }}
           placeholder="انتخاب دسته"
         />
-        {tab === "posts" && (
-          <SearchableSelect
-            label="مهارت"
-            allLabel={categoryId ? "همه مهارت‌ها" : undefined}
-            disabled={!categoryId}
-            options={(currentCat?.skills || []).map((s) => ({ value: s.id, label: s.name }))}
-            value={skillId}
-            onChange={(v) => setSkillId(v === "all" ? "" : v)}
-            placeholder={categoryId ? "انتخاب مهارت" : "ابتدا دسته‌بندی را انتخاب کنید"}
-          />
-        )}
-        {(categoryId || skillId) && (
-          <button
-            onClick={clearFilters}
-            className="h-9 px-3.5 inline-flex items-center gap-1.5 rounded-full bg-muted text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors text-xs font-bold"
-          >
-            <Icon name="x" size={14} />
-            حذف فیلترها
-          </button>
-        )}
+        <SearchableSelect
+          label="مهارت"
+          allLabel={categoryId ? "همه مهارت‌ها" : undefined}
+          disabled={!categoryId || catsLoading}
+          options={(currentCat?.skills || []).map((s) => ({
+            value: s.id,
+            label: s.name,
+          }))}
+          value={skillId}
+          onChange={(v) => setSkillId(v === "all" ? "" : v)}
+          placeholder={categoryId ? "انتخاب مهارت" : "ابتدا دسته‌بندی را انتخاب کنید"}
+        />
+        <AnimatePresence>
+          {(categoryId || skillId) && (
+            <motion.button
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              onClick={clearFilters}
+              className="h-9 px-3.5 inline-flex items-center gap-1.5 rounded-full bg-muted text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors text-xs font-bold"
+            >
+              <Icon name="x" size={14} />
+              حذف فیلترها
+            </motion.button>
+          )}
+        </AnimatePresence>
       </motion.div>
 
-      {/* ═══ SEGMENTED TABS ═══ */}
-      <div className="sticky top-0 z-30 -mx-1 px-1 pb-3">
-        <div className="relative flex p-1 glass rounded-2xl gap-1">
-          <TabsIndicator activeKey={tab} color={activeColor} />
-          <TabButton active={tab === "posts"} onClick={() => setTab("posts")}>
-            <span>پست‌ها</span>
-            {!loading && (
-              <span className="text-[10px] text-muted-foreground font-bold tabular-nums">
-                {toFa(posts.length)}
-              </span>
-            )}
-          </TabButton>
-          <TabButton active={tab === "people"} onClick={() => setTab("people")}>
-            <span>افراد</span>
-            {!loading && (
-              <span className="text-[10px] text-muted-foreground font-bold tabular-nums">
-                {toFa(people.length)}
-              </span>
-            )}
-          </TabButton>
+      {/* ═══ Feed ═══ */}
+      {loading ? (
+        <FeedSkeleton />
+      ) : posts.length === 0 ? (
+        <EmptyState
+          kind="generic"
+          title="پستی یافت نشد"
+          description={
+            (categoryId || skillId)
+              ? "با فیلترهای انتخاب‌شده پست برجسته‌ای موجود نیست."
+              : "هنوز پست برجسته‌ای برای نمایش وجود دارد. پس از تأیید مدیر، پست‌های استعدادهای برتر اینجا نمایش داده می‌شوند."
+          }
+          action={
+            (categoryId || skillId) ? (
+              <button
+                onClick={clearFilters}
+                className="h-10 px-5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors"
+              >
+                حذف فیلترها
+              </button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-4">
+          {posts.map((p, i) => (
+            <PostCard
+              key={p.id}
+              post={p}
+              index={i}
+              onOpenComments={(post) => setCommentsForPost(post)}
+            />
+          ))}
         </div>
-      </div>
+      )}
 
-      {/* ═══ CONTENT ═══ */}
-      <AnimatePresence mode="wait">
-        {loading ? (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {tab === "posts" ? <PostsGridSkeleton /> : <PeopleGridSkeleton />}
-          </motion.div>
-        ) : tab === "posts" ? (
-          <motion.div
-            key="posts"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25 }}
-          >
-            {posts.length === 0 ? (
-              <EmptyState
-                kind="generic"
-                title="پستی یافت نشد"
-                description="با فیلترهای انتخاب‌شده پست برجسته‌ای موجود نیست."
-                action={
-                  (categoryId || skillId) ? (
-                    <button
-                      onClick={clearFilters}
-                      className="h-10 px-5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors"
-                    >
-                      حذف فیلترها
-                    </button>
-                  ) : undefined
-                }
-              />
-            ) : (
-              <PostsGrid posts={posts} />
-            )}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="people"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25 }}
-          >
-            {people.length === 0 ? (
-              <EmptyState
-                kind="people"
-                title="فردی یافت نشد"
-                description="هیچ استعداد برتری با این فیلتر موجود نیست."
-                action={
-                  categoryId ? (
-                    <button
-                      onClick={clearFilters}
-                      className="h-10 px-5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors"
-                    >
-                      حذف فیلترها
-                    </button>
-                  ) : undefined
-                }
-              />
-            ) : (
-              <PeopleGrid people={people} />
-            )}
-          </motion.div>
+      {/* ═══ Comment Sheet ═══ */}
+      <AnimatePresence>
+        {commentsForPost && (
+          <CommentSheet
+            post={commentsForPost}
+            onClose={() => setCommentsForPost(null)}
+          />
         )}
       </AnimatePresence>
     </div>
   );
 }
 
-/* ── Tabs indicator (animated pill) ── */
-function TabsIndicator({ activeKey, color }: { activeKey: Tab; color: string }) {
+/* ════════════════════════════════════════════════════════════════════
+   Feed Skeleton
+   ════════════════════════════════════════════════════════════════════ */
+
+function FeedSkeleton() {
   return (
-    <motion.div
-      layout
-      transition={{ type: "spring", stiffness: 380, damping: 32 }}
-      className="absolute inset-y-1 w-[calc(50%-0.25rem)] rounded-xl shadow-md"
-      style={{
-        right: activeKey === "posts" ? "calc(50% - 0.25rem)" : "0.25rem",
-        background: color,
-        boxShadow: `0 4px 12px ${color}50`,
-      }}
-    />
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "relative z-10 flex-1 h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors",
-        active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-/* ═════════════════════════════════════════════════════════════════
-   Posts Grid — Instagram-like, dark green glass tiles
-   ═════════════════════════════════════════════════════════════════ */
-
-function PostsGrid({ posts }: { posts: ExplorePost[] }) {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-      {posts.map((p, i) => (
-        <PostTile key={p.id} post={p} index={i} />
-      ))}
-    </div>
-  );
-}
-
-function PostTile({ post, index }: { post: ExplorePost; index: number }) {
-  const hasMedia = post.media.length > 0;
-  const catColor = post.categoryColor || "oklch(0.6 0.15 160)";
-  const tileColor = darkTint(post.categoryColor, 0.7);
-
-  return (
-    <motion.button
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{
-        duration: 0.35,
-        delay: Math.min(index * 0.04, 0.4),
-        ease: [0.16, 1, 0.3, 1],
-      }}
-      whileTap={{ scale: 0.95 }}
-      onClick={() => navigate({ view: "post", id: post.id })}
-      className="relative aspect-square rounded-2xl overflow-hidden group text-right block"
-    >
-      {/* Background */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: hasMedia
-            ? `url(${post.media[0].url}) center/cover`
-            : `linear-gradient(135deg, ${tileColor}, ${darkTint(post.categoryColor, 0.9)})`,
-        }}
-      />
-
-      {/* Pattern overlay for text tiles */}
-      {!hasMedia && (
+    <div className="flex flex-col gap-4">
+      {[...Array(3)].map((_, i) => (
         <div
-          className="absolute inset-0 opacity-30 mix-blend-overlay"
-          style={{
-            background:
-              "radial-gradient(circle at 20% 20%, white 0%, transparent 30%), radial-gradient(circle at 80% 80%, white 0%, transparent 30%)",
-          }}
-        />
-      )}
-
-      {/* Dark bottom gradient */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-
-      {/* Category icon at top-right */}
-      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full glass-strong text-[10px] font-bold flex items-center gap-1">
-        {post.categoryIcon && <span>{post.categoryIcon}</span>}
-        <span className="text-foreground/90 truncate max-w-[80px]">
-          {post.categoryName || "عمومی"}
-        </span>
-      </div>
-
-      {/* Top Talent crown */}
-      {post.user.isTopTalent && (
-        <div className="absolute top-2 left-2 grid place-items-center w-6 h-6 rounded-full bg-gold text-black shadow-md">
-          <Icon name="crown" size={12} />
-        </div>
-      )}
-
-      {/* Text preview for text-only posts */}
-      {!hasMedia && (
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 px-3">
-          <p className="text-xs sm:text-sm text-foreground/90 line-clamp-3 text-center leading-5">
-            {post.content}
-          </p>
-        </div>
-      )}
-
-      {/* Bottom: poster + counts */}
-      <div className="absolute inset-x-0 bottom-0 p-2.5">
-        <div className="flex items-center gap-1.5">
-          <div
-            className="rounded-full p-0.5"
-            style={{
-              background: post.user.mainCategoryColor || catColor,
-            }}
-          >
-            <UserAvatar
-              name={post.user.name}
-              avatarUrl={post.user.avatarUrl}
-              gender={post.user.gender}
-              verified={post.user.isVerifiedBadge}
-              size="xs"
-              ringColor="transparent"
-            />
+          key={i}
+          className="bg-card rounded-[20px] overflow-hidden shadow-card"
+        >
+          <div className="flex items-center gap-3 p-3.5">
+            <Skeleton className="w-11 h-11 rounded-full" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-3.5 w-32 rounded-full" />
+              <Skeleton className="h-2.5 w-24 rounded-full" />
+            </div>
           </div>
-          <span className="text-[11px] font-bold text-white truncate flex-1">
-            {post.user.name}
-          </span>
+          <div className="px-3.5 pb-3 space-y-1.5">
+            <Skeleton className="h-3 w-full rounded-full" />
+            <Skeleton className="h-3 w-4/5 rounded-full" />
+            <Skeleton className="h-3 w-2/3 rounded-full" />
+          </div>
+          <Skeleton className="h-[280px] w-full" />
+          <div className="flex gap-2 p-3">
+            <Skeleton className="h-10 flex-1 rounded-xl" />
+            <Skeleton className="h-10 flex-1 rounded-xl" />
+            <Skeleton className="h-10 flex-1 rounded-xl" />
+          </div>
         </div>
-        <div className="flex items-center gap-2 mt-1.5 text-white/95">
-          <span className="flex items-center gap-0.5 text-[10px] font-bold">
-            <Icon name="heart" size={12} className={post.likedByMe ? "fill-rose text-rose" : ""} />
-            {formatCount(post.likeCount)}
-          </span>
-          <span className="flex items-center gap-0.5 text-[10px] font-bold">
-            <Icon name="comment" size={12} />
-            {formatCount(post.commentCount)}
-          </span>
-        </div>
-      </div>
-
-      {/* Hover overlay */}
-      <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors" />
-    </motion.button>
-  );
-}
-
-/* ═════════════════════════════════════════════════════════════════
-   People Grid
-   ═════════════════════════════════════════════════════════════════ */
-
-function PeopleGrid({ people }: { people: ExplorePerson[] }) {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-      {people.map((p, i) => (
-        <PersonCard key={p.id} person={p} index={i} />
       ))}
     </div>
   );
 }
 
-function PersonCard({ person, index }: { person: ExplorePerson; index: number }) {
-  const ringColor = person.mainCategoryColor || person.categories?.[0]?.color || "oklch(0.6 0.15 160)";
-  const location = [person.province, person.city].filter(Boolean).join("، ");
+/* ════════════════════════════════════════════════════════════════════
+   PostCard — single card in the vertical feed
+   ════════════════════════════════════════════════════════════════════ */
+
+function PostCard({
+  post,
+  index,
+  onOpenComments,
+}: {
+  post: ExplorePost;
+  index: number;
+  onOpenComments: (post: ExplorePost) => void;
+}) {
+  const { user: me } = useUser();
+  const catColor = post.categoryColor || "oklch(0.55 0.13 160)";
+  const ringColor = post.user.mainCategoryColor || catColor;
+
+  const [expanded, setExpanded] = useState(false);
+  const [liked, setLiked] = useState(post.likedByMe);
+  const [likeCount, setLikeCount] = useState(post.likeCount);
+  const [liking, setLiking] = useState(false);
+  const [likeBounce, setLikeBounce] = useState(false);
+  const [burst, setBurst] = useState<{ x: number; y: number; key: number } | null>(
+    null
+  );
+  const burstKeyRef = useRef(0);
+
+  // Lightbox state
+  const [lightboxStart, setLightboxStart] = useState<number | null>(null);
+
+  // Comment count (kept in sync with sheet updates)
+  const [commentCount, setCommentCount] = useState(post.commentCount);
+
+  // double-tap timer
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isLong = post.content.length > 220;
+
+  async function toggleLike(opts?: { fromDoubleTap?: boolean }) {
+    if (!me) {
+      toast({ title: "برای لایک کردن وارد شوید" });
+      navigate({ view: "auth" });
+      return;
+    }
+    if (opts?.fromDoubleTap && liked) return; // double-tap doesn't unlike
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount((c) => c + (wasLiked ? -1 : 1));
+    if (!wasLiked) {
+      setLikeBounce(true);
+      setTimeout(() => setLikeBounce(false), 600);
+    }
+    setLiking(true);
+    try {
+      await apiPost(`/api/posts/${post.id}/like`);
+    } catch (e) {
+      setLiked(wasLiked);
+      setLikeCount((c) => c + (wasLiked ? 1 : -1));
+      toast({
+        title: "خطا",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setLiking(false);
+    }
+  }
+
+  function onSlideTap(e: React.MouseEvent, idx: number) {
+    // Double-tap detection on media area
+    if (tapTimerRef.current) {
+      clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+      // double tap → burst + like
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setBurst({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        key: ++burstKeyRef.current,
+      });
+      setTimeout(() => setBurst(null), 850);
+      void toggleLike({ fromDoubleTap: true });
+    } else {
+      tapTimerRef.current = setTimeout(() => {
+        tapTimerRef.current = null;
+        setLightboxStart(idx);
+      }, 240);
+    }
+  }
+
+  function sharePost() {
+    const url = `${window.location.origin}/#/post/${post.id}`;
+    if (navigator.share) {
+      navigator.share({ url, title: post.user.name }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(url);
+      toast({ title: "لینک پست کپی شد" });
+    }
+  }
 
   return (
-    <motion.button
-      initial={{ opacity: 0, y: 12 }}
+    <motion.article
+      initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
-        duration: 0.35,
-        delay: Math.min(index * 0.05, 0.4),
+        duration: 0.4,
+        delay: Math.min(index * 0.05, 0.35),
         ease: [0.16, 1, 0.3, 1],
       }}
-      whileTap={{ scale: 0.96 }}
-      onClick={() => navigate({ view: "profile", id: person.id })}
-      className="relative glass rounded-2xl p-4 flex flex-col items-center text-center overflow-hidden group"
+      className="bg-card rounded-[20px] overflow-hidden shadow-card"
     >
-      {/* Background glow */}
-      <div
-        className="absolute -top-12 right-0 w-32 h-32 rounded-full opacity-25 blur-2xl pointer-events-none group-hover:opacity-40 transition-opacity"
-        style={{ background: ringColor }}
-      />
+      {/* ═══ Header ═══ */}
+      <div className="flex items-center gap-3 px-3.5 pt-3.5 pb-1.5">
+        <button
+          onClick={() => navigate({ view: "profile", id: post.user.id })}
+          className="shrink-0"
+          aria-label={`پروفایل ${post.user.name}`}
+        >
+          <UserAvatar
+            name={post.user.name}
+            avatarUrl={post.user.avatarUrl}
+            verified={post.user.isVerifiedBadge}
+            gender={post.user.gender}
+            size="md"
+            ringColor={ringColor}
+          />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => navigate({ view: "profile", id: post.user.id })}
+              className="font-extrabold text-[14px] truncate hover:text-primary transition-colors"
+            >
+              {post.user.name}
+            </button>
+            {post.user.isVerifiedBadge && (
+              <Icon
+                name="badgeCheck"
+                size={15}
+                className="text-gold fill-gold/15 shrink-0"
+              />
+            )}
+            {post.user.isTopTalent && (
+              <span className="grid place-items-center w-4 h-4 rounded-full bg-gold text-black shrink-0">
+                <Icon name="crown" size={10} />
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
+            <span className="truncate">{timeAgoFa(post.createdAt)}</span>
+            {post.categoryName && (
+              <>
+                <span className="text-muted-foreground/40">•</span>
+                <span
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                  style={{
+                    background: `${catColor}22`,
+                    color: catColor,
+                  }}
+                >
+                  {post.categoryIcon && <span>{post.categoryIcon}</span>}
+                  {post.categoryName}
+                </span>
+              </>
+            )}
+            {post.skillName && (
+              <>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="truncate">{post.skillName}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
 
-      {/* Crown badge */}
-      {person.isTopTalent && (
-        <div className="absolute top-2 right-2 grid place-items-center w-6 h-6 rounded-full bg-gold text-black shadow-md">
-          <Icon name="crown" size={12} />
+      {/* ═══ Text content ═══ */}
+      {post.content && (
+        <>
+          <p
+            className={cn(
+              "px-3.5 pb-2 text-[13.5px] leading-[1.95] whitespace-pre-wrap break-words",
+              isLong && !expanded && "line-clamp-3"
+            )}
+          >
+            {post.content}
+          </p>
+          {isLong && (
+            <button
+              onClick={() => setExpanded((e) => !e)}
+              className="block px-3.5 pb-2.5 text-primary text-[12px] font-extrabold hover:opacity-70 transition-opacity"
+            >
+              {expanded ? "بستن ↑" : "ادامه مطلب ↓"}
+            </button>
+          )}
+        </>
+      )}
+
+      {/* ═══ Media carousel ═══ */}
+      {post.media.length > 0 && (
+        <MediaCarousel
+          post={post}
+          onImageTap={onSlideTap}
+          onLightboxClose={() => setLightboxStart(null)}
+        />
+      )}
+
+      {/* ═══ Action bar ═══ */}
+      <div className="flex gap-2 p-2.5">
+        <motion.button
+          whileTap={{ scale: 0.94 }}
+          onClick={() => void toggleLike()}
+          disabled={liking}
+          className={cn(
+            "flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold transition-colors",
+            liked
+              ? "text-rose bg-rose/10"
+              : "text-muted-foreground bg-muted hover:bg-muted/70"
+          )}
+          aria-label="پسندیدن"
+        >
+          <motion.span
+            animate={likeBounce ? { scale: [1, 1.5, 0.85, 1.2, 1] } : { scale: 1 }}
+            transition={{ duration: 0.6 }}
+          >
+            <Icon
+              name="heart"
+              size={20}
+              className={liked ? "fill-rose text-rose" : ""}
+              strokeWidth={2}
+            />
+          </motion.span>
+          <span className="tabular-nums">{formatCount(likeCount)}</span>
+        </motion.button>
+
+        <motion.button
+          whileTap={{ scale: 0.94 }}
+          onClick={() => onOpenComments({ ...post, commentCount })}
+          className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold text-muted-foreground bg-muted hover:bg-muted/70 transition-colors"
+          aria-label="نظرات"
+        >
+          <Icon name="comment" size={20} strokeWidth={2} />
+          <span className="tabular-nums">{formatCount(commentCount)}</span>
+        </motion.button>
+
+        <motion.button
+          whileTap={{ scale: 0.94 }}
+          onClick={sharePost}
+          className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold text-muted-foreground bg-muted hover:bg-muted/70 transition-colors"
+          aria-label="اشتراک‌گذاری"
+        >
+          <Icon name="share" size={20} strokeWidth={2} />
+          <span>اشتراک</span>
+        </motion.button>
+      </div>
+
+      {/* ═══ Lightbox ═══ */}
+      <AnimatePresence>
+        {lightboxStart !== null && post.media.length > 0 && (
+          <Lightbox
+            post={post}
+            startIndex={lightboxStart}
+            onClose={() => setLightboxStart(null)}
+          />
+        )}
+      </AnimatePresence>
+    </motion.article>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   MediaCarousel — swipeable horizontal slides with scroll-snap
+   ════════════════════════════════════════════════════════════════════ */
+
+function MediaCarousel({
+  post,
+  onImageTap,
+}: {
+  post: ExplorePost;
+  onImageTap: (e: React.MouseEvent, idx: number) => void;
+  onLightboxClose: () => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
+  const tickingRef = useRef(false);
+
+  const media = post.media;
+  const n = media.length;
+  const catColor = post.categoryColor || "oklch(0.55 0.13 160)";
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const onScroll = () => {
+      if (tickingRef.current) return;
+      tickingRef.current = true;
+      requestAnimationFrame(() => {
+        tickingRef.current = false;
+        const idx = Math.round(Math.abs(track.scrollLeft) / track.clientWidth);
+        const clamped = Math.max(0, Math.min(n - 1, idx));
+        setActiveIdx(clamped);
+        setScrolled(true);
+      });
+    };
+    track.addEventListener("scroll", onScroll, { passive: true });
+    return () => track.removeEventListener("scroll", onScroll);
+  }, [n]);
+
+  return (
+    <div
+      className="relative bg-neutral-950"
+      style={{ contain: "layout paint" }}
+    >
+      <div
+        ref={trackRef}
+        className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        {media.map((m, i) => (
+          <div
+            key={m.id}
+            className="relative shrink-0 w-full h-[280px] sm:h-[360px] lg:h-[400px] overflow-hidden snap-start snap-always"
+          >
+            <SlideContent
+              media={m}
+              post={post}
+              catColor={catColor}
+              onImageTap={(e) => onImageTap(e, i)}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Counter (top-left) */}
+      {n > 1 && (
+        <div className="absolute top-2.5 left-2.5 z-20 bg-black/55 backdrop-blur-sm text-white text-[10.5px] font-bold px-2.5 py-1 rounded-full pointer-events-none tabular-nums">
+          {toFa(activeIdx + 1)}/{toFa(n)}
         </div>
       )}
 
-      {/* Avatar */}
-      <div className="relative mb-3">
-        <UserAvatar
-          name={person.name}
-          avatarUrl={person.avatarUrl}
-          verified={person.isVerifiedBadge}
-          gender={person.gender}
-          size="xl"
-          ringColor={ringColor}
-        />
-      </div>
-
-      {/* Name */}
-      <h3 className="font-bold text-sm truncate w-full">{person.name}</h3>
-
-      {/* Bio */}
-      {person.bioShort && (
-        <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-5">
-          {person.bioShort}
-        </p>
-      )}
-
-      {/* Categories */}
-      {person.categories.length > 0 && (
-        <div className="flex flex-wrap justify-center gap-1 mt-2">
-          {person.categories.slice(0, 2).map((c) => (
+      {/* Segments (bottom) */}
+      {n > 1 && (
+        <div className="absolute bottom-2.5 left-2.5 right-2.5 flex gap-1 z-20 pointer-events-none">
+          {media.map((_, i) => (
             <span
-              key={c.id}
-              className="text-[10px] px-1.5 py-0.5 rounded-full font-bold border"
-              style={{
-                background: darkTint(c.color, 0.7),
-                borderColor: c.color || "oklch(0.6 0.15 160)",
-                color: "oklch(0.85 0.04 165)",
-              }}
-            >
-              {c.iconUrl || "✨"} {c.name}
-            </span>
+              key={i}
+              className={cn(
+                "flex-1 h-[3px] rounded-full transition-colors duration-300",
+                i <= activeIdx ? "bg-white" : "bg-white/30"
+              )}
+            />
           ))}
         </div>
       )}
 
-      {/* Footer */}
-      <div className="mt-3 flex items-center justify-between w-full pt-2 border-t border-border/40 text-[10px] text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <Icon name="users" size={11} />
-          {formatCount(person.followersCount)}
-        </span>
-        {location && (
-          <span className="flex items-center gap-1 truncate">
-            <Icon name="mapPin" size={11} />
-            {location}
-          </span>
-        )}
-      </div>
-    </motion.button>
+      {/* Swipe hint */}
+      {n > 1 && !scrolled && (
+        <div className="absolute bottom-9 left-1/2 -translate-x-1/2 z-20 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1 rounded-full pointer-events-none">
+          بکشید ↔
+        </div>
+      )}
+    </div>
   );
 }
 
-/* ═════════════════════════════════════════════════════════════════
-   Post Detail View — full-screen mobile (drag to close), inline desktop
-   ═════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════════
+   SlideContent — renders the right UI per media type
+   ════════════════════════════════════════════════════════════════════ */
+
+function SlideContent({
+  media,
+  post,
+  catColor,
+  onImageTap,
+}: {
+  media: PostMedia;
+  post: ExplorePost;
+  catColor: string;
+  onImageTap: (e: React.MouseEvent) => void;
+}) {
+  if (media.type === "image") {
+    return <ImageSlide media={media} onImageTap={onImageTap} />;
+  }
+  if (media.type === "video") {
+    return <VideoSlide media={media} />;
+  }
+  if (media.type === "audio") {
+    return (
+      <AudioSlide
+        media={media}
+        userName={post.user.name}
+        catColor={catColor}
+      />
+    );
+  }
+  if (media.type === "doc") {
+    return <DocSlide media={media} />;
+  }
+  // Fallback: try to render as image
+  return <ImageSlide media={media} onImageTap={onImageTap} />;
+}
+
+/* ── Image slide with shimmer placeholder ── */
+function ImageSlide({
+  media,
+  onImageTap,
+}: {
+  media: PostMedia;
+  onImageTap: (e: React.MouseEvent) => void;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div
+      className="relative w-full h-full cursor-pointer"
+      onClick={onImageTap}
+    >
+      {!loaded && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(100deg, #1a2233 40%, #26314b 50%, #1a2233 60%)",
+            backgroundSize: "200% 100%",
+            animation: "shimmer 1.2s linear infinite",
+          }}
+        />
+      )}
+      <img
+        src={media.url}
+        alt={media.fileName || "تصویر پست"}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+        className={cn(
+          "w-full h-full object-cover transition-opacity duration-300",
+          loaded ? "opacity-100" : "opacity-0"
+        )}
+      />
+      <span className="absolute top-2.5 right-2.5 z-10 inline-flex items-center gap-1 bg-black/55 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full pointer-events-none">
+        <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2}>
+          <rect x="3" y="3" width="18" height="18" rx="3" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="M21 15l-5-5L5 21" />
+        </svg>
+        عکس
+      </span>
+      <style>{`@keyframes shimmer{to{background-position:-200% 0}}`}</style>
+    </div>
+  );
+}
+
+/* ── Video slide: thumbnail + play button + duration badge; click → inline player ── */
+function VideoSlide({ media }: { media: PostMedia }) {
+  const [playing, setPlaying] = useState(false);
+
+  if (playing) {
+    return (
+      <div className="relative w-full h-full bg-black">
+        <video
+          src={media.url}
+          controls
+          autoPlay
+          className="w-full h-full object-contain"
+        />
+        <button
+          onClick={() => setPlaying(false)}
+          className="absolute top-2.5 left-2.5 z-10 w-9 h-9 rounded-full bg-black/65 backdrop-blur-sm grid place-items-center text-white"
+          aria-label="بستن ویدیو"
+        >
+          <Icon name="x" size={16} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="relative w-full h-full bg-neutral-900 cursor-pointer group"
+      onClick={() => setPlaying(true)}
+    >
+      {/* Try to show first frame as poster */}
+      <video
+        src={media.url}
+        preload="metadata"
+        muted
+        playsInline
+        className="w-full h-full object-cover opacity-90"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20 pointer-events-none" />
+      {/* Play button */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-white/95 grid place-items-center shadow-[0_8px_26px_rgba(0,0,0,0.45)] group-active:scale-90 transition-transform">
+        <svg viewBox="0 0 24 24" className="w-7 h-7 -mr-0.5" fill="#312e81">
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </div>
+      <span className="absolute top-2.5 right-2.5 z-10 inline-flex items-center gap-1 bg-black/55 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full pointer-events-none">
+        <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2}>
+          <rect x="2" y="5" width="14" height="14" rx="3" />
+          <path d="M22 8l-6 4 6 4V8z" />
+        </svg>
+        ویدیو
+      </span>
+    </div>
+  );
+}
+
+/* ── Audio slide: gradient bg, art, title, equalizer, play/pause, progress ── */
+function AudioSlide({
+  media,
+  userName,
+  catColor,
+}: {
+  media: PostMedia;
+  userName: string;
+  catColor: string;
+}) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onLoaded = () => setDuration(audio.duration || 0);
+    const onTime = () => {
+      setCurrent(audio.currentTime);
+      if (audio.duration) {
+        setProgress((audio.currentTime / audio.duration) * 100);
+      }
+    };
+    const onEnded = () => {
+      setPlaying(false);
+      setProgress(0);
+      setCurrent(0);
+      if (currentlyPlayingAudio === audio) currentlyPlayingAudio = null;
+    };
+    audio.addEventListener("loadedmetadata", onLoaded);
+    audio.addEventListener("timeupdate", onTime);
+    audio.addEventListener("ended", onEnded);
+    return () => {
+      audio.removeEventListener("loadedmetadata", onLoaded);
+      audio.removeEventListener("timeupdate", onTime);
+      audio.removeEventListener("ended", onEnded);
+    };
+  }, []);
+
+  // Listen for global pause-all event
+  useEffect(() => {
+    const onPauseAll = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { except?: HTMLAudioElement } | undefined;
+      const audio = audioRef.current;
+      if (audio && detail?.except !== audio && !audio.paused) {
+        audio.pause();
+        setPlaying(false);
+      }
+    };
+    window.addEventListener("audio-pause-all", onPauseAll);
+    return () => window.removeEventListener("audio-pause-all", onPauseAll);
+  }, []);
+
+  function togglePlay() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      pauseAllAudio(audio);
+      currentlyPlayingAudio = audio;
+      audio.play().catch(() => {
+        toast({ title: "پخش موزیک ناموفق بود 🎧" });
+      });
+      setPlaying(true);
+    } else {
+      audio.pause();
+      setPlaying(false);
+      if (currentlyPlayingAudio === audio) currentlyPlayingAudio = null;
+    }
+  }
+
+  function onSeek(e: React.MouseEvent) {
+    const audio = audioRef.current;
+    if (!audio || !audio.duration) return;
+    const bar = e.currentTarget as HTMLElement;
+    const rect = bar.getBoundingClientRect();
+    // RTL: progress fills from right to left
+    const ratio = (rect.right - e.clientX) / rect.width;
+    audio.currentTime = Math.max(0, Math.min(1, ratio)) * audio.duration;
+  }
+
+  return (
+    <div
+      className="relative w-full h-full flex flex-col items-center justify-center gap-2 px-6 py-6 text-white"
+      style={{
+        background:
+          "linear-gradient(150deg, oklch(0.22 0.04 280), oklch(0.27 0.08 280) 55%, oklch(0.32 0.12 295))",
+      }}
+    >
+      <audio ref={audioRef} src={media.url} preload="metadata" />
+
+      {/* Album art */}
+      <div
+        className="w-36 h-36 sm:w-40 sm:h-40 rounded-3xl grid place-items-center shadow-[0_14px_36px_rgba(0,0,0,0.5)] relative overflow-hidden"
+        style={{
+          background: `linear-gradient(135deg, ${catColor}, oklch(0.4 0.09 160))`,
+        }}
+      >
+        <Icon name="heart" size={56} className="text-white/90" strokeWidth={1.5} />
+        {playing && (
+          <div className="absolute bottom-2 left-2 flex items-end gap-0.5 h-3">
+            {[0, 1, 2, 3].map((i) => (
+              <span
+                key={i}
+                className="w-0.5 bg-white/90 rounded-full"
+                style={{
+                  animation: `eqz 1s ${i * 0.15}s ease-in-out infinite`,
+                  transformOrigin: "bottom",
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="font-extrabold text-[15px] mt-2 text-center truncate max-w-full">
+        {audioTitleFrom(media)}
+      </div>
+      <div className="text-[11.5px] text-white/70 truncate max-w-full">
+        {userName}
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center gap-3 w-full max-w-[290px] mt-1">
+        <button
+          onClick={togglePlay}
+          className="w-12 h-12 rounded-full bg-white grid place-items-center shrink-0 shadow-[0_6px_16px_rgba(0,0,0,0.35)] active:scale-90 transition-transform"
+          aria-label={playing ? "توقف" : "پخش"}
+        >
+          {playing ? (
+            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="#312e81">
+              <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" className="w-5 h-5 -mr-0.5" fill="#312e81">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
+        </button>
+        <div className="flex-1 min-w-0">
+          <div
+            onClick={onSeek}
+            className="h-1.5 rounded-full bg-white/25 overflow-hidden cursor-pointer"
+          >
+            <div
+              className="h-full bg-white transition-[width] duration-150"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="flex justify-between mt-1 text-[10px] text-white/70 tabular-nums">
+            <span>{formatAudioTime(current)}</span>
+            <span>{formatAudioTime(duration)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Badge */}
+      <span className="absolute top-2.5 right-2.5 z-10 inline-flex items-center gap-1 bg-black/40 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full pointer-events-none">
+        <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path d="M9 18V5l12-2v13" />
+          <circle cx="6" cy="18" r="3" />
+          <circle cx="18" cy="16" r="3" />
+        </svg>
+        موزیک
+      </span>
+
+      <style>{`@keyframes eqz{0%,100%{height:25%}50%{height:100%}}`}</style>
+    </div>
+  );
+}
+
+/* ── Document slide: colored icon + filename + size + download button ── */
+function DocSlide({ media }: { media: PostMedia }) {
+  const style = getDocStyle(media.fileName);
+  const name = media.fileName || "سند";
+
+  function handleView() {
+    // Try to open in new tab; the browser will display or download
+    window.open(media.url, "_blank", "noopener,noreferrer");
+  }
+
+  function handleDownload(e: React.MouseEvent) {
+    e.stopPropagation();
+    // Use a real anchor with download attribute for true download
+    const a = document.createElement("a");
+    a.href = media.url;
+    a.download = media.fileName || "document";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast({ title: "دانلود سند شروع شد ⬇️" });
+  }
+
+  return (
+    <div
+      className="relative w-full h-full flex flex-col items-center justify-center gap-1.5 px-6 py-6"
+      style={{
+        background: "linear-gradient(160deg, oklch(0.97 0.003 250), oklch(0.93 0.005 250))",
+      }}
+    >
+      <div
+        className={cn(
+          "w-20 h-20 rounded-3xl grid place-items-center",
+          style.cls
+        )}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="w-10 h-10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          {style.svg}
+        </svg>
+      </div>
+      <div className="font-extrabold text-[14px] mt-2 text-center text-foreground max-w-full px-2 truncate">
+        {name}
+      </div>
+      <div className="text-[11px] text-muted-foreground tabular-nums">
+        {style.label} • {formatFileSize(media.fileSize)}
+      </div>
+      <div className="flex gap-2 mt-2">
+        <button
+          onClick={handleView}
+          className="inline-flex items-center gap-1.5 bg-foreground text-background text-[12px] font-bold px-5 py-2.5 rounded-full active:scale-95 transition-transform"
+        >
+          <Icon name="image" size={14} />
+          مشاهده سند
+        </button>
+        <button
+          onClick={handleDownload}
+          className="inline-flex items-center gap-1.5 bg-muted text-foreground text-[12px] font-bold px-5 py-2.5 rounded-full active:scale-95 transition-transform hover:bg-muted/70"
+          aria-label="دانلود"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="w-3.5 h-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          دانلود
+        </button>
+      </div>
+
+      <span className="absolute top-2.5 right-2.5 z-10 inline-flex items-center gap-1 bg-black/40 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full pointer-events-none">
+        <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+        سند
+      </span>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Lightbox — full-screen media viewer with swipe
+   ════════════════════════════════════════════════════════════════════ */
+
+function Lightbox({
+  post,
+  startIndex,
+  onClose,
+}: {
+  post: ExplorePost;
+  startIndex: number;
+  onClose: () => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [activeIdx, setActiveIdx] = useState(startIndex);
+  const tickingRef = useRef(false);
+
+  const media = post.media;
+  const n = media.length;
+
+  // Lock body scroll while open
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  // Scroll to start index on mount
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    requestAnimationFrame(() => {
+      track.scrollTo({ left: -startIndex * track.clientWidth, behavior: "auto" });
+    });
+  }, [startIndex]);
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const onScroll = () => {
+      if (tickingRef.current) return;
+      tickingRef.current = true;
+      requestAnimationFrame(() => {
+        tickingRef.current = false;
+        const idx = Math.round(Math.abs(track.scrollLeft) / track.clientWidth);
+        setActiveIdx(Math.max(0, Math.min(n - 1, idx)));
+      });
+    };
+    track.addEventListener("scroll", onScroll, { passive: true });
+    return () => track.removeEventListener("scroll", onScroll);
+  }, [n]);
+
+  // ESC to close
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const current = media[activeIdx];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="fixed inset-0 z-[300] bg-neutral-950/97 flex flex-col"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-3.5 py-3 text-white">
+        <span className="text-[12.5px] font-bold bg-white/12 px-3.5 py-1.5 rounded-full tabular-nums">
+          {toFa(activeIdx + 1)}/{toFa(n)}
+        </span>
+        <button
+          onClick={onClose}
+          className="w-10 h-10 rounded-full bg-white/12 grid place-items-center active:scale-90 transition-transform"
+          aria-label="بستن"
+        >
+          <Icon name="x" size={20} className="text-white" />
+        </button>
+      </div>
+
+      {/* Track */}
+      <div
+        ref={trackRef}
+        className="flex-1 flex overflow-x-auto no-scrollbar snap-x snap-mandatory"
+      >
+        {media.map((m) => (
+          <div
+            key={m.id}
+            className="shrink-0 w-full flex items-center justify-center snap-start snap-always px-1.5 py-1.5"
+          >
+            <LightboxItem media={m} post={post} />
+          </div>
+        ))}
+      </div>
+
+      {/* Caption */}
+      <div className="text-white/90 text-center text-[12.5px] font-bold px-4 py-3.5 min-h-[50px]">
+        {current?.type === "image" && (current.fileName || "تصویر")}
+        {current?.type === "video" && (current.fileName || "ویدیو")}
+        {current?.type === "audio" && audioTitleFrom(current)}
+        {current?.type === "doc" && (current.fileName || "سند")}
+      </div>
+    </motion.div>
+  );
+}
+
+function LightboxItem({ media, post }: { media: PostMedia; post: ExplorePost }) {
+  if (media.type === "image") {
+    return (
+      <img
+        src={media.url}
+        alt={media.fileName || "تصویر"}
+        className="max-w-full max-h-[72vh] object-contain rounded-lg"
+      />
+    );
+  }
+  if (media.type === "video") {
+    return (
+      <div className="w-full max-w-3xl aspect-video bg-black rounded-xl overflow-hidden">
+        <video
+          src={media.url}
+          controls
+          autoPlay
+          className="w-full h-full object-contain"
+        />
+      </div>
+    );
+  }
+  if (media.type === "audio") {
+    return (
+      <LightboxAudio
+        media={media}
+        userName={post.user.name}
+        catColor={post.categoryColor || "oklch(0.55 0.13 160)"}
+      />
+    );
+  }
+  if (media.type === "doc") {
+    return <LightboxDoc media={media} />;
+  }
+  return null;
+}
+
+function LightboxAudio({
+  media,
+  userName,
+  catColor,
+}: {
+  media: PostMedia;
+  userName: string;
+  catColor: string;
+}) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onLoaded = () => setDuration(audio.duration || 0);
+    const onTime = () => {
+      setCurrent(audio.currentTime);
+      if (audio.duration) setProgress((audio.currentTime / audio.duration) * 100);
+    };
+    const onEnded = () => {
+      setPlaying(false);
+      setProgress(0);
+      setCurrent(0);
+      if (currentlyPlayingAudio === audio) currentlyPlayingAudio = null;
+    };
+    audio.addEventListener("loadedmetadata", onLoaded);
+    audio.addEventListener("timeupdate", onTime);
+    audio.addEventListener("ended", onEnded);
+    return () => {
+      audio.removeEventListener("loadedmetadata", onLoaded);
+      audio.removeEventListener("timeupdate", onTime);
+      audio.removeEventListener("ended", onEnded);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onPauseAll = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { except?: HTMLAudioElement } | undefined;
+      const audio = audioRef.current;
+      if (audio && detail?.except !== audio && !audio.paused) {
+        audio.pause();
+        setPlaying(false);
+      }
+    };
+    window.addEventListener("audio-pause-all", onPauseAll);
+    return () => window.removeEventListener("audio-pause-all", onPauseAll);
+  }, []);
+
+  function toggle() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      pauseAllAudio(audio);
+      currentlyPlayingAudio = audio;
+      audio.play().catch(() => toast({ title: "پخش ناموفق بود 🎧" }));
+      setPlaying(true);
+    } else {
+      audio.pause();
+      setPlaying(false);
+      if (currentlyPlayingAudio === audio) currentlyPlayingAudio = null;
+    }
+  }
+
+  function onSeek(e: React.MouseEvent) {
+    const audio = audioRef.current;
+    if (!audio || !audio.duration) return;
+    const bar = e.currentTarget as HTMLElement;
+    const rect = bar.getBoundingClientRect();
+    const ratio = (rect.right - e.clientX) / rect.width;
+    audio.currentTime = Math.max(0, Math.min(1, ratio)) * audio.duration;
+  }
+
+  return (
+    <div className="w-[88%] max-w-md flex flex-col items-center gap-2 text-white">
+      <audio ref={audioRef} src={media.url} preload="metadata" />
+      <div
+        className="w-44 h-44 rounded-[28px] grid place-items-center shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+        style={{
+          background: `linear-gradient(135deg, ${catColor}, oklch(0.4 0.09 160))`,
+        }}
+      >
+        <Icon name="heart" size={72} className="text-white/90" strokeWidth={1.5} />
+      </div>
+      <div className="font-extrabold text-[17px] mt-2 text-center">
+        {audioTitleFrom(media)}
+      </div>
+      <div className="text-[12px] text-white/70">{userName}</div>
+
+      <div
+        onClick={onSeek}
+        className="w-full h-1.5 rounded-full bg-white/20 overflow-hidden cursor-pointer mt-3.5"
+      >
+        <div
+          className="h-full bg-white"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <div className="w-full flex justify-between text-[11px] text-white/70 mt-1 tabular-nums">
+        <span>{formatAudioTime(current)}</span>
+        <span>{formatAudioTime(duration)}</span>
+      </div>
+
+      <button
+        onClick={toggle}
+        className="w-14 h-14 rounded-full bg-white grid place-items-center mt-2.5 shadow-[0_10px_26px_rgba(0,0,0,0.4)] active:scale-90 transition-transform"
+        aria-label={playing ? "توقف" : "پخش"}
+      >
+        {playing ? (
+          <svg viewBox="0 0 24 24" className="w-6 h-6" fill="#312e81">
+            <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" className="w-6 h-6 -mr-0.5" fill="#312e81">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+}
+
+function LightboxDoc({ media }: { media: PostMedia }) {
+  const style = getDocStyle(media.fileName);
+  function handleDownload() {
+    const a = document.createElement("a");
+    a.href = media.url;
+    a.download = media.fileName || "document";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast({ title: "دانلود سند شروع شد ⬇️" });
+  }
+  function handleOpen() {
+    window.open(media.url, "_blank", "noopener,noreferrer");
+  }
+  return (
+    <div className="w-[92%] max-w-md h-[80%] bg-white rounded-[18px] overflow-hidden flex flex-col">
+      <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-neutral-900 text-white">
+        <span className="text-[12.5px] font-extrabold truncate flex-1">
+          {media.fileName || "سند"}
+        </span>
+        <button
+          onClick={handleDownload}
+          className="inline-flex items-center gap-1 text-[11px] font-bold bg-white/15 px-3 py-1.5 rounded-full shrink-0"
+        >
+          <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          دانلود
+        </button>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-neutral-100 p-6 text-center">
+        <div className={cn("w-20 h-20 rounded-3xl grid place-items-center", style.cls)}>
+          <svg
+            viewBox="0 0 24 24"
+            className="w-10 h-10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            {style.svg}
+          </svg>
+        </div>
+        <div className="font-extrabold text-[14px] text-foreground">
+          {media.fileName || "سند"}
+        </div>
+        <div className="text-[11px] text-muted-foreground tabular-nums">
+          {style.label} • {formatFileSize(media.fileSize)}
+        </div>
+        <button
+          onClick={handleOpen}
+          className="mt-2 inline-flex items-center gap-1.5 bg-foreground text-background text-[12px] font-bold px-5 py-2.5 rounded-full active:scale-95 transition-transform"
+        >
+          <Icon name="image" size={14} />
+          باز کردن در مرورگر
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   CommentSheet — bottom sheet with nested multi-level comments
+   ════════════════════════════════════════════════════════════════════ */
+
+function CommentSheet({
+  post,
+  onClose,
+}: {
+  post: ExplorePost;
+  onClose: () => void;
+}) {
+  const { user: me } = useUser();
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+
+  // Reply target (a comment id)
+  const [replyTarget, setReplyTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [replyInput, setReplyInput] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
+
+  // Drag-to-close
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const dragStartRef = useRef(0);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  const loadComments = useCallback(async () => {
+    try {
+      const d = await api<{ comments: Comment[] }>(
+        `/api/posts/${post.id}/comments`
+      );
+      setComments(d.comments);
+    } catch {
+      setComments([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [post.id]);
+
+  useEffect(() => {
+    loadComments();
+  }, [loadComments]);
+
+  // Body scroll lock
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  // ESC to close
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  function onDragStart(e: React.PointerEvent) {
+    dragStartRef.current = e.clientY;
+    setDragging(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function onDragMove(e: React.PointerEvent) {
+    if (!dragging) return;
+    const dy = e.clientY - dragStartRef.current;
+    if (dy > 0) setDragY(dy);
+  }
+  function onDragEnd() {
+    if (!dragging) return;
+    setDragging(false);
+    if (dragY > 90) onClose();
+    else setDragY(0);
+  }
+
+  async function sendComment() {
+    const content = input.trim();
+    if (!content) {
+      toast({ title: "اول چیزی بنویسید ✍️" });
+      return;
+    }
+    if (!me) {
+      toast({ title: "برای کامنت گذاشتن وارد شوید" });
+      navigate({ view: "auth" });
+      return;
+    }
+    setSending(true);
+    try {
+      await apiPost(`/api/posts/${post.id}/comments`, { content });
+      setInput("");
+      await loadComments();
+      toast({ title: "نظر شما ثبت شد 💬" });
+    } catch (e) {
+      toast({
+        title: "خطا",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function sendReply(parentId: string) {
+    const content = replyInput.trim();
+    if (!content) {
+      toast({ title: "اول چیزی بنویسید ✍️" });
+      return;
+    }
+    if (!me) {
+      toast({ title: "برای پاسخ وارد شوید" });
+      navigate({ view: "auth" });
+      return;
+    }
+    setSendingReply(true);
+    try {
+      await apiPost(`/api/posts/${post.id}/comments`, {
+        content,
+        parentId,
+      });
+      setReplyInput("");
+      setReplyTarget(null);
+      await loadComments();
+      toast({ title: "پاسخ ثبت شد 💬" });
+    } catch (e) {
+      toast({
+        title: "خطا",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setSendingReply(false);
+    }
+  }
+
+  async function toggleCommentLike(commentId: string, current: "like" | "dislike" | null) {
+    if (!me) {
+      toast({ title: "برای واکنش نشان دادن وارد شوید" });
+      navigate({ view: "auth" });
+      return;
+    }
+    const nextType = current === "like" ? "dislike" : "like";
+    // Optimistic update
+    setComments((prev) => updateCommentLike(prev, commentId, nextType));
+    try {
+      const res = await apiPost<{ reaction: "like" | "dislike" | null }>(
+        `/api/comments/${commentId}/like`,
+        { type: nextType }
+      );
+      setComments((prev) => applyCommentReaction(prev, commentId, res.reaction));
+    } catch (e) {
+      // Rollback
+      setComments((prev) => applyCommentReaction(prev, commentId, current));
+      toast({
+        title: "خطا",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    }
+  }
+
+  const totalComments = countAllComments(comments);
+
+  return (
+    <>
+      {/* Overlay */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 z-[490] bg-neutral-950/55 backdrop-blur-[2px]"
+      />
+
+      {/* Sheet */}
+      <motion.div
+        ref={sheetRef}
+        initial={{ y: "100%" }}
+        animate={{ y: dragY }}
+        transition={
+          dragging
+            ? { duration: 0 }
+            : { type: "spring", stiffness: 380, damping: 36 }
+        }
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 z-[500] w-full max-w-2xl h-[82vh] bg-card rounded-t-[26px] shadow-[0_-12px_48px_rgba(15,23,42,0.32)] flex flex-col"
+        style={{ touchAction: "none" }}
+      >
+        {/* Drag handle */}
+        <div
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
+          className="pt-2.5 pb-1 flex justify-center cursor-grab active:cursor-grabbing"
+        >
+          <div className="w-12 h-[5px] rounded-full bg-border" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pb-2.5 border-b border-border">
+          <span className="font-extrabold text-[14px]">
+            نظرات
+            <span className="text-muted-foreground mr-1.5 text-[12px] tabular-nums">
+              ({toFa(totalComments)})
+            </span>
+          </span>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-muted grid place-items-center active:scale-90 transition-transform"
+            aria-label="بستن"
+          >
+            <Icon name="x" size={15} className="text-muted-foreground" />
+          </button>
+        </div>
+
+        {/* Reply indicator bar */}
+        <AnimatePresence>
+          {replyTarget && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="flex items-center justify-between px-4 py-1.5 bg-primary/10 text-primary text-[11.5px] font-bold overflow-hidden"
+            >
+              <span className="truncate">
+                در حال پاسخ به <b>{replyTarget.name}</b>
+              </span>
+              <button
+                onClick={() => {
+                  setReplyTarget(null);
+                  setReplyInput("");
+                }}
+                className="shrink-0 bg-primary/15 px-2.5 py-1 rounded-full text-[11px] font-extrabold"
+              >
+                انصراف ✕
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Comments list */}
+        <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-3.5">
+          {loading ? (
+            <div className="space-y-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex gap-2.5">
+                  <Skeleton className="w-9 h-9 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3 w-24 rounded-full" />
+                    <Skeleton className="h-3 w-full rounded-full" />
+                    <Skeleton className="h-3 w-3/4 rounded-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="text-center text-muted-foreground text-[12.5px] py-10">
+              هنوز نظری ثبت نشده؛ اولین نفر باش ✨
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {comments.map((c, i) => (
+                <CommentNode
+                  key={c.id}
+                  comment={c}
+                  depth={0}
+                  index={i}
+                  onLike={toggleCommentLike}
+                  onReply={(id, name) => {
+                    setReplyTarget({ id, name });
+                    setReplyInput("");
+                  }}
+                  replyTargetId={replyTarget?.id || null}
+                  replyInput={replyInput}
+                  setReplyInput={setReplyInput}
+                  onSendReply={sendReply}
+                  sendingReply={sendingReply}
+                  onCancelReply={() => {
+                    setReplyTarget(null);
+                    setReplyInput("");
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Input */}
+        <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-[calc(12px+env(safe-area-inset-bottom))] border-t border-border bg-card">
+          {me ? (
+            <UserAvatar
+              name={me.name}
+              avatarUrl={me.profile?.avatarUrl || null}
+              gender={me.profile?.gender || null}
+              size="sm"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-muted grid place-items-center">
+              <Icon name="user" size={16} className="text-muted-foreground" />
+            </div>
+          )}
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void sendComment();
+              }
+            }}
+            placeholder="نظر خود را بنویسید…"
+            className="flex-1 h-10 px-4 rounded-full border-[1.5px] border-border bg-muted/50 text-[12.5px] outline-none focus:border-primary focus:bg-card transition-colors"
+          />
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => void sendComment()}
+            disabled={!input.trim() || sending}
+            className="w-10 h-10 rounded-full bg-primary text-primary-foreground grid place-items-center shrink-0 shadow-[0_4px_12px_rgba(56,142,142,0.4)] disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="ارسال"
+          >
+            {sending ? (
+              <Icon name="loader" size={16} className="animate-spin" />
+            ) : (
+              <Icon name="send" size={16} className="-scale-x-100" />
+            )}
+          </motion.button>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+/* ── Recursive comment node (handles multiple levels) ── */
+function CommentNode({
+  comment,
+  depth,
+  index,
+  onLike,
+  onReply,
+  replyTargetId,
+  replyInput,
+  setReplyInput,
+  onSendReply,
+  sendingReply,
+  onCancelReply,
+}: {
+  comment: Comment;
+  depth: number;
+  index: number;
+  onLike: (id: string, current: "like" | "dislike" | null) => void;
+  onReply: (id: string, name: string) => void;
+  replyTargetId: string | null;
+  replyInput: string;
+  setReplyInput: (v: string) => void;
+  onSendReply: (parentId: string) => void;
+  sendingReply: boolean;
+  onCancelReply: () => void;
+}) {
+  const liked = comment.myReaction === "like";
+  const showReplyInput = replyTargetId === comment.id;
+  // Cap visual indentation at depth 4 to avoid excessive nesting
+  const indentPx = Math.min(depth, 4) * 14;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index * 0.02, 0.2) }}
+      style={{ paddingRight: depth > 0 ? indentPx : 0 }}
+    >
+      <div className="flex gap-2.5">
+        <button
+          onClick={() => navigate({ view: "profile", id: comment.user.id })}
+          className="shrink-0"
+        >
+          <UserAvatar
+            name={comment.user.name}
+            avatarUrl={comment.user.avatarUrl}
+            verified={false}
+            gender={comment.user.gender}
+            size={depth === 0 ? "sm" : "xs"}
+          />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div
+            className={cn(
+              "bg-muted rounded-2xl p-2.5",
+              depth === 0 ? "rounded-tr-md" : "rounded-tr-sm"
+            )}
+          >
+            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+              <button
+                onClick={() => navigate({ view: "profile", id: comment.user.id })}
+                className="font-bold text-[12.5px] hover:text-primary transition-colors"
+              >
+                {comment.user.name}
+              </button>
+              {comment.user.isTopTalent && (
+                <span className="grid place-items-center w-3.5 h-3.5 rounded-full bg-gold text-black">
+                  <Icon name="crown" size={8} />
+                </span>
+              )}
+              <span className="text-[10.5px] text-muted-foreground mr-auto">
+                {timeAgoFa(comment.createdAt)}
+              </span>
+            </div>
+            <p className="text-[12.5px] leading-[1.8] whitespace-pre-wrap break-words">
+              {comment.content}
+            </p>
+          </div>
+          <div className="flex items-center gap-4 mt-1 px-1">
+            <button
+              onClick={() => onLike(comment.id, comment.myReaction)}
+              className={cn(
+                "inline-flex items-center gap-1 text-[11px] font-bold transition-colors",
+                liked
+                  ? "text-rose"
+                  : "text-muted-foreground hover:text-rose"
+              )}
+            >
+              <Icon
+                name="heart"
+                size={13}
+                className={liked ? "fill-rose" : ""}
+              />
+              {comment.likeCount > 0 && (
+                <span className="tabular-nums">{toFa(comment.likeCount)}</span>
+              )}
+            </button>
+            <button
+              onClick={() => onReply(comment.id, comment.user.name)}
+              className="text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors"
+            >
+              پاسخ
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Reply input (inline) */}
+      <AnimatePresence>
+        {showReplyInput && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-2 mr-[44px] overflow-hidden"
+          >
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                autoFocus
+                value={replyInput}
+                onChange={(e) => setReplyInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    onSendReply(comment.id);
+                  }
+                }}
+                placeholder={`پاسخ به ${comment.user.name}…`}
+                className="flex-1 h-9 px-3.5 rounded-full border-[1.5px] border-border bg-muted/50 text-[12px] outline-none focus:border-primary focus:bg-card transition-colors"
+              />
+              <button
+                onClick={() => onSendReply(comment.id)}
+                disabled={!replyInput.trim() || sendingReply}
+                className="w-9 h-9 rounded-full bg-primary text-primary-foreground grid place-items-center shrink-0 disabled:opacity-40"
+                aria-label="ارسال پاسخ"
+              >
+                {sendingReply ? (
+                  <Icon name="loader" size={14} className="animate-spin" />
+                ) : (
+                  <Icon name="send" size={14} className="-scale-x-100" />
+                )}
+              </button>
+              <button
+                onClick={onCancelReply}
+                className="w-9 h-9 rounded-full grid place-items-center text-muted-foreground hover:text-foreground"
+                aria-label="انصراف"
+              >
+                <Icon name="x" size={14} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Nested replies (recursive) */}
+      {comment.replies.length > 0 && (
+        <div
+          className="mt-3 mr-2 pr-3 border-r-2 border-border space-y-3.5"
+        >
+          {comment.replies.map((r, i) => (
+            <CommentNode
+              key={r.id}
+              comment={r}
+              depth={depth + 1}
+              index={i}
+              onLike={onLike}
+              onReply={onReply}
+              replyTargetId={replyTargetId}
+              replyInput={replyInput}
+              setReplyInput={setReplyInput}
+              onSendReply={onSendReply}
+              sendingReply={sendingReply}
+              onCancelReply={onCancelReply}
+            />
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+/* ── Comment helpers ── */
+
+function countAllComments(comments: Comment[]): number {
+  let n = 0;
+  for (const c of comments) {
+    n += 1;
+    if (c.replies?.length) n += countAllComments(c.replies);
+  }
+  return n;
+}
+
+function updateCommentLike(
+  comments: Comment[],
+  id: string,
+  nextType: "like" | "dislike"
+): Comment[] {
+  return comments.map((c) => {
+    if (c.id === id) {
+      const wasLiked = c.myReaction === "like";
+      const willLike = nextType === "like";
+      const delta = wasLiked === willLike ? 0 : willLike ? 1 : -1;
+      return {
+        ...c,
+        myReaction: nextType,
+        likeCount: Math.max(0, c.likeCount + delta),
+      };
+    }
+    if (c.replies?.length) {
+      return { ...c, replies: updateCommentLike(c.replies, id, nextType) };
+    }
+    return c;
+  });
+}
+
+function applyCommentReaction(
+  comments: Comment[],
+  id: string,
+  reaction: "like" | "dislike" | null
+): Comment[] {
+  return comments.map((c) => {
+    if (c.id === id) {
+      const wasLiked = c.myReaction === "like";
+      const willLike = reaction === "like";
+      const delta = wasLiked === willLike ? 0 : willLike ? 1 : -1;
+      return {
+        ...c,
+        myReaction: reaction,
+        likeCount: Math.max(0, c.likeCount + delta),
+      };
+    }
+    if (c.replies?.length) {
+      return { ...c, replies: applyCommentReaction(c.replies, id, reaction) };
+    }
+    return c;
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PostDetailView — full post view with inline comments
+   ════════════════════════════════════════════════════════════════════ */
 
 export function PostDetailView({ id }: { id: string }) {
-  const { user: me, loading: userLoading } = useUser();
+  const { user: me } = useUser();
   const [post, setPost] = useState<ExplorePost | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Drag-to-close (mobile only)
-  const [sheetY, setSheetY] = useState(0);
-  const dragControls = useRef<{ startY: number | null }>({ startY: null });
-
-  // Like state
+  // Like
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [liking, setLiking] = useState(false);
   const [likeBounce, setLikeBounce] = useState(false);
 
-  // Comment input
-  const [commentInput, setCommentInput] = useState("");
-  const [sendingComment, setSendingComment] = useState(false);
-
-  // Reply state
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  // Comments
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [replyInput, setReplyInput] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
-  const replyInputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load post
+  // Lightbox
+  const [lightboxStart, setLightboxStart] = useState<number | null>(null);
+
+  // Expanded post text
+  const [expanded, setExpanded] = useState(false);
+
   const loadPost = useCallback(async () => {
     setLoading(true);
     setNotFound(false);
@@ -660,12 +2175,7 @@ export function PostDetailView({ id }: { id: string }) {
       setPost(found);
       setLiked(found.likedByMe);
       setLikeCount(found.likeCount);
-    } catch (e) {
-      toast({
-        title: "خطا",
-        description: (e as Error).message,
-        variant: "destructive",
-      });
+    } catch {
       setNotFound(true);
     } finally {
       setLoading(false);
@@ -673,24 +2183,23 @@ export function PostDetailView({ id }: { id: string }) {
   }, [id]);
 
   const loadComments = useCallback(async () => {
+    setCommentsLoading(true);
     try {
-      const data = await api<{ comments: Comment[] }>(`/api/posts/${id}/comments`);
+      const data = await api<{ comments: Comment[] }>(
+        `/api/posts/${id}/comments`
+      );
       setComments(data.comments);
     } catch {
       setComments([]);
+    } finally {
+      setCommentsLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
-    loadPost();
-    loadComments();
+    void loadPost();
+    void loadComments();
   }, [loadPost, loadComments]);
-
-  useEffect(() => {
-    if (replyingTo && replyInputRef.current) {
-      setTimeout(() => replyInputRef.current?.focus(), 100);
-    }
-  }, [replyingTo]);
 
   async function toggleLike() {
     if (!me) {
@@ -711,30 +2220,33 @@ export function PostDetailView({ id }: { id: string }) {
     } catch (e) {
       setLiked(wasLiked);
       setLikeCount((c) => c + (wasLiked ? 1 : -1));
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+      toast({
+        title: "خطا",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
     } finally {
       setLiking(false);
     }
   }
 
   async function sendComment() {
-    const content = commentInput.trim();
+    const content = input.trim();
     if (!content || !me) return;
-    setSendingComment(true);
+    setSending(true);
     try {
-      const res = await apiPost<{ id: string }>(`/api/posts/${id}/comments`, { content });
-      setCommentInput("");
+      await apiPost(`/api/posts/${id}/comments`, { content });
+      setInput("");
       await loadComments();
-      // Optimistically update comment count visually if needed
-      if (post) {
-        setPost({ ...post, commentCount: post.commentCount + 1 });
-      }
-      toast({ title: "کامنت ارسال شد" });
-      void res;
+      toast({ title: "نظر شما ثبت شد 💬" });
     } catch (e) {
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+      toast({
+        title: "خطا",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
     } finally {
-      setSendingComment(false);
+      setSending(false);
     }
   }
 
@@ -743,88 +2255,60 @@ export function PostDetailView({ id }: { id: string }) {
     if (!content || !me) return;
     setSendingReply(true);
     try {
-      await apiPost<{ id: string }>(`/api/posts/${id}/comments`, {
+      await apiPost(`/api/posts/${id}/comments`, {
         content,
         parentId,
       });
       setReplyInput("");
-      setReplyingTo(null);
+      setReplyTarget(null);
       await loadComments();
-      if (post) {
-        setPost({ ...post, commentCount: post.commentCount + 1 });
-      }
+      toast({ title: "پاسخ ثبت شد 💬" });
     } catch (e) {
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+      toast({
+        title: "خطا",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
     } finally {
       setSendingReply(false);
     }
   }
 
-  async function toggleCommentLike(commentId: string, type: "like" | "dislike") {
+  async function toggleCommentLike(commentId: string, current: "like" | "dislike" | null) {
     if (!me) {
       toast({ title: "برای واکنش نشان دادن وارد شوید" });
       navigate({ view: "auth" });
       return;
     }
+    const nextType = current === "like" ? "dislike" : "like";
+    setComments((prev) => updateCommentLike(prev, commentId, nextType));
     try {
       const res = await apiPost<{ reaction: "like" | "dislike" | null }>(
         `/api/comments/${commentId}/like`,
-        { type }
+        { type: nextType }
       );
-      setComments((prev) =>
-        prev.map((c) => {
-          if (c.id === commentId) {
-            let delta = 0;
-            if (c.myReaction === "like" && res.reaction !== "like") delta = -1;
-            if (c.myReaction !== "like" && res.reaction === "like") delta = 1;
-            return {
-              ...c,
-              likeCount: Math.max(0, c.likeCount + delta),
-              myReaction: res.reaction,
-            };
-          }
-          // Replies
-          return {
-            ...c,
-            replies: c.replies.map((r) => {
-              if (r.id === commentId) {
-                let delta = 0;
-                if (r.myReaction === "like" && res.reaction !== "like") delta = -1;
-                if (r.myReaction !== "like" && res.reaction === "like") delta = 1;
-                return {
-                  ...r,
-                  likeCount: Math.max(0, r.likeCount + delta),
-                  myReaction: res.reaction,
-                };
-              }
-              return r;
-            }),
-          };
-        })
-      );
+      setComments((prev) => applyCommentReaction(prev, commentId, res.reaction));
     } catch (e) {
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+      setComments((prev) => applyCommentReaction(prev, commentId, current));
+      toast({
+        title: "خطا",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
     }
   }
 
-  /* Drag-to-close handlers (mobile only) */
-  function onDragStart(e: React.TouchEvent) {
-    dragControls.current.startY = e.touches[0].clientY;
-  }
-  function onDragMove(e: React.TouchEvent) {
-    if (dragControls.current.startY === null) return;
-    const delta = e.touches[0].clientY - dragControls.current.startY;
-    if (delta > 0) setSheetY(delta);
-  }
-  function onDragEnd() {
-    if (sheetY > 120) {
-      window.history.back();
+  function sharePost() {
+    const url = `${window.location.origin}/#/post/${id}`;
+    if (navigator.share) {
+      navigator.share({ url }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(url);
+      toast({ title: "لینک پست کپی شد" });
     }
-    setSheetY(0);
-    dragControls.current.startY = null;
   }
 
-  if (loading || userLoading) return <PostDetailSkeleton />;
+  if (loading) return <PostDetailSkeleton />;
 
   if (notFound || !post) {
     return (
@@ -832,13 +2316,13 @@ export function PostDetailView({ id }: { id: string }) {
         <EmptyState
           kind="generic"
           title="پست پیدا نشد"
-          description="ممکن است حذف شده باشد."
+          description="ممکن است حذف شده باشد یا دیگر برجسته نباشد."
           action={
             <button
               onClick={() => navigate({ view: "explore" })}
               className="h-10 px-5 rounded-xl bg-primary text-primary-foreground font-bold text-sm"
             >
-              بازگشت به اکسپلور
+              بازگشت به استعدادهای برتر
             </button>
           }
         />
@@ -846,548 +2330,306 @@ export function PostDetailView({ id }: { id: string }) {
     );
   }
 
-  const catColor = post.categoryColor || "oklch(0.6 0.15 160)";
+  const catColor = post.categoryColor || "oklch(0.55 0.13 160)";
+  const ringColor = post.user.mainCategoryColor || catColor;
+  const isLong = post.content.length > 220;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: sheetY }}
-      transition={{ type: "spring", stiffness: 380, damping: 32 }}
-      className="fixed inset-0 lg:static z-50 lg:z-auto bg-background lg:bg-transparent flex flex-col"
-    >
-      {/* Drag handle (mobile only) */}
-      <div
-        className="lg:hidden flex justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing"
-        onTouchStart={onDragStart}
-        onTouchMove={onDragMove}
-        onTouchEnd={onDragEnd}
-      >
-        <div className="w-10 h-1.5 rounded-full bg-muted-foreground/40" />
-      </div>
-
-      <div className="flex-1 overflow-y-auto slim-scroll">
-        <div className="max-w-2xl mx-auto p-4 lg:p-0 space-y-4">
-          {/* ── Back row ── */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => window.history.back()}
-              className="grid place-items-center w-10 h-10 rounded-full glass text-foreground hover:bg-white/5 transition-colors"
-              aria-label="بازگشت"
-            >
-              <Icon name="chevronRight" size={20} />
-            </button>
-            <span className="text-xs text-muted-foreground">
-              {timeAgoFa(post.createdAt)} · {formatFaDate(post.createdAt)}
-            </span>
-          </div>
-
-          {/* ── Poster header card ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl p-3 flex items-center gap-3"
-          >
-            <button
-              onClick={() => navigate({ view: "profile", id: post.user.id })}
-              className="shrink-0"
-            >
-              <UserAvatar
-                name={post.user.name}
-                avatarUrl={post.user.avatarUrl}
-                verified={post.user.isVerifiedBadge}
-                gender={post.user.gender}
-                size="lg"
-                ringColor={post.user.mainCategoryColor || catColor}
-              />
-            </button>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => navigate({ view: "profile", id: post.user.id })}
-                  className="font-bold text-sm truncate hover:text-primary transition-colors"
-                >
-                  {post.user.name}
-                </button>
-                {post.user.isTopTalent && (
-                  <span className="grid place-items-center w-4 h-4 rounded-full bg-gold text-black shrink-0">
-                    <Icon name="crown" size={10} />
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                {(post.categoryName || post.skillName) && (
-                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ background: catColor }}
-                    />
-                    {post.categoryName}
-                    {post.skillName && <span> · {post.skillName}</span>}
-                  </span>
-                )}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* ── Media or content ── */}
-          {post.media.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="relative rounded-2xl overflow-hidden bg-card"
-            >
-              {post.media[0].type === "video" ? (
-                <video
-                  src={post.media[0].url}
-                  controls
-                  className="w-full max-h-[60vh] object-contain"
-                />
-              ) : (
-                <img
-                  src={post.media[0].url}
-                  alt={post.content.slice(0, 50)}
-                  className="w-full max-h-[60vh] object-contain"
-                />
-              )}
-            </motion.div>
-          )}
-
-          {/* ── Content ── */}
-          {post.content && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass rounded-2xl p-4"
-            >
-              <p className="text-[15px] leading-8 whitespace-pre-wrap break-words">
-                {post.content}
-              </p>
-            </motion.div>
-          )}
-
-          {/* ── Action bar (Like with bounce + comments count) ── */}
-          <div className="flex items-center gap-2 glass rounded-2xl p-2.5">
-            <motion.button
-              whileTap={{ scale: 0.85 }}
-              onClick={toggleLike}
-              disabled={liking}
-              className={cn(
-                "flex items-center gap-2 h-10 px-3 rounded-xl font-bold text-sm transition-colors",
-                liked
-                  ? "text-rose"
-                  : "text-muted-foreground hover:text-rose"
-              )}
-            >
-              <motion.span
-                animate={
-                  likeBounce
-                    ? { scale: [1, 1.5, 0.85, 1.2, 1] }
-                    : { scale: 1 }
-                }
-                transition={{ duration: 0.6 }}
-              >
-                <Icon
-                  name="heart"
-                  size={20}
-                  className={liked ? "fill-rose text-rose" : ""}
-                />
-              </motion.span>
-              <span className="nums-fa">{formatCount(likeCount)}</span>
-            </motion.button>
-            <div className="flex items-center gap-2 h-10 px-3 text-muted-foreground text-sm font-bold">
-              <Icon name="comment" size={20} />
-              <span className="nums-fa">{formatCount(post.commentCount)}</span>
-            </div>
-            <button
-              onClick={() => {
-                if (navigator.share) {
-                  navigator.share({ url: window.location.href }).catch(() => {});
-                } else {
-                  navigator.clipboard?.writeText(window.location.href);
-                  toast({ title: "لینک کپی شد" });
-                }
-              }}
-              className="h-10 px-3 grid place-items-center text-muted-foreground hover:text-primary transition-colors mr-auto"
-              aria-label="اشتراک‌گذاری"
-            >
-              <Icon name="share" size={18} />
-            </button>
-          </div>
-
-          {/* ── Comments section ── */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground px-1">
-              <Icon name="comment" size={14} />
-              کامنت‌ها
-              <span className="text-[10px]">({toFa(comments.length)})</span>
-            </div>
-
-            {comments.length === 0 ? (
-              <div className="py-6 text-center">
-                <p className="text-xs text-muted-foreground">
-                  هنوز کامنتی گذاشته نشده. اولین نفر باش!
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {comments.map((c, i) => (
-                  <CommentItem
-                    key={c.id}
-                    c={c}
-                    index={i}
-                    currentUserId={me?.id}
-                    onLike={toggleCommentLike}
-                    onReply={(id) => {
-                      setReplyingTo(id);
-                      setReplyInput("");
-                    }}
-                    replyingTo={replyingTo}
-                    replyInput={replyInput}
-                    setReplyInput={setReplyInput}
-                    onSendReply={sendReply}
-                    sendingReply={sendingReply}
-                    onCancelReply={() => setReplyingTo(null)}
-                    replyInputRef={replyInputRef}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Comment input (sticky bottom) ── */}
-      {me && (
-        <div className="shrink-0 border-t border-border/60 glass p-3 pb-safe">
-          <div className="max-w-2xl mx-auto flex items-end gap-2">
-            <div className="flex-1">
-              <Textarea
-                value={commentInput}
-                onChange={(e) => setCommentInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendComment();
-                  }
-                }}
-                placeholder="کامنت بنویسید..."
-                className="flex-1 min-h-[44px] max-h-32 resize-none text-sm rounded-2xl pr-4 pl-3 py-2.5 border-border/60 focus-visible:ring-1 focus-visible:ring-primary/40"
-                rows={1}
-              />
-            </div>
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              whileHover={{ scale: 1.05 }}
-              onClick={sendComment}
-              disabled={!commentInput.trim() || sendingComment}
-              className="h-11 w-11 p-0 shrink-0 rounded-full bg-primary text-primary-foreground grid place-items-center shadow-lg shadow-primary/30 disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed"
-              aria-label="ارسال"
-            >
-              {sendingComment ? (
-                <Icon name="loader" size={18} className="animate-spin" />
-              ) : (
-                <Icon name="send" size={18} className="-scale-x-100" />
-              )}
-            </motion.button>
-          </div>
-        </div>
-      )}
-    </motion.div>
-  );
-}
-
-/* ── Single comment with replies ── */
-function CommentItem({
-  c,
-  index,
-  currentUserId,
-  onLike,
-  onReply,
-  replyingTo,
-  replyInput,
-  setReplyInput,
-  onSendReply,
-  sendingReply,
-  onCancelReply,
-  replyInputRef,
-}: {
-  c: Comment;
-  index: number;
-  currentUserId?: string;
-  onLike: (id: string, type: "like" | "dislike") => void;
-  onReply: (id: string) => void;
-  replyingTo: string | null;
-  replyInput: string;
-  setReplyInput: (v: string) => void;
-  onSendReply: (parentId: string) => void;
-  sendingReply: boolean;
-  onCancelReply: () => void;
-  replyInputRef: React.RefObject<HTMLTextAreaElement | null>;
-}) {
-  const isMine = c.user.id === currentUserId;
-  const liked = c.myReaction === "like";
-  const disliked = c.myReaction === "dislike";
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.03, 0.3) }}
-      className="space-y-2"
-    >
-      <div className="flex gap-2.5">
+    <div className="max-w-2xl mx-auto pb-2">
+      {/* Back row */}
+      <div className="flex items-center justify-between mb-3">
         <button
-          onClick={() => navigate({ view: "profile", id: c.user.id })}
-          className="shrink-0"
+          onClick={() => window.history.back()}
+          className="grid place-items-center w-10 h-10 rounded-full glass text-foreground hover:bg-foreground/5 transition-colors"
+          aria-label="بازگشت"
         >
-          <UserAvatar
-            name={c.user.name}
-            avatarUrl={c.user.avatarUrl}
-            verified={false}
-            gender={c.user.gender}
-            size="sm"
-          />
+          <Icon name="chevronRight" size={20} />
         </button>
-        <div className="flex-1 min-w-0">
-          <div className="glass rounded-2xl rounded-tr-md p-3">
-            <div className="flex items-center gap-1.5 mb-1">
+        <span className="text-[11px] text-muted-foreground">
+          {timeAgoFa(post.createdAt)} · {formatFaDate(post.createdAt)}
+        </span>
+      </div>
+
+      <motion.article
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="bg-card rounded-[20px] overflow-hidden shadow-card"
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 px-3.5 pt-3.5 pb-1.5">
+          <button
+            onClick={() => navigate({ view: "profile", id: post.user.id })}
+            className="shrink-0"
+          >
+            <UserAvatar
+              name={post.user.name}
+              avatarUrl={post.user.avatarUrl}
+              verified={post.user.isVerifiedBadge}
+              gender={post.user.gender}
+              size="md"
+              ringColor={ringColor}
+            />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1">
               <button
-                onClick={() => navigate({ view: "profile", id: c.user.id })}
-                className="font-bold text-xs hover:text-primary transition-colors"
+                onClick={() => navigate({ view: "profile", id: post.user.id })}
+                className="font-extrabold text-[14px] truncate hover:text-primary transition-colors"
               >
-                {c.user.name}
+                {post.user.name}
               </button>
-              {c.user.isTopTalent && (
-                <span className="grid place-items-center w-3.5 h-3.5 rounded-full bg-gold text-black">
-                  <Icon name="crown" size={8} />
+              {post.user.isVerifiedBadge && (
+                <Icon name="badgeCheck" size={15} className="text-gold fill-gold/15" />
+              )}
+              {post.user.isTopTalent && (
+                <span className="grid place-items-center w-4 h-4 rounded-full bg-gold text-black shrink-0">
+                  <Icon name="crown" size={10} />
                 </span>
               )}
-              <span className="text-[10px] text-muted-foreground mr-auto">
-                {timeAgoFa(c.createdAt)}
-              </span>
             </div>
-            <p className="text-sm leading-6 whitespace-pre-wrap break-words">
-              {c.content}
-            </p>
-          </div>
-          {/* Actions */}
-          <div className="flex items-center gap-3 mt-1 px-1 text-[10px]">
-            <button
-              onClick={() => onLike(c.id, "like")}
-              className={cn(
-                "flex items-center gap-1 font-bold transition-colors",
-                liked ? "text-rose" : "text-muted-foreground hover:text-rose"
+            <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
+              <span>{timeAgoFa(post.createdAt)}</span>
+              {post.categoryName && (
+                <>
+                  <span className="text-muted-foreground/40">•</span>
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                    style={{ background: `${catColor}22`, color: catColor }}
+                  >
+                    {post.categoryIcon && <span>{post.categoryIcon}</span>}
+                    {post.categoryName}
+                  </span>
+                </>
               )}
-            >
-              <Icon name="thumbsUp" size={11} className={liked ? "fill-rose" : ""} />
-              {c.likeCount > 0 && <span className="nums-fa">{toFa(c.likeCount)}</span>}
-            </button>
-            <button
-              onClick={() => onLike(c.id, "dislike")}
-              className={cn(
-                "flex items-center gap-1 font-bold transition-colors",
-                disliked ? "text-destructive" : "text-muted-foreground hover:text-destructive"
+              {post.skillName && (
+                <>
+                  <span className="text-muted-foreground/40">•</span>
+                  <span className="truncate">{post.skillName}</span>
+                </>
               )}
-            >
-              <Icon name="thumbsDown" size={11} className={disliked ? "fill-destructive" : ""} />
-            </button>
-            <button
-              onClick={() => onReply(c.id)}
-              className="font-bold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              پاسخ
-            </button>
-            {isMine && (
-              <span className="font-bold text-muted-foreground mr-auto">(شما)</span>
-            )}
+            </div>
           </div>
         </div>
+
+        {/* Text */}
+        {post.content && (
+          <>
+            <p
+              className={cn(
+                "px-3.5 pb-2 text-[13.5px] leading-[1.95] whitespace-pre-wrap break-words",
+                isLong && !expanded && "line-clamp-3"
+              )}
+            >
+              {post.content}
+            </p>
+            {isLong && (
+              <button
+                onClick={() => setExpanded((e) => !e)}
+                className="block px-3.5 pb-2.5 text-primary text-[12px] font-extrabold hover:opacity-70 transition-opacity"
+              >
+                {expanded ? "بستن ↑" : "ادامه مطلب ↓"}
+              </button>
+            )}
+          </>
+        )}
+
+        {/* Media */}
+        {post.media.length > 0 && (
+          <MediaCarousel
+            post={post}
+            onImageTap={(_, idx) => setLightboxStart(idx)}
+            onLightboxClose={() => setLightboxStart(null)}
+          />
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-2 p-2.5">
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            onClick={() => void toggleLike()}
+            disabled={liking}
+            className={cn(
+              "flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold transition-colors",
+              liked
+                ? "text-rose bg-rose/10"
+                : "text-muted-foreground bg-muted hover:bg-muted/70"
+            )}
+            aria-label="پسندیدن"
+          >
+            <motion.span
+              animate={likeBounce ? { scale: [1, 1.5, 0.85, 1.2, 1] } : { scale: 1 }}
+              transition={{ duration: 0.6 }}
+            >
+              <Icon
+                name="heart"
+                size={20}
+                className={liked ? "fill-rose text-rose" : ""}
+                strokeWidth={2}
+              />
+            </motion.span>
+            <span className="tabular-nums">{formatCount(likeCount)}</span>
+          </motion.button>
+          <div className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold text-muted-foreground bg-muted">
+            <Icon name="comment" size={20} strokeWidth={2} />
+            <span className="tabular-nums">{formatCount(post.commentCount)}</span>
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            onClick={sharePost}
+            className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold text-muted-foreground bg-muted hover:bg-muted/70 transition-colors"
+            aria-label="اشتراک‌گذاری"
+          >
+            <Icon name="share" size={20} strokeWidth={2} />
+            <span>اشتراک</span>
+          </motion.button>
+        </div>
+      </motion.article>
+
+      {/* Inline comments */}
+      <div className="mt-4 space-y-3">
+        <div className="flex items-center gap-1.5 text-[12px] font-bold text-muted-foreground px-1">
+          <Icon name="comment" size={14} />
+          نظرات
+          <span className="text-[10px] tabular-nums">
+            ({toFa(countAllComments(comments))})
+          </span>
+        </div>
+        {commentsLoading ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex gap-2.5">
+                <Skeleton className="w-9 h-9 rounded-full shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3 w-24 rounded-full" />
+                  <Skeleton className="h-3 w-full rounded-full" />
+                  <Skeleton className="h-3 w-3/4 rounded-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : comments.length === 0 ? (
+          <p className="text-[12px] text-muted-foreground text-center py-4">
+            هنوز نظری ثبت نشده. اولین نفر باش!
+          </p>
+        ) : (
+          <div className="space-y-3.5">
+            {comments.map((c, i) => (
+              <CommentNode
+                key={c.id}
+                comment={c}
+                depth={0}
+                index={i}
+                onLike={toggleCommentLike}
+                onReply={(cid, name) => {
+                  setReplyTarget({ id: cid, name });
+                  setReplyInput("");
+                }}
+                replyTargetId={replyTarget?.id || null}
+                replyInput={replyInput}
+                setReplyInput={setReplyInput}
+                onSendReply={sendReply}
+                sendingReply={sendingReply}
+                onCancelReply={() => {
+                  setReplyTarget(null);
+                  setReplyInput("");
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Replies */}
-      {c.replies.length > 0 && (
-        <div className="pr-8 space-y-2">
-          {c.replies.map((r) => (
-            <ReplyItem
-              key={r.id}
-              r={r}
-              currentUserId={currentUserId}
-              onLike={onLike}
-              onReply={onReply}
+      {/* Sticky comment input */}
+      {me && (
+        <div className="sticky bottom-0 mt-4 -mx-1 px-1 py-2.5 bg-background/95 backdrop-blur-md border-t border-border">
+          <div className="flex items-center gap-2">
+            <UserAvatar
+              name={me.name}
+              avatarUrl={me.profile?.avatarUrl || null}
+              gender={me.profile?.gender || null}
+              size="sm"
             />
-          ))}
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void sendComment();
+                }
+              }}
+              placeholder="نظر خود را بنویسید…"
+              className="flex-1 h-10 px-4 rounded-full border-[1.5px] border-border bg-muted/50 text-[12.5px] outline-none focus:border-primary focus:bg-card transition-colors"
+            />
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => void sendComment()}
+              disabled={!input.trim() || sending}
+              className="w-10 h-10 rounded-full bg-primary text-primary-foreground grid place-items-center shrink-0 disabled:opacity-40"
+              aria-label="ارسال"
+            >
+              {sending ? (
+                <Icon name="loader" size={16} className="animate-spin" />
+              ) : (
+                <Icon name="send" size={16} className="-scale-x-100" />
+              )}
+            </motion.button>
+          </div>
         </div>
       )}
 
-      {/* Reply input */}
+      {/* Lightbox */}
       <AnimatePresence>
-        {replyingTo === c.id && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="pr-8 overflow-hidden"
-          >
-            <div className="flex items-end gap-2">
-              <Textarea
-                ref={replyInputRef}
-                value={replyInput}
-                onChange={(e) => setReplyInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    onSendReply(c.id);
-                  }
-                }}
-                placeholder={`پاسخ به ${c.user.name}...`}
-                className="flex-1 min-h-[40px] max-h-24 resize-none text-xs rounded-xl pr-3 pl-2 py-2 border-border/60 focus-visible:ring-1 focus-visible:ring-primary/40"
-                rows={1}
-              />
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={() => onSendReply(c.id)}
-                disabled={!replyInput.trim() || sendingReply}
-                className="h-9 w-9 p-0 shrink-0 rounded-full bg-primary text-primary-foreground grid place-items-center disabled:opacity-40"
-              >
-                {sendingReply ? (
-                  <Icon name="loader" size={14} className="animate-spin" />
-                ) : (
-                  <Icon name="send" size={14} className="-scale-x-100" />
-                )}
-              </motion.button>
-              <button
-                onClick={onCancelReply}
-                className="h-9 w-9 grid place-items-center rounded-full text-muted-foreground hover:text-foreground"
-              >
-                <Icon name="x" size={14} />
-              </button>
-            </div>
-          </motion.div>
+        {lightboxStart !== null && post.media.length > 0 && (
+          <Lightbox
+            post={post}
+            startIndex={lightboxStart}
+            onClose={() => setLightboxStart(null)}
+          />
         )}
       </AnimatePresence>
-    </motion.div>
-  );
-}
-
-function ReplyItem({
-  r,
-  currentUserId,
-  onLike,
-  onReply,
-}: {
-  r: Comment;
-  currentUserId?: string;
-  onLike: (id: string, type: "like" | "dislike") => void;
-  onReply: (id: string) => void;
-}) {
-  const isMine = r.user.id === currentUserId;
-  const liked = r.myReaction === "like";
-  const disliked = r.myReaction === "dislike";
-
-  return (
-    <div className="flex gap-2">
-      <button
-        onClick={() => navigate({ view: "profile", id: r.user.id })}
-        className="shrink-0"
-      >
-        <UserAvatar
-          name={r.user.name}
-          avatarUrl={r.user.avatarUrl}
-          verified={false}
-          gender={r.user.gender}
-          size="xs"
-        />
-      </button>
-      <div className="flex-1 min-w-0">
-        <div className="glass rounded-xl rounded-tr-md p-2.5">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <button
-              onClick={() => navigate({ view: "profile", id: r.user.id })}
-              className="font-bold text-[11px] hover:text-primary"
-            >
-              {r.user.name}
-            </button>
-            <span className="text-[10px] text-muted-foreground mr-auto">
-              {timeAgoFa(r.createdAt)}
-            </span>
-          </div>
-          <p className="text-xs leading-5 whitespace-pre-wrap break-words">
-            {r.content}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 mt-0.5 px-1 text-[10px]">
-          <button
-            onClick={() => onLike(r.id, "like")}
-            className={cn(
-              "flex items-center gap-1 font-bold transition-colors",
-              liked ? "text-rose" : "text-muted-foreground hover:text-rose"
-            )}
-          >
-            <Icon name="thumbsUp" size={10} className={liked ? "fill-rose" : ""} />
-            {r.likeCount > 0 && <span className="nums-fa">{toFa(r.likeCount)}</span>}
-          </button>
-          <button
-            onClick={() => onLike(r.id, "dislike")}
-            className={cn(
-              "flex items-center gap-1 font-bold transition-colors",
-              disliked ? "text-destructive" : "text-muted-foreground hover:text-destructive"
-            )}
-          >
-            <Icon name="thumbsDown" size={10} className={disliked ? "fill-destructive" : ""} />
-          </button>
-          <button
-            onClick={() => onReply(r.id)}
-            className="font-bold text-muted-foreground hover:text-foreground"
-          >
-            پاسخ
-          </button>
-          {isMine && (
-            <span className="font-bold text-muted-foreground mr-auto">(شما)</span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ═════════════════════════════════════════════════════════════════
-   Skeletons
-   ═════════════════════════════════════════════════════════════════ */
-
-function PostsGridSkeleton() {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-      {[...Array(9)].map((_, i) => (
-        <Skeleton key={i} className="aspect-square rounded-2xl" />
-      ))}
-    </div>
-  );
-}
-
-function PeopleGridSkeleton() {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-      {[...Array(6)].map((_, i) => (
-        <Skeleton key={i} className="h-56 rounded-2xl" />
-      ))}
     </div>
   );
 }
 
 function PostDetailSkeleton() {
   return (
-    <div className="max-w-2xl mx-auto p-4 lg:p-0 space-y-4">
+    <div className="max-w-2xl mx-auto pb-2 space-y-4">
       <div className="flex items-center justify-between">
         <Skeleton className="w-10 h-10 rounded-full" />
         <Skeleton className="h-4 w-32 rounded" />
       </div>
-      <Skeleton className="h-16 rounded-2xl" />
-      <Skeleton className="h-[60vh] rounded-2xl" />
-      <Skeleton className="h-24 rounded-2xl" />
-      <Skeleton className="h-12 rounded-2xl" />
-      <div className="space-y-2">
+      <div className="bg-card rounded-[20px] overflow-hidden shadow-card">
+        <div className="flex items-center gap-3 p-3.5">
+          <Skeleton className="w-11 h-11 rounded-full" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3.5 w-32 rounded-full" />
+            <Skeleton className="h-2.5 w-24 rounded-full" />
+          </div>
+        </div>
+        <div className="px-3.5 pb-3 space-y-1.5">
+          <Skeleton className="h-3 w-full rounded-full" />
+          <Skeleton className="h-3 w-4/5 rounded-full" />
+        </div>
+        <Skeleton className="h-[280px] w-full" />
+        <div className="flex gap-2 p-2.5">
+          <Skeleton className="h-11 flex-1 rounded-xl" />
+          <Skeleton className="h-11 flex-1 rounded-xl" />
+          <Skeleton className="h-11 flex-1 rounded-xl" />
+        </div>
+      </div>
+      <div className="space-y-3">
         {[...Array(3)].map((_, i) => (
-          <Skeleton key={i} className="h-16 rounded-2xl" />
+          <div key={i} className="flex gap-2.5">
+            <Skeleton className="w-9 h-9 rounded-full shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-3 w-24 rounded-full" />
+              <Skeleton className="h-3 w-full rounded-full" />
+              <Skeleton className="h-3 w-3/4 rounded-full" />
+            </div>
+          </div>
         ))}
       </div>
     </div>

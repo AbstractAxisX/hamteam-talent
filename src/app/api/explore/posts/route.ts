@@ -46,7 +46,7 @@ export async function GET(req: Request) {
     likeCount: p._count.likes,
     commentCount: p._count.comments,
     likedByMe: Array.isArray(p.likes) ? p.likes.length > 0 : false,
-    media: p.media.map((m) => ({ id: m.id, url: m.url, type: m.type })),
+    media: p.media.map((m) => ({ id: m.id, url: m.url, type: m.type, fileName: m.fileName, fileSize: m.fileSize })),
     user: {
       id: p.user.id,
       name: p.user.name,

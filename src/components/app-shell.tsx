@@ -74,7 +74,7 @@ const TOP_LEVEL = new Set([
 // Mobile bottom tab bar (5 tabs)
 const MOBILE_TABS = [
   { key: "feed", label: "خانه", icon: "home" as const, route: { view: "feed" } as Route },
-  { key: "explore", label: "اکسپلور", icon: "sparkles" as const, route: { view: "explore" } as Route },
+  { key: "explore", label: "استعدادهای برتر", icon: "sparkles" as const, route: { view: "explore" } as Route },
   { key: "discover", label: "کشف", icon: "compass" as const, route: { view: "discover" } as Route },
   { key: "talents", label: "استعدادها", icon: "users" as const, route: { view: "talents" } as Route },
 ];
@@ -82,7 +82,7 @@ const MOBILE_TABS = [
 // Desktop top nav (center cluster)
 const DESKTOP_NAV = [
   { key: "feed", label: "خانه", route: { view: "feed" } as Route },
-  { key: "explore", label: "اکسپلور", route: { view: "explore" } as Route },
+  { key: "explore", label: "استعدادهای برتر", route: { view: "explore" } as Route },
   { key: "discover", label: "کشف", route: { view: "discover" } as Route },
   { key: "talents", label: "استعدادها", route: { view: "talents" } as Route },
   { key: "needs", label: "نیازمندی", route: { view: "needs" } as Route },
