@@ -58,7 +58,8 @@ function renderView(route: Route) {
     case "ticket": return <TicketDetailView id={route.id} />;
     case "settings": return <SettingsView />;
     case "onboarding": return <OnboardingView />;
-    case "admin": return <AdminView />;
+    // ادمین با پالت سبز قبلی (ایزوله — کد ادمین دست‌نخورده)
+    case "admin": return <div className="admin-legacy"><AdminView /></div>;
     case "auth": return <AuthView />;
     default: return <FeedView />;
   }
