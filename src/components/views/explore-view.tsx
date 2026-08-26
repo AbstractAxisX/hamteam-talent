@@ -130,7 +130,7 @@ function getDocStyle(fileName: string | null): DocStyle {
     };
   if (ext === "doc" || ext === "docx")
     return {
-      cls: "bg-indigo-100 text-indigo-600 shadow-[0_10px_26px_rgba(79,70,229,0.22)]",
+      cls: "bg-emerald-100 text-emerald-700 shadow-[0_10px_26px_rgba(5,150,105,0.22)]",
       label: "DOC",
       svg: (
         <>
@@ -925,7 +925,7 @@ function VideoSlide({ media }: { media: PostMedia }) {
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20 pointer-events-none" />
       {/* Play button */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-white/95 grid place-items-center shadow-[0_8px_26px_rgba(0,0,0,0.45)] group-active:scale-90 transition-transform">
-        <svg viewBox="0 0 24 24" className="w-7 h-7 -mr-0.5" fill="#312e81">
+        <svg viewBox="0 0 24 24" className="w-7 h-7 -mr-0.5" fill="#065f46">
           <path d="M8 5v14l11-7z" />
         </svg>
       </div>
@@ -1072,11 +1072,11 @@ function AudioSlide({
           aria-label={playing ? "توقف" : "پخش"}
         >
           {playing ? (
-            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="#312e81">
+            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="#065f46">
               <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
             </svg>
           ) : (
-            <svg viewBox="0 0 24 24" className="w-5 h-5 -mr-0.5" fill="#312e81">
+            <svg viewBox="0 0 24 24" className="w-5 h-5 -mr-0.5" fill="#065f46">
               <path d="M8 5v14l11-7z" />
             </svg>
           )}
@@ -1470,11 +1470,11 @@ function LightboxAudio({
         aria-label={playing ? "توقف" : "پخش"}
       >
         {playing ? (
-          <svg viewBox="0 0 24 24" className="w-6 h-6" fill="#312e81">
+          <svg viewBox="0 0 24 24" className="w-6 h-6" fill="#065f46">
             <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
           </svg>
         ) : (
-          <svg viewBox="0 0 24 24" className="w-6 h-6 -mr-0.5" fill="#312e81">
+          <svg viewBox="0 0 24 24" className="w-6 h-6 -mr-0.5" fill="#065f46">
             <path d="M8 5v14l11-7z" />
           </svg>
         )}

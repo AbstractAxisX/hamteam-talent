@@ -4,9 +4,9 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ═══════════════════════════════════════════════════════════════
-   همتیم Design System v2 — «بنفش شیشه‌ای» (Glass Violet)
-   مبنا: رفرنس طراحی فید پست‌محور (تعیین‌شده توسط کاربر)
-   امضای برند: گرادیان ۱۳۵° ایندیگو → بنفش → صورتی
+   همتیم Design System v3 — «جنگل زمردی» (Emerald Forest)
+   هویت اصلی برند: سبز زمردی عمیق + تیل + طلایی
+   امضای برند: گرادیان ۱۳۵° زمردی → تیل
    ═══════════════════════════════════════════════════════════════ */
 
 @theme inline {
@@ -57,94 +57,95 @@
 :root {
   --radius: 1.25rem;
 
-  /* ─── امضای برند ─── */
-  --prime: #4f46e5;
-  --prime2: #8b5cf6;
-  --pink: #ec4899;
-  --grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+  /* ─── امضای برند: زمردی → تیل ─── */
+  --prime: #047857;
+  --prime2: #0d9488;
+  --pink: #e11d48;
+  --grad: linear-gradient(135deg, #047857 0%, #0d9488 55%, #10b981 100%);
+  --grad-gold: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
 
-  /* ─── سطوح و متن (Light) ─── */
-  --background: #eef1f5;
-  --foreground: #0f172a;
+  /* ─── سطوح و متن (Light — کرمِ نعنایی) ─── */
+  --background: #eef5f0;
+  --foreground: #0a1f16;
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #0a1f16;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --secondary: #f1f3f8;
-  --secondary-foreground: #0f172a;
-  --muted: #f4f6f9;
-  --muted-foreground: #64748b;
-  --accent: #eef0ff;
-  --accent-foreground: #4f46e5;
+  --popover-foreground: #0a1f16;
+  --secondary: #e9f2ec;
+  --secondary-foreground: #0a1f16;
+  --muted: #edf3ef;
+  --muted-foreground: #58705f;
+  --accent: #dcf0e5;
+  --accent-foreground: #047857;
 
   /* ─── معنایی ─── */
-  --primary: #4f46e5;
+  --primary: #067647;
   --primary-foreground: #ffffff;
-  --gold: #d97706;
-  --warning: #d97706;
-  --success: #10b981;
-  --rose: #ec4899;
-  --destructive: #ef4444;
-  --border: #e7eaf0;
-  --input: #e7eaf0;
-  --ring: #8b5cf6;
+  --gold: #b45309;
+  --warning: #b45309;
+  --success: #059669;
+  --rose: #e11d48;
+  --destructive: #dc2626;
+  --border: #d8e6dc;
+  --input: #cfe0d4;
+  --ring: #0d9488;
 
-  --chart-1: #6366f1;
-  --chart-2: #8b5cf6;
-  --chart-3: #ec4899;
-  --chart-4: #10b981;
-  --chart-5: #f59e0b;
+  --chart-1: #059669;
+  --chart-2: #14b8a6;
+  --chart-3: #f59e0b;
+  --chart-4: #e11d48;
+  --chart-5: #64748b;
 
   --sidebar: #ffffff;
-  --sidebar-foreground: #0f172a;
-  --sidebar-primary: #4f46e5;
+  --sidebar-foreground: #0a1f16;
+  --sidebar-primary: #067647;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eef0ff;
-  --sidebar-accent-foreground: #4f46e5;
-  --sidebar-border: #e7eaf0;
-  --sidebar-ring: #8b5cf6;
+  --sidebar-accent: #dcf0e5;
+  --sidebar-accent-foreground: #047857;
+  --sidebar-border: #d8e6dc;
+  --sidebar-ring: #0d9488;
 }
 
 .dark {
-  /* ─── سطوح و متن (Dark — سرمه‌ای عمیق رفرنس) ─── */
-  --background: #0b1020;
-  --foreground: #e2e8f0;
-  --card: #151b31;
-  --card-foreground: #e2e8f0;
-  --popover: #151b31;
-  --popover-foreground: #e2e8f0;
-  --secondary: #1c2340;
-  --secondary-foreground: #e2e8f0;
-  --muted: #1a2036;
-  --muted-foreground: #94a3b8;
-  --accent: #232b52;
-  --accent-foreground: #a5b4fc;
+  /* ─── سطوح و متن (Dark — شبِ جنگل) ─── */
+  --background: #06110c;
+  --foreground: #e6f2ea;
+  --card: #0c1d15;
+  --card-foreground: #e6f2ea;
+  --popover: #0c1d15;
+  --popover-foreground: #e6f2ea;
+  --secondary: #122a1e;
+  --secondary-foreground: #e6f2ea;
+  --muted: #102318;
+  --muted-foreground: #8cae9c;
+  --accent: #113322;
+  --accent-foreground: #6ee7b7;
 
-  --primary: #818cf8;
-  --primary-foreground: #0b1020;
+  --primary: #2fbf85;
+  --primary-foreground: #04170e;
   --gold: #f59e0b;
   --warning: #f59e0b;
   --success: #34d399;
-  --rose: #f472b6;
+  --rose: #fb7185;
   --destructive: #f87171;
   --border: rgba(255, 255, 255, 0.08);
   --input: rgba(255, 255, 255, 0.1);
-  --ring: #a78bfa;
+  --ring: #2fbf85;
 
-  --chart-1: #818cf8;
-  --chart-2: #a78bfa;
-  --chart-3: #f472b6;
-  --chart-4: #34d399;
-  --chart-5: #fbbf24;
+  --chart-1: #34d399;
+  --chart-2: #2dd4bf;
+  --chart-3: #fbbf24;
+  --chart-4: #fb7185;
+  --chart-5: #94a3b8;
 
-  --sidebar: #151b31;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-primary: #818cf8;
-  --sidebar-primary-foreground: #0b1020;
-  --sidebar-accent: #232b52;
-  --sidebar-accent-foreground: #a5b4fc;
+  --sidebar: #0c1d15;
+  --sidebar-foreground: #e6f2ea;
+  --sidebar-primary: #2fbf85;
+  --sidebar-primary-foreground: #04170e;
+  --sidebar-accent: #113322;
+  --sidebar-accent-foreground: #6ee7b7;
   --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #a78bfa;
+  --sidebar-ring: #2fbf85;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -239,19 +240,19 @@
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
   ::selection {
-    background: rgba(139, 92, 246, 0.25);
+    background: rgba(16, 185, 129, 0.28);
   }
 }
 
 @layer utilities {
-  /* ─── شیشه‌مورفیزم (نقاط کلیدی: ناوبری، شیت‌ها) ─── */
+  /* ─── شیشه‌مورفیزم (نقاط کلیدی: ناوبری، هدر، شیت‌ها) ─── */
   .glass {
-    background-color: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    background-color: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(20px) saturate(170%);
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
   }
   .dark .glass {
-    background-color: rgba(21, 27, 49, 0.85);
+    background-color: rgba(10, 28, 19, 0.85);
   }
   .glass-strong {
     background-color: rgba(255, 255, 255, 0.92);
@@ -259,10 +260,10 @@
     -webkit-backdrop-filter: blur(24px) saturate(180%);
   }
   .dark .glass-strong {
-    background-color: rgba(24, 31, 55, 0.92);
+    background-color: rgba(12, 29, 21, 0.92);
   }
   .glass-dark-chip {
-    background-color: rgba(15, 23, 42, 0.55);
+    background-color: rgba(4, 18, 12, 0.55);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
   }
@@ -271,6 +272,9 @@
   .grad-brand {
     background-image: var(--grad);
   }
+  .grad-gold {
+    background-image: var(--grad-gold);
+  }
   .grad-text {
     background-image: var(--grad);
     -webkit-background-clip: text;
@@ -278,14 +282,62 @@
     color: transparent;
   }
 
-  /* ─── سایه‌ها (سه‌سطحی + گلوی برند) ─── */
-  .shadow-soft { box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
-  .shadow-card { box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.07); }
-  .shadow-lift { box-shadow: 0 2px 4px rgba(15, 23, 42, 0.05), 0 12px 32px rgba(15, 23, 42, 0.1); }
-  .shadow-float { box-shadow: 0 4px 8px rgba(15, 23, 42, 0.06), 0 16px 48px rgba(15, 23, 42, 0.14); }
-  .shadow-glow { box-shadow: 0 8px 28px rgba(99, 102, 241, 0.35); }
-  .shadow-grad { box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4); }
-  .shadow-glow-rose { box-shadow: 0 8px 28px rgba(236, 72, 153, 0.35); }
+  /* ─── پس‌زمینه‌ی زنده‌ی aurora (فقط transform — سازگار با ۶۰fps) ─── */
+  .aurora {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .aurora-blob {
+    position: absolute;
+    display: block;
+    border-radius: 9999px;
+    filter: blur(80px);
+    opacity: 0.5;
+    will-change: transform;
+  }
+  .dark .aurora-blob {
+    opacity: 0.22;
+  }
+  .aurora-1 {
+    width: 480px;
+    height: 480px;
+    top: -160px;
+    right: -120px;
+    background: radial-gradient(circle, #34d399 0%, transparent 70%);
+    animation: aurora-drift-1 26s ease-in-out infinite alternate;
+  }
+  .aurora-2 {
+    width: 420px;
+    height: 420px;
+    top: 30%;
+    left: -160px;
+    background: radial-gradient(circle, #2dd4bf 0%, transparent 70%);
+    animation: aurora-drift-2 32s ease-in-out infinite alternate;
+  }
+  .aurora-3 {
+    width: 360px;
+    height: 360px;
+    bottom: -140px;
+    right: 20%;
+    background: radial-gradient(circle, #fbbf24 0%, transparent 70%);
+    opacity: 0.24;
+    animation: aurora-drift-3 38s ease-in-out infinite alternate;
+  }
+  .dark .aurora-3 {
+    opacity: 0.12;
+  }
+
+  /* ─── سایه‌ها (سه‌سطحی + گلوی برند، ته‌رنگ سبز) ─── */
+  .shadow-soft { box-shadow: 0 1px 2px rgba(6, 50, 35, 0.06); }
+  .shadow-card { box-shadow: 0 1px 2px rgba(6, 50, 35, 0.06), 0 8px 24px rgba(6, 50, 35, 0.08); }
+  .shadow-lift { box-shadow: 0 2px 4px rgba(6, 50, 35, 0.06), 0 12px 32px rgba(6, 50, 35, 0.12); }
+  .shadow-float { box-shadow: 0 4px 8px rgba(6, 50, 35, 0.08), 0 16px 48px rgba(6, 50, 35, 0.16); }
+  .shadow-glow { box-shadow: 0 8px 28px rgba(16, 185, 129, 0.4); }
+  .shadow-grad { box-shadow: 0 4px 14px rgba(13, 148, 136, 0.4); }
+  .shadow-glow-rose { box-shadow: 0 8px 28px rgba(225, 29, 72, 0.35); }
   .shadow-glow-gold { box-shadow: 0 6px 20px rgba(217, 119, 6, 0.35); }
 
   /* ─── اسکرول‌بار ─── */
@@ -296,11 +348,11 @@
   .slim-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
   .slim-scroll::-webkit-scrollbar-track { background: transparent; }
   .slim-scroll::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #bdd4c6;
     border-radius: 9999px;
   }
   .dark .slim-scroll::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: #274234;
   }
 
   /* ─── اعداد و پرفورمنس ─── */
@@ -312,12 +364,12 @@
 
   /* ─── اسکلتون شیمر ─── */
   .shimmer {
-    background: linear-gradient(100deg, #e8ecf3 40%, #f4f6fa 50%, #e8ecf3 60%);
+    background: linear-gradient(100deg, #e2eee6 40%, #f0f7f2 50%, #e2eee6 60%);
     background-size: 200% 100%;
     animation: shimmer 1.2s linear infinite;
   }
   .dark .shimmer {
-    background: linear-gradient(100deg, #1a2036 40%, #232b45 50%, #1a2036 60%);
+    background: linear-gradient(100deg, #10231a 40%, #16301f 50%, #10231a 60%);
     background-size: 200% 100%;
   }
 
@@ -378,6 +430,19 @@ button, a { -webkit-tap-highlight-color: transparent; }
 @keyframes hint-float {
   0%, 100% { transform: translateX(-50%); }
   50% { transform: translateX(calc(-50% - 8px)); }
+}
+/* ─── Aurora: فقط transform/translate3d — کاملاً GPU-composited ─── */
+@keyframes aurora-drift-1 {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(-60px, 50px, 0) scale(1.12); }
+}
+@keyframes aurora-drift-2 {
+  0% { transform: translate3d(0, 0, 0) scale(1.05); }
+  100% { transform: translate3d(70px, -40px, 0) scale(0.94); }
+}
+@keyframes aurora-drift-3 {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(-50px, -60px, 0) scale(1.15); }
 }
 
 /* ═══ احترام به کاهش حرکت ═══ */

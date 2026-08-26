@@ -58,7 +58,7 @@ export function LandingView() {
       <section className="relative min-h-[88vh] md:min-h-[80vh] -mx-4 md:-mx-8 px-4 md:px-8 overflow-hidden">
         {/* Ambient blobs — pure solid colors at low opacity, no gradient */}
         <div
-          className="absolute -top-20 -right-20 w-[420px] h-[420px] rounded-full opacity-30 blur-3xl pointer-events-none"
+          className="absolute -top-20 -right-20 w-[420px] h-[420px] rounded-full opacity-30 blur-3xl pointer-events-none animate-float"
           style={{ backgroundColor: "oklch(0.6 0.15 160 / 0.6)" }}
         />
         <div
@@ -111,7 +111,7 @@ export function LandingView() {
             >
               استعدادت
               <br />
-              <span className="text-primary">رو به دنیا</span>
+              <span className="grad-text">رو به دنیا</span>
               <br />
               <span className="text-gold">نشون بده.</span>
             </motion.h1>
@@ -135,11 +135,10 @@ export function LandingView() {
               <motion.button
                 whileTap={{ scale: 0.96 }}
                 onClick={() => navigate({ view: "auth" })}
-                className="inline-flex items-center gap-2 h-12 md:h-14 px-6 md:px-8 rounded-2xl bg-primary text-primary-foreground font-extrabold text-base hover:bg-primary/90 transition-colors"
-                style={{ boxShadow: "0 8px 30px oklch(0.6 0.15 160 / 0.35)" }}
+                className="inline-flex items-center gap-2 h-12 md:h-14 px-6 md:px-8 rounded-2xl grad-brand text-white font-extrabold text-base shadow-glow hover:opacity-95 transition-opacity"
               >
                 شروع کنید
-                <Icon name="arrowLeft" size={18} strokeWidth={2.6} className="text-primary-foreground" />
+                <Icon name="arrowLeft" size={18} strokeWidth={2.6} className="text-white" />
               </motion.button>
               <motion.button
                 whileTap={{ scale: 0.96 }}
@@ -304,11 +303,10 @@ export function LandingView() {
             <motion.button
               whileTap={{ scale: 0.96 }}
               onClick={() => navigate({ view: "auth" })}
-              className="inline-flex items-center gap-2 h-12 md:h-14 px-8 rounded-2xl bg-primary text-primary-foreground font-extrabold text-base hover:bg-primary/90 transition-colors"
-              style={{ boxShadow: "0 8px 30px oklch(0.6 0.15 160 / 0.35)" }}
+              className="inline-flex items-center gap-2 h-12 md:h-14 px-8 rounded-2xl grad-brand text-white font-extrabold text-base shadow-glow hover:opacity-95 transition-opacity"
             >
               شروع کنید
-              <Icon name="arrowLeft" size={18} strokeWidth={2.6} className="text-primary-foreground" />
+              <Icon name="arrowLeft" size={18} strokeWidth={2.6} className="text-white" />
             </motion.button>
             {/* Trust badges */}
             <div className="flex flex-wrap items-center justify-center gap-5 pt-3 text-xs font-bold text-muted-foreground">

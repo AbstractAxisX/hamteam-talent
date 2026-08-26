@@ -13,14 +13,14 @@ import { cn } from "@/lib/utils";
 
 /* پالت گرادیان‌های رفرنس */
 const GRADS = [
-  "linear-gradient(135deg,#f59e0b,#ef4444)",
-  "linear-gradient(135deg,#0ea5e9,#6366f1)",
-  "linear-gradient(135deg,#8b5cf6,#ec4899)",
-  "linear-gradient(135deg,#334155,#0f172a)",
-  "linear-gradient(135deg,#10b981,#0d9488)",
-  "linear-gradient(135deg,#ec4899,#f97316)",
-  "linear-gradient(135deg,#4f46e5,#8b5cf6)",
-  "linear-gradient(135deg,#0891b2,#4f46e5)",
+  "linear-gradient(135deg,#059669,#0d9488)",
+  "linear-gradient(135deg,#0d9488,#14b8a6)",
+  "linear-gradient(135deg,#f59e0b,#d97706)",
+  "linear-gradient(135deg,#065f46,#059669)",
+  "linear-gradient(135deg,#e11d48,#f97316)",
+  "linear-gradient(135deg,#65a30d,#059669)",
+  "linear-gradient(135deg,#0f766e,#065f46)",
+  "linear-gradient(135deg,#14b8a6,#f59e0b)",
 ];
 
 export function gradFor(name: string): string {
@@ -50,7 +50,7 @@ export function initialOf(name: string): string {
 export function VerifiedMark({ size = 15 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-label="حساب تأییدشده" role="img" className="shrink-0">
-      <circle cx="12" cy="12" r="11" fill="#3b82f6" />
+      <circle cx="12" cy="12" r="11" fill="#059669" />
       <path d="M8 12.5l2.6 2.6L16.5 9" stroke="#fff" strokeWidth="2.4" fill="none" strokeLinecap="round" />
     </svg>
   );

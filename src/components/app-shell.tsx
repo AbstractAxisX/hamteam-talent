@@ -89,8 +89,7 @@ const DESKTOP_NAV = [
   { key: "needs", label: "نیازمندی", route: { view: "needs" } as Route },
 ];
 
-// Soft premium shadows (kept subtle, no rose tint on active chrome)
-const FAB_SHADOW = "shadow-[0_10px_30px_rgba(0,0,0,0.32)]";
+
 
 export function AppShell({ children }: { children?: React.ReactNode }) {
   const route = useNav((s) => s.route);
@@ -186,7 +185,14 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="relative min-h-screen flex flex-col bg-background">
+      {/* ═══ Aurora ambient background — زنده، فقط transform (۶۰fps) ═══ */}
+      <div aria-hidden className="aurora">
+        <span className="aurora-blob aurora-1" />
+        <span className="aurora-blob aurora-2" />
+        <span className="aurora-blob aurora-3" />
+      </div>
+
       {/* ═══ Desktop: clean top bar (glass, logo start, nav center, actions end) ═══ */}
       <DesktopTopBar
         isActive={isActive}
@@ -223,8 +229,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
           onClick={() => navigate({ view: "chat" })}
           className={cn(
             "md:hidden fixed left-4 z-40 grid place-items-center rounded-full",
-            "bg-primary text-primary-foreground",
-            FAB_SHADOW
+            "grad-brand text-white shadow-glow"
           )}
           style={{
             width: "56px",
@@ -233,7 +238,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
           }}
           aria-label="چت"
         >
-          <Icon name="chat" size={24} strokeWidth={2.2} className="text-primary-foreground" />
+          <Icon name="chat" size={24} strokeWidth={2.2} className="text-white" />
           {chatUnread > 0 && (
             <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1 grid place-items-center rounded-full bg-rose text-white text-[11px] font-extrabold ring-2 ring-background">
               {chatUnread > 9 ? toFa(9) + "+" : toFa(chatUnread)}
@@ -243,7 +248,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
       )}
 
       {/* ═══ Main content ═══ */}
-      <main ref={mainRef} className="flex-1 w-full">
+      <main ref={mainRef} className="relative z-10 flex-1 w-full">
         <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-4 md:pt-24 pb-28 md:pb-12">
           <AnimatePresence mode="wait">
             <motion.div
@@ -297,7 +302,7 @@ function DesktopTopBar({
           className="flex items-center gap-2.5 shrink-0"
           aria-label="همتیم"
         >
-          <span className="grid place-items-center w-10 h-10 rounded-xl bg-primary/12">
+          <span className="grid place-items-center w-10 h-10 rounded-2xl grad-brand shadow-glow">
             <LogoMark className="w-7 h-7" />
           </span>
           <span className="text-xl font-extrabold tracking-tight text-foreground">همتیم</span>
@@ -314,11 +319,18 @@ function DesktopTopBar({
                 className={cn(
                   "relative h-10 px-4 rounded-xl text-sm font-bold transition-colors",
                   active
-                    ? "text-primary-foreground bg-primary"
+                    ? "text-white"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                 )}
               >
-                {item.label}
+                {active && (
+                  <motion.span
+                    layoutId="desktop-nav-pill"
+                    className="absolute inset-0 rounded-xl grad-brand shadow-glow"
+                    transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                  />
+                )}
+                <span className="relative">{item.label}</span>
               </button>
             );
           })}
@@ -374,7 +386,7 @@ function DesktopTopBar({
           ) : loading ? null : (
             <button
               onClick={() => navigate({ view: "auth" })}
-              className="inline-flex items-center gap-1.5 h-10 px-5 rounded-xl bg-primary text-primary-foreground font-extrabold text-sm hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center gap-1.5 h-10 px-5 rounded-xl grad-brand text-white font-extrabold text-sm shadow-glow hover:opacity-95 transition-opacity"
             >
               ورود / ثبت‌نام
             </button>
@@ -489,32 +501,39 @@ function MobileTabBar({
   return (
     <>
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 glass-strong border-t border-border/60 pb-safe"
-        style={{ boxShadow: "0 -6px 24px rgba(0,0,0,0.08)" }}
+        className="md:hidden fixed z-40 inset-x-3"
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)" }}
       >
-        <div className="grid grid-cols-5 h-16">
+        <div className="glass-strong rounded-[26px] border border-border/50 shadow-float overflow-hidden">
+        <div className="grid grid-cols-5 h-[64px]">
           {tabs.map((tab) => {
             const active = isActive(tab.key);
             return (
               <motion.button
                 key={tab.key}
                 onClick={() => onTabClick(tab)}
-                whileTap={{ scale: 0.92 }}
+                whileTap={{ scale: 0.9 }}
                 transition={{ type: "spring", stiffness: 500, damping: 22 }}
-                className="relative flex flex-col items-center justify-center gap-1"
+                className="relative flex flex-col items-center justify-center gap-0.5"
                 aria-label={tab.label}
               >
                 {active && (
                   <motion.span
-                    layoutId="active-tab-pill"
-                    className="absolute inset-x-3 inset-y-1.5 rounded-2xl bg-primary/10"
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    layoutId="dock-pill"
+                    className="absolute inset-x-2 inset-y-1.5 rounded-[18px] grad-brand shadow-glow"
+                    transition={{ type: "spring", stiffness: 420, damping: 32 }}
                   />
                 )}
-                <span className={cn("relative grid place-items-center w-7 h-7 transition-colors", active ? "text-primary" : "text-muted-foreground")}>
-                  <Icon name={tab.icon} size={24} strokeWidth={active ? 2.6 : 2.0} />
-                </span>
-                <span className={cn("relative text-[10px] font-bold leading-none transition-colors", active ? "text-primary" : "text-muted-foreground")}>
+                <motion.span
+                  key={active ? `${tab.key}-on` : `${tab.key}-off`}
+                  initial={false}
+                  animate={active ? { scale: [1, 1.28, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className={cn("relative grid place-items-center w-7 h-7", active ? "text-white" : "text-muted-foreground")}
+                >
+                  <Icon name={tab.icon} size={23} strokeWidth={active ? 2.5 : 2.0} />
+                </motion.span>
+                <span className={cn("relative text-[10px] font-bold leading-none", active ? "text-white" : "text-muted-foreground")}>
                   {tab.label}
                 </span>
               </motion.button>
@@ -523,16 +542,17 @@ function MobileTabBar({
           {/* More button — opens swipe-up sheet */}
           <motion.button
             onClick={() => setMoreOpen(true)}
-            whileTap={{ scale: 0.92 }}
+            whileTap={{ scale: 0.9 }}
             transition={{ type: "spring", stiffness: 500, damping: 22 }}
-            className="relative flex flex-col items-center justify-center gap-1"
+            className="relative flex flex-col items-center justify-center gap-0.5"
             aria-label="بیشتر"
           >
             <span className="relative grid place-items-center w-7 h-7 text-muted-foreground">
-              <Icon name="more" size={24} strokeWidth={2.0} />
+              <Icon name="more" size={23} strokeWidth={2.0} />
             </span>
             <span className="relative text-[10px] font-bold leading-none text-muted-foreground">بیشتر</span>
           </motion.button>
+        </div>
         </div>
       </nav>
 
