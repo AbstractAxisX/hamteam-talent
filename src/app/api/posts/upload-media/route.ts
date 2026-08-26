@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   const validType = allowedTypes[type]?.some((t) => file.type === t) || allowedTypes.doc.includes(file.type);
   if (!validType) {
     // Try to infer type from mime
-    if (file.type.startsWith("image/")) type === "image";
+    if (file.type.startsWith("image/")) type = "image";
     else if (file.type.startsWith("video/")) type = "video";
     else if (file.type.startsWith("audio/")) type = "audio";
     else if (file.type.startsWith("text/") || file.type.includes("pdf") || file.type.includes("document"))
