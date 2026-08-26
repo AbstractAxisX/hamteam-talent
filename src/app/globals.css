@@ -3,6 +3,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ═══════════════════════════════════════════════════════════════
+   همتیم Design System v2 — «بنفش شیشه‌ای» (Glass Violet)
+   مبنا: رفرنس طراحی فید پست‌محور (تعیین‌شده توسط کاربر)
+   امضای برند: گرادیان ۱۳۵° ایندیگو → بنفش → صورتی
+   ═══════════════════════════════════════════════════════════════ */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -38,7 +44,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-success: var(--success);
-  --color-warning: var(--color-warning);
+  --color-warning: var(--warning);
   --color-gold: var(--gold);
   --color-rose: var(--rose);
   --radius-sm: calc(var(--radius) - 4px);
@@ -50,14 +56,104 @@
 
 :root {
   --radius: 1.25rem;
-  /* ═══ LIGHT mode — dark green primary ═══ */
-  /* Primary: DARK green (forest/emerald dark) — user said "سبز تیره" */
-  --primary: oklch(0.38 0.09 160);
-  --primary-foreground: oklch(0.98 0.003 120);
-  /* Background: clean light */
+
+  /* ─── امضای برند ─── */
+  --prime: #4f46e5;
+  --prime2: #8b5cf6;
+  --pink: #ec4899;
+  --grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+
+  /* ─── سطوح و متن (Light) ─── */
+  --background: #eef1f5;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --secondary: #f1f3f8;
+  --secondary-foreground: #0f172a;
+  --muted: #f4f6f9;
+  --muted-foreground: #64748b;
+  --accent: #eef0ff;
+  --accent-foreground: #4f46e5;
+
+  /* ─── معنایی ─── */
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --gold: #d97706;
+  --warning: #d97706;
+  --success: #10b981;
+  --rose: #ec4899;
+  --destructive: #ef4444;
+  --border: #e7eaf0;
+  --input: #e7eaf0;
+  --ring: #8b5cf6;
+
+  --chart-1: #6366f1;
+  --chart-2: #8b5cf6;
+  --chart-3: #ec4899;
+  --chart-4: #10b981;
+  --chart-5: #f59e0b;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #4f46e5;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef0ff;
+  --sidebar-accent-foreground: #4f46e5;
+  --sidebar-border: #e7eaf0;
+  --sidebar-ring: #8b5cf6;
+}
+
+.dark {
+  /* ─── سطوح و متن (Dark — سرمه‌ای عمیق رفرنس) ─── */
+  --background: #0b1020;
+  --foreground: #e2e8f0;
+  --card: #151b31;
+  --card-foreground: #e2e8f0;
+  --popover: #151b31;
+  --popover-foreground: #e2e8f0;
+  --secondary: #1c2340;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1a2036;
+  --muted-foreground: #94a3b8;
+  --accent: #232b52;
+  --accent-foreground: #a5b4fc;
+
+  --primary: #818cf8;
+  --primary-foreground: #0b1020;
+  --gold: #f59e0b;
+  --warning: #f59e0b;
+  --success: #34d399;
+  --rose: #f472b6;
+  --destructive: #f87171;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #a78bfa;
+
+  --chart-1: #818cf8;
+  --chart-2: #a78bfa;
+  --chart-3: #f472b6;
+  --chart-4: #34d399;
+  --chart-5: #fbbf24;
+
+  --sidebar: #151b31;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #818cf8;
+  --sidebar-primary-foreground: #0b1020;
+  --sidebar-accent: #232b52;
+  --sidebar-accent-foreground: #a5b4fc;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #a78bfa;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   پنل ادمین — ایزوله با پالت سبز قبلی (قید پروژه: ادمین دست‌نخورده)
+   تمام توکن‌های معنایی داخل این wrapper به هویت قبلی برمی‌گردند
+   ═══════════════════════════════════════════════════════════════ */
+.admin-legacy {
   --background: oklch(0.98 0.003 120);
   --foreground: oklch(0.16 0.01 160);
-  /* Cards: white */
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.16 0.01 160);
   --popover: oklch(1 0 0);
@@ -68,6 +164,8 @@
   --muted-foreground: oklch(0.5 0.01 150);
   --accent: oklch(0.93 0.015 160);
   --accent-foreground: oklch(0.3 0.03 160);
+  --primary: oklch(0.38 0.09 160);
+  --primary-foreground: oklch(0.98 0.003 120);
   --gold: oklch(0.72 0.16 80);
   --warning: oklch(0.72 0.16 80);
   --success: oklch(0.6 0.13 155);
@@ -90,23 +188,21 @@
   --sidebar-border: oklch(0.9 0.004 140);
   --sidebar-ring: oklch(0.38 0.09 160);
 }
-
-.dark {
-  /* ═══ DARK mode — user can toggle ═══ */
+.dark .admin-legacy {
   --background: oklch(0.13 0.008 160);
   --foreground: oklch(0.95 0.005 120);
   --card: oklch(0.18 0.01 160);
   --card-foreground: oklch(0.95 0.005 120);
   --popover: oklch(0.18 0.01 160);
   --popover-foreground: oklch(0.95 0.005 120);
-  --primary: oklch(0.58 0.12 160);
-  --primary-foreground: oklch(0.1 0.01 160);
   --secondary: oklch(0.24 0.008 160);
   --secondary-foreground: oklch(0.95 0.005 120);
   --muted: oklch(0.22 0.006 160);
   --muted-foreground: oklch(0.65 0.01 140);
   --accent: oklch(0.26 0.01 160);
   --accent-foreground: oklch(0.88 0.06 155);
+  --primary: oklch(0.58 0.12 160);
+  --primary-foreground: oklch(0.1 0.01 160);
   --gold: oklch(0.76 0.16 80);
   --warning: oklch(0.76 0.16 80);
   --success: oklch(0.68 0.15 155);
@@ -115,11 +211,6 @@
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 10%);
   --ring: oklch(0.58 0.12 160);
-  --chart-1: oklch(0.58 0.12 160);
-  --chart-2: oklch(0.76 0.16 80);
-  --chart-3: oklch(0.68 0.15 155);
-  --chart-4: oklch(0.68 0.2 15);
-  --chart-5: oklch(0.6 0.1 280);
   --sidebar: oklch(0.15 0.008 160);
   --sidebar-foreground: oklch(0.95 0.005 120);
   --sidebar-primary: oklch(0.58 0.12 160);
@@ -134,56 +225,119 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "ss01", "cv01";
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
   }
   *:focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
+  ::selection {
+    background: rgba(139, 92, 246, 0.25);
+  }
 }
 
 @layer utilities {
+  /* ─── شیشه‌مورفیزم (نقاط کلیدی: ناوبری، شیت‌ها) ─── */
   .glass {
-    background-color: oklch(1 0 0 / 0.85);
+    background-color: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
   }
   .dark .glass {
-    background-color: oklch(0.18 0.01 160 / 0.85);
+    background-color: rgba(21, 27, 49, 0.85);
   }
   .glass-strong {
-    background-color: oklch(1 0 0 / 0.92);
+    background-color: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
   }
   .dark .glass-strong {
-    background-color: oklch(0.2 0.01 160 / 0.92);
+    background-color: rgba(24, 31, 55, 0.92);
   }
+  .glass-dark-chip {
+    background-color: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  /* ─── امضای گرادیان برند ─── */
+  .grad-brand {
+    background-image: var(--grad);
+  }
+  .grad-text {
+    background-image: var(--grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ─── سایه‌ها (سه‌سطحی + گلوی برند) ─── */
+  .shadow-soft { box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+  .shadow-card { box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.07); }
+  .shadow-lift { box-shadow: 0 2px 4px rgba(15, 23, 42, 0.05), 0 12px 32px rgba(15, 23, 42, 0.1); }
+  .shadow-float { box-shadow: 0 4px 8px rgba(15, 23, 42, 0.06), 0 16px 48px rgba(15, 23, 42, 0.14); }
+  .shadow-glow { box-shadow: 0 8px 28px rgba(99, 102, 241, 0.35); }
+  .shadow-grad { box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4); }
+  .shadow-glow-rose { box-shadow: 0 8px 28px rgba(236, 72, 153, 0.35); }
+  .shadow-glow-gold { box-shadow: 0 6px 20px rgba(217, 119, 6, 0.35); }
+
+  /* ─── اسکرول‌بار ─── */
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .slim-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
   .slim-scroll::-webkit-scrollbar-track { background: transparent; }
   .slim-scroll::-webkit-scrollbar-thumb {
-    background: oklch(0.8 0.005 140);
+    background: #cbd5e1;
     border-radius: 9999px;
   }
   .dark .slim-scroll::-webkit-scrollbar-thumb {
-    background: oklch(0.35 0.005 140);
+    background: #334155;
   }
+
+  /* ─── اعداد و پرفورمنس ─── */
+  .nums-fa { font-variant-numeric: tabular-nums; }
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 780px;
+  }
+
+  /* ─── اسکلتون شیمر ─── */
+  .shimmer {
+    background: linear-gradient(100deg, #e8ecf3 40%, #f4f6fa 50%, #e8ecf3 60%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s linear infinite;
+  }
+  .dark .shimmer {
+    background: linear-gradient(100deg, #1a2036 40%, #232b45 50%, #1a2036 60%);
+    background-size: 200% 100%;
+  }
+
+  /* ─── انیمیشن‌های پایه ─── */
   .animate-float { animation: float 6s ease-in-out infinite; }
   .animate-pop { animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .animate-slide-up { animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
   .animate-fade-in { animation: fade-in 0.3s ease-out; }
   .animate-bounce-small { animation: bounce-small 0.4s ease-out; }
-  .shadow-soft { box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03); }
-  .shadow-card { box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.03); }
-  .shadow-lift { box-shadow: 0 8px 24px rgba(0,0,0,0.07), 0 2px 8px rgba(0,0,0,0.04); }
-  .shadow-float { box-shadow: 0 12px 40px rgba(0,0,0,0.1), 0 4px 16px rgba(0,0,0,0.05); }
+  .animate-heart-pop { animation: heart-pop 0.45s cubic-bezier(0.2, 2, 0.4, 1); }
 }
 
+/* ─── Safe area ─── */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+.safe-b { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+
+button, a { -webkit-tap-highlight-color: transparent; }
+
+/* ═══ Keyframes ═══ */
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-12px); }
@@ -204,8 +358,33 @@
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.15); }
 }
+@keyframes heart-pop {
+  0% { transform: scale(0.4); }
+  100% { transform: scale(1); }
+}
+@keyframes shimmer {
+  to { background-position: -200% 0; }
+}
+@keyframes eqz {
+  0%, 100% { height: 25%; }
+  50% { height: 100%; }
+}
+@keyframes burst {
+  0% { transform: scale(0.2); opacity: 0; }
+  25% { opacity: 1; transform: scale(1.15); }
+  55% { transform: scale(1); }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+@keyframes hint-float {
+  0%, 100% { transform: translateX(-50%); }
+  50% { transform: translateX(calc(-50% - 8px)); }
+}
 
-.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
-.pt-safe { padding-top: env(safe-area-inset-top, 0px); }
-
-button, a { -webkit-tap-highlight-color: transparent; }
+/* ═══ احترام به کاهش حرکت ═══ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
