@@ -88,6 +88,21 @@ type Comment = {
    Helpers
    ════════════════════════════════════════════════════════════════════ */
 
+/* ── Helpers ── */
+
+/* رنگ فعال دسته‌بندی → ته‌رنگ روشن‌تر برای شروع گرادیان هدر */
+function shadeActive(color: string): string {
+  if (color.startsWith("#")) {
+    // hex → rgb → روشن‌کردن برای شروع گرادیان
+    const hex = color.slice(1);
+    const r = Math.min(255, parseInt(hex.slice(0, 2), 16) + 60);
+    const g = Math.min(255, parseInt(hex.slice(2, 4), 16) + 60);
+    const b = Math.min(255, parseInt(hex.slice(4, 6), 16) + 60);
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+  return color;
+}
+
 function formatFileSize(bytes: number): string {
   if (!bytes) return "—";
   if (bytes < 1024) return `${toFa(bytes)} بایت`;
@@ -267,32 +282,33 @@ export function ExploreView() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-b-[28px] glass-strong mb-3"
+        className="relative overflow-hidden rounded-[28px] mb-3 text-white"
+        style={{
+          background: `linear-gradient(150deg, ${shadeActive(activeColor)} 0%, #065f46 60%, #052e22 100%)`,
+        }}
       >
         <div
-          className="absolute inset-0 opacity-20 pointer-events-none"
-          style={{
-            background: `radial-gradient(circle at 85% 0%, ${activeColor} 0%, transparent 55%)`,
-          }}
+          className="absolute -top-16 -left-10 w-56 h-56 rounded-full opacity-30 blur-3xl pointer-events-none"
+          style={{ background: "#10b981" }}
+        />
+        <div
+          className="absolute -bottom-20 -right-8 w-48 h-48 rounded-full opacity-20 blur-3xl pointer-events-none"
+          style={{ background: "#fbbf24" }}
         />
         <div className="relative px-5 py-5 sm:px-6 sm:py-6 flex items-center gap-4">
           <motion.div
             initial={{ scale: 0.6, rotate: -20 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 360, damping: 22, delay: 0.1 }}
-            className="grid place-items-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl text-primary-foreground shrink-0 shadow-lg"
-            style={{
-              background: `linear-gradient(135deg, ${activeColor}, oklch(0.4 0.09 160))`,
-              boxShadow: `0 8px 24px ${activeColor}40`,
-            }}
+            className="grid place-items-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl shrink-0 bg-white/15 backdrop-blur-md border border-white/20"
           >
-            <Icon name="crown" size={28} />
+            <Icon name="crown" size={28} className="text-amber-300" />
           </motion.div>
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-white">
               استعدادهای برتر
             </h1>
-            <p className="text-[12.5px] text-muted-foreground mt-0.5 leading-6">
+            <p className="text-[12.5px] text-emerald-100/85 mt-0.5 leading-6">
               بهترین کارهای استعدادهای برتر جامعهٔ همتیم
             </p>
           </div>
@@ -542,10 +558,19 @@ function PostCard({
         delay: Math.min(index * 0.05, 0.35),
         ease: [0.16, 1, 0.3, 1],
       }}
-      className="bg-card rounded-[20px] overflow-hidden shadow-card"
+      className="relative bg-card rounded-[24px] overflow-hidden shadow-card border border-border/50"
     >
+      {/* خط گرادیانی امضای برند بالای کارت */}
+      <div
+        className="absolute top-0 inset-x-0 h-[3px] z-10"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${catColor}, transparent)`,
+          opacity: 0.75,
+        }}
+      />
+
       {/* ═══ Header ═══ */}
-      <div className="flex items-center gap-3 px-3.5 pt-3.5 pb-1.5">
+      <div className="flex items-center gap-3 px-4 pt-4 pb-2">
         <button
           onClick={() => navigate({ view: "profile", id: post.user.id })}
           className="shrink-0"
@@ -564,7 +589,7 @@ function PostCard({
           <div className="flex items-center gap-1">
             <button
               onClick={() => navigate({ view: "profile", id: post.user.id })}
-              className="font-extrabold text-[14px] truncate hover:text-primary transition-colors"
+              className="font-extrabold text-[14.5px] truncate hover:text-primary transition-colors"
             >
               {post.user.name}
             </button>
@@ -576,7 +601,10 @@ function PostCard({
               />
             )}
             {post.user.isTopTalent && (
-              <span className="grid place-items-center w-4 h-4 rounded-full bg-gold text-black shrink-0">
+              <span
+                className="grid place-items-center w-4 h-4 rounded-full text-black shrink-0"
+                style={{ background: "linear-gradient(135deg, #f59e0b, #fbbf24)" }}
+              >
                 <Icon name="crown" size={10} />
               </span>
             )}
@@ -613,7 +641,7 @@ function PostCard({
         <>
           <p
             className={cn(
-              "px-3.5 pb-2 text-[13.5px] leading-[1.95] whitespace-pre-wrap break-words",
+              "px-4 pb-2 text-[14px] leading-[1.95] whitespace-pre-wrap break-words",
               isLong && !expanded && "line-clamp-3"
             )}
           >
@@ -622,7 +650,7 @@ function PostCard({
           {isLong && (
             <button
               onClick={() => setExpanded((e) => !e)}
-              className="block px-3.5 pb-2.5 text-primary text-[12px] font-extrabold hover:opacity-70 transition-opacity"
+              className="block px-4 pb-2.5 text-primary text-[12px] font-extrabold hover:opacity-70 transition-opacity"
             >
               {expanded ? "بستن ↑" : "ادامه مطلب ↓"}
             </button>
@@ -639,17 +667,18 @@ function PostCard({
         />
       )}
 
-      {/* ═══ Action bar ═══ */}
-      <div className="flex gap-2 p-2.5">
+      {/* ═══ Action bar — دکمه‌های قرصی با فنر ═══ */}
+      <div className="flex gap-2 px-3 pb-3 pt-2.5">
         <motion.button
-          whileTap={{ scale: 0.94 }}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 500, damping: 22 }}
           onClick={() => void toggleLike()}
           disabled={liking}
           className={cn(
-            "flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold transition-colors",
+            "flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-[12.5px] font-extrabold border transition-colors",
             liked
-              ? "text-rose bg-rose/10"
-              : "text-muted-foreground bg-muted hover:bg-muted/70"
+              ? "text-white bg-rose border-rose shadow-[0_6px_18px_rgba(225,29,72,0.35)]"
+              : "text-muted-foreground bg-card border-border hover:bg-muted/70 hover:text-rose"
           )}
           aria-label="پسندیدن"
         >
@@ -659,8 +688,8 @@ function PostCard({
           >
             <Icon
               name="heart"
-              size={20}
-              className={liked ? "fill-rose text-rose" : ""}
+              size={19}
+              className={liked ? "fill-white text-white" : ""}
               strokeWidth={2}
             />
           </motion.span>
@@ -668,22 +697,24 @@ function PostCard({
         </motion.button>
 
         <motion.button
-          whileTap={{ scale: 0.94 }}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 500, damping: 22 }}
           onClick={() => onOpenComments({ ...post, commentCount })}
-          className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold text-muted-foreground bg-muted hover:bg-muted/70 transition-colors"
+          className="flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-[12.5px] font-extrabold text-muted-foreground bg-card border border-border hover:bg-muted/70 hover:text-primary transition-colors"
           aria-label="نظرات"
         >
-          <Icon name="comment" size={20} strokeWidth={2} />
+          <Icon name="comment" size={19} strokeWidth={2} />
           <span className="tabular-nums">{formatCount(commentCount)}</span>
         </motion.button>
 
         <motion.button
-          whileTap={{ scale: 0.94 }}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 500, damping: 22 }}
           onClick={sharePost}
-          className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold text-muted-foreground bg-muted hover:bg-muted/70 transition-colors"
+          className="h-11 px-4 rounded-full flex items-center justify-center gap-2 text-[12.5px] font-extrabold text-muted-foreground bg-card border border-border hover:bg-muted/70 hover:text-primary transition-colors"
           aria-label="اشتراک‌گذاری"
         >
-          <Icon name="share" size={20} strokeWidth={2} />
+          <Icon name="share" size={19} strokeWidth={2} />
           <span>اشتراک</span>
         </motion.button>
       </div>
@@ -2166,15 +2197,64 @@ export function PostDetailView({ id }: { id: string }) {
     setLoading(true);
     setNotFound(false);
     try {
+      // ۱) جستجو در پست‌های برتر (featured)
       const data = await api<{ posts: ExplorePost[] }>("/api/explore/posts");
       const found = data.posts.find((p) => p.id === id);
-      if (!found) {
+      if (found) {
+        setPost(found);
+        setLiked(found.likedByMe);
+        setLikeCount(found.likeCount);
+        return;
+      }
+      // ۲) fallback: پست‌های عادی (مثل پست‌های پروفایل) + دسته‌بندی‌ها برای رنگ/آیکون
+      const [all, catsRes] = await Promise.all([
+        api<{ posts: any[] }>("/api/posts?sort=recent"),
+        api<{ categories: CategoryWithSkills[] }>("/api/categories").catch(
+          (): { categories: CategoryWithSkills[] } => ({ categories: [] })
+        ),
+      ]);
+      const catMap = new Map<string, CategoryWithSkills>(
+        catsRes.categories.map((c) => [c.id, c] as [string, CategoryWithSkills])
+      );
+      const p = all.posts.find((x) => x.id === id);
+      if (!p) {
         setNotFound(true);
         return;
       }
-      setPost(found);
-      setLiked(found.likedByMe);
-      setLikeCount(found.likeCount);
+      const cat = p.categoryId ? catMap.get(p.categoryId) : undefined;
+      const mapped: ExplorePost = {
+        id: p.id,
+        content: p.content,
+        createdAt: p.createdAt,
+        categoryId: p.categoryId ?? null,
+        skillId: p.skillId ?? null,
+        categoryName: p.categoryName ?? cat?.name ?? null,
+        categoryIcon: cat?.iconUrl ?? null,
+        categoryColor: cat?.color ?? null,
+        skillName: p.skillName ?? null,
+        likeCount: p.likeCount ?? 0,
+        commentCount: 0,
+        likedByMe: p.likedByMe ?? false,
+        media: (p.media ?? []).map((m: any) => ({
+          id: m.id,
+          url: m.url,
+          type: m.type,
+          fileName: null,
+          fileSize: 0,
+        })),
+        user: {
+          id: p.user.id,
+          name: p.user.name,
+          avatarUrl: p.user.avatarUrl ?? null,
+          gender: null,
+          isTopTalent: false,
+          isVerifiedBadge: p.user.isVerifiedBadge ?? false,
+          mainCategoryColor: cat?.color ?? null,
+        },
+      };
+      setPost(mapped);
+      setLiked(mapped.likedByMe);
+      setLikeCount(mapped.likeCount);
     } catch {
       setNotFound(true);
     } finally {

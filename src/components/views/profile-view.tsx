@@ -243,36 +243,36 @@ export function ProfileView({ id }: { id: string }) {
 
   return (
     <div className="max-w-3xl mx-auto pb-12">
-      {/* ═══════ IMMERSIVE HEADER ═══════ */}
+      {/* ═══════ IMMERSIVE HEADER — هویت زمردی، متن همیشه روشن ═══════ */}
       <motion.header
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
         className="relative overflow-hidden rounded-b-[40px]"
         style={{
-          background: `linear-gradient(180deg, ${ringColor ? shadeColor(ringColor, 0.22, 165) : "oklch(0.18 0.012 165)"} 0%, oklch(0.13 0.012 165) 100%)`,
+          background: `linear-gradient(165deg, ${ringColor ? shadeColor(ringColor, 0.5, 160) : "#0d9488"} 0%, #065f46 55%, #052e22 100%)`,
         }}
       >
         {/* Category color accent stripe at the very top */}
         <div
           className="absolute top-0 inset-x-0 h-1.5"
-          style={{ background: ringColor || "oklch(0.6 0.15 160)" }}
+          style={{ background: ringColor || "#10b981" }}
         />
-        {/* Soft glow blob with category color */}
+        {/* Soft glow blobs — emerald + gold */}
         <div
           className="absolute -top-20 right-0 w-72 h-72 rounded-full opacity-30 blur-3xl pointer-events-none"
-          style={{ background: ringColor || "oklch(0.6 0.15 160)" }}
+          style={{ background: ringColor || "#10b981" }}
         />
         <div
-          className="absolute -bottom-24 -left-16 w-64 h-64 rounded-full opacity-15 blur-3xl pointer-events-none"
-          style={{ background: "oklch(0.75 0.15 80)" }}
+          className="absolute -bottom-24 -left-16 w-64 h-64 rounded-full opacity-20 blur-3xl pointer-events-none"
+          style={{ background: "#fbbf24" }}
         />
 
-        {/* Top action row */}
+        {/* Top action row — متن/آیکون همیشه سفید (هدر همیشه تیره است) */}
         <div className="relative flex items-center justify-between p-4 pt-6">
           <button
             onClick={() => window.history.back()}
-            className="grid place-items-center w-10 h-10 rounded-full glass text-foreground hover:bg-white/5 transition-colors"
+            className="grid place-items-center w-10 h-10 rounded-full bg-white/12 backdrop-blur-md text-white hover:bg-white/20 transition-colors"
             aria-label="بازگشت"
           >
             <Icon name="chevronRight" size={20} />
@@ -282,7 +282,7 @@ export function ProfileView({ id }: { id: string }) {
             <Button
               variant="ghost"
               onClick={() => navigate({ view: "edit-profile" })}
-              className="glass text-foreground hover:bg-white/5 h-10 px-4 gap-2 font-bold rounded-full"
+              className="bg-white/12 backdrop-blur-md text-white hover:bg-white/20 h-10 px-4 gap-2 font-bold rounded-full border border-white/15"
             >
               <Icon name="pencil" size={16} />
               ویرایش
@@ -290,7 +290,7 @@ export function ProfileView({ id }: { id: string }) {
           ) : (
             <button
               onClick={() => navigate({ view: "chat" })}
-              className="grid place-items-center w-10 h-10 rounded-full glass text-foreground hover:bg-white/5 transition-colors"
+              className="grid place-items-center w-10 h-10 rounded-full bg-white/12 backdrop-blur-md text-white hover:bg-white/20 transition-colors"
               aria-label="چت"
             >
               <Icon name="chat" size={20} />
@@ -298,84 +298,80 @@ export function ProfileView({ id }: { id: string }) {
           )}
         </div>
 
-        {/* Username + name */}
-        <div className="relative px-6 pb-4 pt-2 text-center">
+        {/* Username + name — white on emerald */}
+        <div className="relative px-6 pb-10 pt-2 text-center">
           {/* Top Talent crown badge */}
           {isTopTalent && (
             <motion.div
               initial={{ scale: 0, rotate: -30 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: "spring", stiffness: 380, damping: 22, delay: 0.15 }}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-2 text-[11px] font-bold"
-              style={{
-                background: "oklch(0.75 0.15 80 / 0.18)",
-                color: "oklch(0.85 0.13 80)",
-              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-2 text-[11px] font-extrabold border border-amber-300/30"
+              style={{ background: "rgba(251, 191, 36, 0.16)", color: "#fde68a" }}
             >
               <Icon name="crown" size={14} />
               استعداد برتر
             </motion.div>
           )}
 
-          <h1 className="text-2xl font-black tracking-tight leading-tight">
+          <h1 className="text-2xl font-black tracking-tight leading-tight text-white drop-shadow-sm">
             {profile.name}
           </h1>
           {profile.username && (
-            <p className="text-sm mt-1 font-mono" dir="ltr" style={{ color: "oklch(0.6 0.1 150)" }}>
+            <p className="text-sm mt-1 font-mono text-emerald-100/85" dir="ltr">
               @{profile.username}
             </p>
           )}
 
-          {/* Location + joined chip row */}
+          {/* Location + joined chip row — glass سفید روی سبز */}
           <div className="flex flex-wrap items-center justify-center gap-2 mt-3 text-[11px]">
             {province && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full glass text-foreground/80">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/12 backdrop-blur-md text-white/90">
                 <Icon name="mapPin" size={11} />
                 {province}
                 {profile.city ? ` · ${profile.city}` : ""}
               </span>
             )}
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full glass text-foreground/80">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/12 backdrop-blur-md text-white/90">
               <Icon name="calendar" size={11} />
               {formatFaDate(profile.createdAt)}
             </span>
           </div>
         </div>
-
-        {/* Avatar that breaks the boundary */}
-        <div className="relative flex justify-center">
-          <motion.div
-            initial={{ scale: 0.7, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 320, damping: 26, delay: 0.1 }}
-            className="relative z-10 translate-y-1/2"
-          >
-            <div
-              className="rounded-full p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
-              style={{
-                background: `linear-gradient(135deg, ${ringColor || "oklch(0.6 0.15 160)"}, oklch(0.4 0.08 160))`,
-              }}
-            >
-              <UserAvatar
-                name={profile.name}
-                avatarUrl={profile.avatarUrl}
-                verified={profile.isVerifiedBadge}
-                gender={profile.gender}
-                size="2xl"
-                ringColor="transparent"
-                className="ring-4"
-              />
-            </div>
-          </motion.div>
-        </div>
       </motion.header>
 
-      {/* ═══════ BODY (push down to accommodate avatar) ═══════ */}
+      {/* ═══════ آواتار — خارج از هدر تا clip نشود، با هم‌پوشانی تمیز ═══════ */}
+      <div className="relative flex justify-center -mt-14 z-10">
+        <motion.div
+          initial={{ scale: 0.7, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 320, damping: 26, delay: 0.1 }}
+        >
+          <div
+            className="rounded-full p-1.5 shadow-[0_8px_32px_rgba(6,95,70,0.45)]"
+            style={{
+              background: `linear-gradient(135deg, ${ringColor || "#10b981"}, #065f46)`,
+            }}
+          >
+            <UserAvatar
+              name={profile.name}
+              avatarUrl={profile.avatarUrl}
+              verified={profile.isVerifiedBadge}
+              gender={profile.gender}
+              size="2xl"
+              ringColor="transparent"
+              className="ring-4 ring-background"
+            />
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ═══════ BODY ═══════ */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.2 }}
-        className="px-4 pt-20"
+        className="px-4 pt-5"
       >
         {/* Bio */}
         {profile.bioShort && (
@@ -419,31 +415,30 @@ export function ProfileView({ id }: { id: string }) {
           </div>
         )}
 
-        {/* ═══════ PILL TABS ═══════ */}
-        <div className="relative mt-6 p-1 bg-card rounded-2xl glass flex gap-1">
+        {/* ═══════ PILL TABS — حباب گرادیانی ═══════ */}
+        <div className="relative mt-5 p-1 bg-card rounded-2xl glass flex gap-1 shadow-card">
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               className="relative z-10 flex-1 h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
               style={{
-                color: tab === t.key ? "oklch(0.1 0.01 160)" : "oklch(0.62 0.015 150)",
+                color: tab === t.key ? "#ffffff" : undefined,
               }}
             >
               {tab === t.key && (
                 <motion.div
                   layoutId="profile-tab-pill"
-                  className="absolute inset-0 rounded-xl"
-                  style={{ background: ringColor || "oklch(0.6 0.15 160)" }}
+                  className="absolute inset-0 rounded-xl grad-brand shadow-glow"
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}
-              <span className="relative z-10">{t.label}</span>
+              <span className={cn("relative z-10", tab !== t.key && "text-muted-foreground")}>{t.label}</span>
               {t.count !== undefined && t.count > 0 && (
                 <span
                   className={cn(
                     "relative z-10 text-[10px] px-1.5 py-0.5 rounded-full font-bold tabular-nums",
-                    tab === t.key ? "bg-black/15" : "bg-muted"
+                    tab === t.key ? "bg-black/20 text-white" : "bg-muted text-muted-foreground"
                   )}
                 >
                   {toFa(t.count)}
@@ -805,8 +800,8 @@ function StatBlock({
       whileTap={{ scale: 0.96 }}
       className="glass rounded-2xl py-3 flex flex-col items-center"
     >
-      <div className="text-primary mb-1">
-        <Icon name={icon} size={16} />
+      <div className="grad-brand w-7 h-7 rounded-xl grid place-items-center text-white mb-1">
+        <Icon name={icon} size={15} />
       </div>
       <span className="font-black text-lg leading-none nums-fa">{value}</span>
       <span className="text-[10px] text-muted-foreground mt-1">{label}</span>

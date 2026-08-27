@@ -61,6 +61,10 @@ import {
   Settings01Icon,
   Logout02Icon,
   UserStar01Icon,
+  MusicNote01Icon,
+  PlayCircleIcon,
+  Download04Icon,
+  File01Icon,
 } from "@hugeicons/core-free-icons";
 
 type IconProps = { className?: string; size?: number; strokeWidth?: number };
@@ -128,6 +132,11 @@ export function Icon({ name, className, size = 22, strokeWidth }: { name: string
     settings01: Settings01Icon,
     logout02: Logout02Icon,
     userIdentifier: UserStar01Icon,
+    // ── Media icons (post cards) ──
+    music: MusicNote01Icon,
+    play: PlayCircleIcon,
+    download: Download04Icon,
+    file: File01Icon,
   };
   const iconData = iconMap[name] || Home02Icon;
   return (
