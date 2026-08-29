@@ -31,16 +31,22 @@ export async function GET(req: Request) {
     where.profile = { ...where.profile, city };
   }
   if (q) {
-    where.OR = [
-      { name: { contains: q } },
-      { profile: { bioShort: { contains: q } } },
-    ];
+    if (q.startsWith("@")) {
+      // مود جستجوی آیدی — فقط نام‌کاربری
+      const uname = q.slice(1).toLowerCase();
+      if (uname) where.username = { contains: uname };
+    } else {
+      where.OR = [
+        { name: { contains: q } },
+        { profile: { bioShort: { contains: q } } },
+      ];
+    }
   }
 
   const users = await db.user.findMany({
     where,
     take: 60,
-    orderBy: sort === "recent" ? { createdAt: "desc" } : { createdAt: "desc" },
+    orderBy: { createdAt: "desc" },
     include: {
       profile: true,
       userCategories: { include: { category: true } },
@@ -51,6 +57,7 @@ export async function GET(req: Request) {
   const result: TalentListItem[] = users.map((u) => ({
     id: u.id,
     name: u.name,
+    username: u.username,
     isVerifiedBadge: u.isVerifiedBadge,
     bioShort: u.profile?.bioShort || "",
     avatarUrl: u.profile?.avatarUrl ?? null,

@@ -48,6 +48,7 @@ export type PostWithRelations = {
 export type TalentListItem = {
   id: string;
   name: string;
+  username?: string | null;
   isVerifiedBadge: boolean;
   bioShort: string;
   avatarUrl: string | null;
