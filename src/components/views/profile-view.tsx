@@ -22,13 +22,14 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { PostCard } from "@/components/shared/post-card";
 import { Icon } from "@/components/shared/icon";
 import { ComposerSheet } from "@/components/composer";
+import { PortfolioTab } from "@/components/portfolio/portfolio-tab";
 import { AboutTab, ResumeTab, shadeColor } from "@/components/views/profile-tabs";
 import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, formatFaDate } from "@/lib/format";
 import { getProvinceName } from "@/lib/geo";
 import { cn } from "@/lib/utils";
 
-type Tab = "about" | "resume" | "posts";
+type Tab = "about" | "resume" | "posts" | "portfolio";
 
 export function ProfileView({ id }: { id: string }) {
   const { user: me } = useUser();
@@ -229,6 +230,7 @@ export function ProfileView({ id }: { id: string }) {
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "about", label: "درباره" },
+    { key: "portfolio", label: "نمونه کارها" },
     { key: "resume", label: "رزومه", count: (profile.experiences?.length || 0) + (profile.educations?.length || 0) },
     { key: "posts", label: "پست‌ها", count: profile.postCount },
   ];
@@ -434,6 +436,11 @@ export function ProfileView({ id }: { id: string }) {
           <AnimatePresence mode="wait">
             {tab === "about" && (
               <TabPane key="about"><AboutTab profile={profile} catColorMap={catColorMap} /></TabPane>
+            )}
+            {tab === "portfolio" && (
+              <TabPane key="portfolio">
+                <PortfolioTab userId={profile.userId} isSelf={isSelf} />
+              </TabPane>
             )}
             {tab === "resume" && (
               <TabPane key="resume"><ResumeTab profile={profile} isSelf={isSelf} userId={profile.userId} /></TabPane>
