@@ -25,6 +25,7 @@ import { SearchableSelect } from "@/components/shared/searchable-select";
 import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, timeAgoFa, formatFaDate } from "@/lib/format";
+import { ComposerTrigger, ComposerSheet, type ComposerTab } from "@/components/composer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { CategoryWithSkills } from "@/lib/types";
@@ -234,6 +235,10 @@ export function ExploreView() {
     null
   );
 
+  // Composer (فاز ۵)
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerTab, setComposerTab] = useState<ComposerTab | undefined>(undefined);
+
   useEffect(() => {
     api<{ categories: CategoryWithSkills[] }>("/api/categories")
       .then((d) => setCats(d.categories))
@@ -314,6 +319,17 @@ export function ExploreView() {
           </div>
         </div>
       </motion.header>
+
+      {/* ═══ Composer Trigger (فاز ۵) ═══ */}
+      <div className="mb-4">
+        <ComposerTrigger
+          onOpen={() => setComposerOpen(true)}
+          onOpenTab={(t) => {
+            setComposerTab(t);
+            setComposerOpen(true);
+          }}
+        />
+      </div>
 
       {/* ═══ Filters ═══ */}
       <motion.div
@@ -409,6 +425,14 @@ export function ExploreView() {
           />
         )}
       </AnimatePresence>
+
+      {/* ═══ Composer Sheet (فاز ۵) ═══ */}
+      <ComposerSheet
+        open={composerOpen}
+        onClose={() => setComposerOpen(false)}
+        onPosted={() => setComposerTab(undefined)}
+        initialTab={composerTab}
+      />
     </div>
   );
 }

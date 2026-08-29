@@ -29,15 +29,17 @@ export async function POST(req: Request) {
           "text/plain", "text/csv"],
   };
 
-  const validType = allowedTypes[type]?.some((t) => file.type === t) || allowedTypes.doc.includes(file.type);
+  // نوع نهایی ممکن است از MIME فایل استنباط شود
+  let finalType = type in allowedTypes ? type : "doc";
+  const validType = allowedTypes[finalType]?.some((t) => file.type === t) || allowedTypes.doc.includes(file.type);
   if (!validType) {
-    // Try to infer type from mime
-    if (file.type.startsWith("image/")) type = "image";
-    else if (file.type.startsWith("video/")) type = "video";
-    else if (file.type.startsWith("audio/")) type = "audio";
-    else if (file.type.startsWith("text/") || file.type.includes("pdf") || file.type.includes("document"))
-      type = "doc";
-    else return NextResponse.json({ error: `فرمت فایل (${file.type}) مجاز نیست` }, { status: 400 });
+    // استنباط نوع از MIME فایل
+    if (file.type.startsWith("image/")) finalType = "image";
+    else if (file.type.startsWith("video/")) finalType = "video";
+    else if (file.type.startsWith("audio/")) finalType = "audio";
+    else if (file.type.startsWith("text/") || file.type.includes("pdf") || file.type.includes("document") || file.type.includes("sheet") || file.type.includes("presentation"))
+      finalType = "doc";
+    else return NextResponse.json({ error: `فرمت فایل (${file.type || "نامشخص"}) مجاز نیست` }, { status: 400 });
   }
 
   // Size limits
@@ -49,7 +51,7 @@ export async function POST(req: Request) {
   };
   const actualType = file.type.startsWith("image/") ? "image" :
                      file.type.startsWith("video/") ? "video" :
-                     file.type.startsWith("audio/") ? "audio" : "doc";
+                     file.type.startsWith("audio/") ? "audio" : finalType;
   if (file.size > maxSizes[actualType]) {
     return NextResponse.json({ error: `حجم فایل باید کمتر از ${maxSizes[actualType] / 1024 / 1024}MB باشد` }, { status: 400 });
   }
