@@ -160,6 +160,14 @@ async function run() {
   const catCount = await db.category.count();
   const userCount = await db.user.count();
 
+  // ترمیم پرچم‌ها/نام‌کاربری کاربران دمو حتی وقتی seed کامل skip شود
+  for (const u of USERS) {
+    await db.user.update({
+      where: { phone: u.phone },
+      data: { username: u.username, name: u.name, isVerifiedBadge: !!u.verified, isTopTalent: !!u.top },
+    }).catch(() => {});
+  }
+
   if (catCount > 0 && userCount > 1) {
     console.log(`DB already seeded (${catCount} cats, ${userCount} users) — skipping.`);
     await db.$disconnect();
@@ -201,7 +209,12 @@ async function run() {
         isVerifiedBadge: !!u.verified,
         isTopTalent: !!u.top,
       },
-      update: {},
+      update: {
+        username: u.username,
+        name: u.name,
+        isVerifiedBadge: !!u.verified,
+        isTopTalent: !!u.top,
+      },
     });
     await db.profile.upsert({
       where: { userId: user.id },
