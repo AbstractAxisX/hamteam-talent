@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-export type Route =
+type RouteBase =
   | { view: "feed" }
   | { view: "dashboard" }
   | { view: "explore" }
@@ -28,31 +28,31 @@ export type Route =
   | { view: "admin" }
   | { view: "auth" };
 
-function parseHash(): Route {
-  if (typeof window === "undefined") return { view: "feed" };
-  const hash = window.location.hash.replace(/^#\/?/, "");
-  const [path, ...rest] = hash.split("/");
+/** مسیر + پارامترهای اختیاری query داخل هش (مثل #/discover?cat=x) */
+export type Route = RouteBase & { params?: Record<string, string> };
+
+function parseBase(path: string, rest: string[]): RouteBase {
   switch (path) {
+    case "post": return { view: "post", id: rest[0] || "" };
+    case "discover": return { view: "discover" };
+    case "profile": return { view: "profile", id: rest[0] || "" };
+    case "category": return { view: "category", id: rest[0] || "" };
+    case "need": return { view: "need", id: rest[0] || "" };
+    case "chat": return { view: "chat", conversationId: rest[0] };
+    case "ticket": return { view: "ticket", id: rest[0] || "" };
     case "feed": return { view: "feed" };
     case "dashboard": return { view: "dashboard" };
     case "explore": return { view: "explore" };
-    case "post": return { view: "post", id: rest[0] || "" };
-    case "discover": return { view: "discover" };
     case "following": return { view: "following" };
     case "talents": return { view: "talents" };
     case "needs": return { view: "needs" };
-    case "need": return { view: "need", id: rest[0] || "" };
     case "create-need": return { view: "create-need" };
     case "my-needs": return { view: "my-needs" };
-    case "category": return { view: "category", id: rest[0] || "" };
-    case "profile": return { view: "profile", id: rest[0] || "" };
     case "my-profile": return { view: "my-profile" };
     case "edit-profile": return { view: "edit-profile" };
     case "connections": return { view: "connections" };
-    case "chat": return { view: "chat", conversationId: rest[0] };
     case "notifications": return { view: "notifications" };
     case "tickets": return { view: "tickets" };
-    case "ticket": return { view: "ticket", id: rest[0] || "" };
     case "settings": return { view: "settings" };
     case "onboarding": return { view: "onboarding" };
     case "admin": return { view: "admin" };
@@ -61,16 +61,38 @@ function parseHash(): Route {
   }
 }
 
+function parseHash(): Route {
+  if (typeof window === "undefined") return { view: "feed" };
+  const raw = window.location.hash.replace(/^#\/?/, "");
+  // تفکیک مسیر از query داخل هش — پیش از این #/discover?cat=x به feed سقوط می‌کرد
+  const qIdx = raw.indexOf("?");
+  const qs = qIdx >= 0 ? raw.slice(qIdx + 1) : "";
+  const pathPart = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+  const params: Record<string, string> = {};
+  new URLSearchParams(qs).forEach((v, k) => {
+    if (v) params[k] = v;
+  });
+  const [path, ...rest] = pathPart.split("/");
+  const base = parseBase(path, rest);
+  return Object.keys(params).length > 0 ? { ...base, params } : base;
+}
+
 function routeToHash(r: Route): string {
+  let base: string;
   switch (r.view) {
-    case "profile": return `#/profile/${r.id}`;
-    case "category": return `#/category/${r.id}`;
-    case "need": return `#/need/${r.id}`;
-    case "post": return `#/post/${r.id}`;
-    case "chat": return r.conversationId ? `#/chat/${r.conversationId}` : "#/chat";
-    case "ticket": return `#/ticket/${r.id}`;
-    default: return `#/${r.view}`;
+    case "profile": base = `#/profile/${r.id}`; break;
+    case "category": base = `#/category/${r.id}`; break;
+    case "need": base = `#/need/${r.id}`; break;
+    case "post": base = `#/post/${r.id}`; break;
+    case "chat": base = r.conversationId ? `#/chat/${r.conversationId}` : "#/chat"; break;
+    case "ticket": base = `#/ticket/${r.id}`; break;
+    default: base = `#/${r.view}`; break;
   }
+  if (r.params && Object.keys(r.params).length > 0) {
+    const qs = new URLSearchParams(r.params).toString();
+    return `${base}?${qs}`;
+  }
+  return base;
 }
 
 interface NavState {

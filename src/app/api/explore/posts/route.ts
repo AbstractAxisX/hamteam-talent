@@ -28,10 +28,19 @@ export async function GET(req: Request) {
       category: true,
       skill: true,
       media: true,
-      _count: { select: { likes: true, comments: true } },
+      _count: { select: { likes: true, comments: true, ratings: true } },
       likes: me ? { where: { userId: me.id }, select: { id: true } } : false,
+      ratings: me ? { where: { userId: me.id }, select: { score: true } } : false,
     },
   });
+
+  // میانگین امتیازها در یک groupBy (منبع حقیقت: سرور)
+  const ratingAgg = await db.postRating.groupBy({
+    by: ["postId"],
+    where: { postId: { in: posts.map((p) => p.id) } },
+    _avg: { score: true },
+  });
+  const avgByPost = new Map(ratingAgg.map((r) => [r.postId, r._avg.score ?? 0]));
 
   const result = posts.map((p) => ({
     id: p.id,
@@ -46,6 +55,9 @@ export async function GET(req: Request) {
     likeCount: p._count.likes,
     commentCount: p._count.comments,
     likedByMe: Array.isArray(p.likes) ? p.likes.length > 0 : false,
+    ratingAvg: Math.round((avgByPost.get(p.id) ?? 0) * 10) / 10,
+    ratingCount: p._count.ratings,
+    myRating: Array.isArray(p.ratings) && p.ratings.length > 0 ? p.ratings[0].score : null,
     media: p.media.map((m) => ({ id: m.id, url: m.url, type: m.type, fileName: m.fileName, fileSize: m.fileSize })),
     user: {
       id: p.user.id,

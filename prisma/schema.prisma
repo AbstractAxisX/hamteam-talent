@@ -40,6 +40,9 @@ model User {
   jobPosts        JobPost[]
   jobApplications JobApplication[]
   topTalentRequests TopTalentRequest[]
+  ratings         PostRating[]
+  portfolioItems  PortfolioItem[]
+  portfolioLikes  PortfolioLike[]
 }
 
 // ─── Admin (separate auth, username+password) ──────────────────
@@ -83,6 +86,7 @@ model Category {
   posts     Post[]
   userCats  UserCategory[]
   jobPosts  JobPost[]
+  portfolioItems PortfolioItem[]
 }
 
 model Skill {
@@ -95,6 +99,7 @@ model Skill {
   posts      Post[]
   userSkills UserSkill[]
   jobPostSkills JobPostSkill[]
+  portfolioItems PortfolioItem[]
 
   @@unique([categoryId, name])
 }
@@ -174,6 +179,7 @@ model Post {
   media      PostMedia[]
   likes      PostLike[]
   comments   Comment[]
+  ratings    PostRating[]
 
   @@index([userId])
   @@index([createdAt])
@@ -191,6 +197,67 @@ model PostMedia {
   fileSize  Int      @default(0)
   order     Int      @default(0)
   createdAt DateTime @default(now())
+}
+
+/* ─── امتیازدهی پست‌های استعدادهای برتر (۱ تا ۱۰، یکتا per کاربر/پست) ─── */
+model PostRating {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score     Int      // 1..10
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+/* ─── نمونه کارها (بدون کامنت، با لایک) ─── */
+model PortfolioItem {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String    @default("")
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  skillId     String?
+  skill       Skill?    @relation(fields: [skillId], references: [id])
+  createdAt   DateTime  @default(now())
+
+  media      PortfolioMedia[]
+  likes      PortfolioLike[]
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model PortfolioMedia {
+  id        String        @id @default(cuid())
+  itemId    String
+  item      PortfolioItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  url       String
+  type      String        // "image" | "video" | "audio" | "doc"
+  fileName  String?
+  fileSize  Int           @default(0)
+  order     Int           @default(0)
+  createdAt DateTime      @default(now())
+
+  @@index([itemId])
+}
+
+model PortfolioLike {
+  id        String        @id @default(cuid())
+  itemId    String
+  item      PortfolioItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([itemId, userId])
+  @@index([itemId])
 }
 
 model PostLike {

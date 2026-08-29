@@ -65,6 +65,8 @@ import {
   PlayCircleIcon,
   Download04Icon,
   File01Icon,
+  PauseIcon,
+  FilterIcon,
 } from "@hugeicons/core-free-icons";
 
 type IconProps = { className?: string; size?: number; strokeWidth?: number };
@@ -137,6 +139,8 @@ export function Icon({ name, className, size = 22, strokeWidth }: { name: string
     play: PlayCircleIcon,
     download: Download04Icon,
     file: File01Icon,
+    pause: PauseIcon,
+    filter: FilterIcon,
   };
   const iconData = iconMap[name] || Home02Icon;
   return (
