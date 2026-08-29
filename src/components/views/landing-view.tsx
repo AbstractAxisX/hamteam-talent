@@ -41,6 +41,17 @@ const TOP_TALENT_CONDITIONS = [
 
 const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 
+/* hex + آلفا → رنگ شفاف برای ته‌رنگ کارت‌های دسته‌بندی */
+function hexA(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const full = h.length === 3 ? h.split("").map((x) => x + x).join("") : h;
+  const n = parseInt(full, 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 export function LandingView() {
   const [cats, setCats] = useState<CategoryWithSkills[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
@@ -167,7 +178,7 @@ export function LandingView() {
         </div>
       </section>
 
-      {/* ══════ CATEGORY PILLS — horizontal chip row ══════ */}
+      {/* ══════ CATEGORY GRID — کارت‌های مربعی شبکه‌ای ══════ */}
       <section className="py-8 md:py-12">
         <div className="flex items-end justify-between mb-5">
           <div>
@@ -184,27 +195,47 @@ export function LandingView() {
         </div>
 
         {loadingCats ? (
-          <div className="flex gap-2.5 overflow-hidden">
-            {[...Array(7)].map((_, i) => (
-              <Skeleton key={i} className="shrink-0 w-28 h-11 rounded-full" />
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 md:gap-3.5">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="aspect-square rounded-3xl" />
             ))}
           </div>
         ) : cats.length === 0 ? null : (
-          <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-4 px-4 pb-2">
-            {cats.slice(0, 12).map((c, i) => (
-              <motion.button
-                key={c.id}
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ delay: Math.min(i * 0.04, 0.4), ease: [0.16, 1, 0.3, 1] }}
-                whileTap={{ scale: 0.96 }}
-                onClick={() => navigate({ view: "category", id: c.id })}
-                className="shrink-0 inline-flex items-center gap-2 h-11 px-5 rounded-full glass border border-border/60 hover:border-primary/50 hover:bg-primary/8 transition-colors"
-              >
-                <span className="text-xl leading-none">{c.iconUrl || "✨"}</span>
-                <span className="text-sm font-bold text-foreground whitespace-nowrap">{c.name}</span>
-              </motion.button>
-            ))}
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 md:gap-3.5">
+            {cats.slice(0, 12).map((c, i) => {
+              const tint = c.color || "#067647";
+              return (
+                <motion.button
+                  key={c.id}
+                  initial={{ opacity: 0, y: 14, scale: 0.94 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: Math.min(i * 0.045, 0.45), ease: [0.16, 1, 0.3, 1] }}
+                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ y: -3 }}
+                  onClick={() => navigate({ view: "category", id: c.id })}
+                  className="group aspect-square rounded-3xl glass border border-border/60
+                             flex flex-col items-center justify-center gap-1.5 px-1.5 text-center
+                             hover:border-primary/45 hover:shadow-soft transition-[border-color,box-shadow] duration-200"
+                  style={{ ["--cat-tint" as string]: tint }}
+                >
+                  {/* کاشی ایموجی با ته‌رنگِ دسته */}
+                  <span
+                    className="grid place-items-center size-12 md:size-14 rounded-2xl text-2xl md:text-[26px]
+                               transition-transform duration-200 group-hover:scale-105"
+                    style={{ backgroundColor: hexA(tint, 0.14), boxShadow: `inset 0 0 0 1px ${hexA(tint, 0.22)}` }}
+                    aria-hidden
+                  >
+                    {c.iconUrl || "✨"}
+                  </span>
+                  <span className="text-[12.5px] md:text-[13.5px] font-black text-foreground leading-tight line-clamp-2">
+                    {c.name}
+                  </span>
+                  <span className="text-[10.5px] md:text-[11px] font-bold text-muted-foreground nums-fa leading-none">
+                    {toFa(c.skills.length)} مهارت
+                  </span>
+                </motion.button>
+              );
+            })}
           </div>
         )}
       </section>
