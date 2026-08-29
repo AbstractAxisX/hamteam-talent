@@ -1882,7 +1882,7 @@ function CommentSheet({
         </div>
 
         {/* Input */}
-        <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-[calc(12px+env(safe-area-inset-bottom))] border-t border-border bg-card">
+        <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-[calc(14px+env(safe-area-inset-bottom,0px))] border-t border-border bg-card">
           {me ? (
             <UserAvatar
               name={me.name}

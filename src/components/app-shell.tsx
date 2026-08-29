@@ -248,7 +248,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
       )}
 
       {/* ═══ Main content ═══ */}
-      <main ref={mainRef} className="relative z-10 flex-1 w-full">
+      <main ref={mainRef} className="relative flex-1 w-full">
         <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-4 md:pt-24 pb-28 md:pb-12">
           <AnimatePresence mode="wait">
             <motion.div
@@ -504,7 +504,9 @@ function MobileTabBar({
         className="md:hidden fixed z-40 inset-x-3"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)" }}
       >
-        <div className="glass-strong rounded-[26px] border border-border/50 shadow-float overflow-hidden">
+        {/* داکِ شیشه‌ای مایع — بدون z-index روی main تا شیت‌ها (z-70+) روی آن قرار گیرند
+            (کلاس‌های backdrop-* خودِ Tailwind چون unprefixed کامپایل می‌شوند، در همه‌ی مرورگرها بلور واقعی می‌دهند) */}
+        <div className="glass-liquid backdrop-blur-[28px] backdrop-saturate-200 backdrop-brightness-105 rounded-[26px] overflow-hidden">
         <div className="grid grid-cols-5 h-[64px]">
           {tabs.map((tab) => {
             const active = isActive(tab.key);

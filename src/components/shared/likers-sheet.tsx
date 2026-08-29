@@ -147,7 +147,7 @@ export function LikersSheet({
             </div>
 
             {/* لیست */}
-            <div className="flex-1 overflow-y-auto overscroll-contain px-2.5 py-2.5">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-2.5 pt-2.5 pb-[calc(14px+env(safe-area-inset-bottom,0px))]">
               {state === "loading" ? (
                 <div className="space-y-2 px-1.5">
                   {Array.from({ length: 6 }).map((_, i) => (

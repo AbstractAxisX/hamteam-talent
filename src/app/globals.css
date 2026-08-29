@@ -262,6 +262,37 @@
   .dark .glass-strong {
     background-color: rgba(12, 29, 21, 0.92);
   }
+  /* ─── شیشه‌ی مایع (Liquid Glass) — داکِ پایین و سطوح شناور اصلی ───
+     شفافیت واقعی + بلورِ اشباع + لبه‌ی نورِ داخلی = حس مایع */
+  .glass-liquid {
+    position: relative;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.58) 0%,
+      rgba(255, 255, 255, 0.38) 42%,
+      rgba(255, 255, 255, 0.52) 100%
+    );
+    backdrop-filter: blur(28px) saturate(200%) brightness(1.06);
+    -webkit-backdrop-filter: blur(28px) saturate(200%) brightness(1.06);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.65),
+      inset 0 -1px 1px rgba(255, 255, 255, 0.18),
+      0 14px 38px rgba(6, 60, 38, 0.2);
+  }
+  .dark .glass-liquid {
+    background: linear-gradient(
+      135deg,
+      rgba(22, 48, 35, 0.6) 0%,
+      rgba(10, 28, 19, 0.44) 42%,
+      rgba(18, 42, 30, 0.55) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.14),
+      inset 0 -1px 1px rgba(255, 255, 255, 0.05),
+      0 14px 38px rgba(0, 0, 0, 0.5);
+  }
   .glass-dark-chip {
     background-color: rgba(4, 18, 12, 0.55);
     backdrop-filter: blur(6px);
@@ -282,11 +313,14 @@
     color: transparent;
   }
 
-  /* ─── پس‌زمینه‌ی زنده‌ی aurora (فقط transform — سازگار با ۶۰fps) ─── */
+  /* ─── پس‌زمینه‌ی زنده‌ی aurora (فقط transform — سازگار با ۶۰fps) ───
+     z منفی: محتوا بدون نیاز به z-index روی main همیشه بالای aurora می‌ماند؛
+     در نتیجه main بدون stacking-context می‌ماند و شیت‌های fixed (z-70+) از زیر
+     داکِ z-40 بیرون می‌آیند و دیگر زیر منوی پایین گیر نمی‌کنند. */
   .aurora {
     position: fixed;
     inset: 0;
-    z-index: 0;
+    z-index: -1;
     pointer-events: none;
     overflow: hidden;
   }

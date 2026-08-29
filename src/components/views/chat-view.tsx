@@ -505,7 +505,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   /* ── Not logged in ── */
   if (!userLoading && !user) {
     return (
-      <div className="fixed inset-0 z-50 lg:static lg:z-auto bg-background flex items-center justify-center p-6 pt-safe pb-safe">
+      <div className="fixed inset-0 z-30 lg:static lg:z-auto bg-background flex items-center justify-center p-6 pt-safe pb-safe">
         <EmptyState
           kind="chat"
           title="برای چت کردن وارد شوید"
@@ -552,7 +552,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   return (
     <div
       className={cn(
-        "fixed inset-0 z-50 bg-background flex flex-col pt-safe pb-safe",
+        "fixed inset-0 z-30 bg-background flex flex-col pt-safe pb-safe",
         "lg:static lg:z-auto lg:inset-auto lg:bg-transparent lg:p-0",
         "lg:grid lg:grid-cols-[360px_1fr] lg:gap-4 lg:h-[calc(100vh-5rem)]"
       )}
