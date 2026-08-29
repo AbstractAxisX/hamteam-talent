@@ -211,7 +211,9 @@ export function PortfolioTab({ userId, isSelf }: { userId: string; isSelf: boole
           whileTap={{ scale: 0.9 }}
           onClick={() => setFabOpen(true)}
           aria-label="افزودن نمونه کار جدید"
-          className="fixed bottom-24 left-4 z-40 h-14 pl-4 pr-5 rounded-full grad-brand text-white shadow-glow
+          /* بالای دکمه‌ی چت (۸۰ + ۵۶ + ۱۲) تا روی آن نیفتد */
+          className="fixed left-4 z-40 bottom-[calc(env(safe-area-inset-bottom,0px)+148px)] md:bottom-24
+                     h-14 pl-4 pr-5 rounded-full grad-brand text-white shadow-glow
                      inline-flex items-center gap-2 font-extrabold text-[13px] outline-none safe-b"
         >
           <Icon name="plus" size={20} />
