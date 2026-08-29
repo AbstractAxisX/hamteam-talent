@@ -4,9 +4,11 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { apiPost } from "@/lib/api-client";
 import { navigate } from "@/lib/nav";
+import { useUser } from "@/lib/use-user";
 import type { PostWithRelations } from "@/lib/types";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Icon } from "@/components/shared/icon";
+import { LikersSheet, postLikersFetcher } from "@/components/shared/likers-sheet";
 import { toast } from "@/hooks/use-toast";
 import { timeAgoFa, formatCount, formatFaDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -72,16 +74,24 @@ function MediaBlock({ media }: { media: { id: string; url: string; type: string 
 }
 
 export function PostCard({ post, index = 0 }: { post: PostWithRelations; index?: number }) {
+  const { user } = useUser();
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [liking, setLiking] = useState(false);
   const [likeBounce, setLikeBounce] = useState(false);
+  const [likersOpen, setLikersOpen] = useState(false);
 
   function openDetail() {
-    navigate({ view: "post", id: post.id });
+    // مبدأ پروفایل — در صفحه جزئیات، تعامل لایک (نه امتیاز) فعال می‌شود
+    navigate({ view: "post", id: post.id, params: { from: "profile" } });
   }
 
   async function toggleLike() {
+    if (!user) {
+      toast({ title: "برای لایک ابتدا وارد شو" });
+      navigate({ view: "auth" });
+      return;
+    }
     const wasLiked = liked;
     setLiked(!wasLiked);
     setLikeCount((c) => c + (wasLiked ? -1 : 1));
@@ -175,34 +185,44 @@ export function PostCard({ post, index = 0 }: { post: PostWithRelations; index?:
         {/* Media */}
         <MediaBlock media={post.media} />
 
-        {/* Actions — قرصی با فنر */}
+        {/* Actions — قرصی با فنر؛ عدد لایک → شیت لایک‌کنندگان */}
         <div className="flex gap-2 px-3 pb-3 pt-1.5">
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 500, damping: 22 }}
-            onClick={toggleLike}
-            disabled={liking}
+          <div
             className={cn(
-              "flex-1 h-10 rounded-full flex items-center justify-center gap-2 text-[12.5px] font-extrabold border transition-colors",
+              "flex-1 h-10 rounded-full flex items-center justify-center gap-1 border transition-colors overflow-hidden",
               liked
                 ? "text-white bg-rose border-rose shadow-[0_6px_18px_rgba(225,29,72,0.35)]"
-                : "text-muted-foreground bg-card border-border hover:bg-muted/70 hover:text-rose"
+                : "text-muted-foreground bg-card border-border"
             )}
-            aria-label="پسندیدن"
           >
-            <motion.span
-              animate={likeBounce ? { scale: [1, 1.5, 0.85, 1.2, 1] } : { scale: 1 }}
-              transition={{ duration: 0.6 }}
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              transition={{ type: "spring", stiffness: 500, damping: 22 }}
+              onClick={toggleLike}
+              disabled={liking}
+              className="h-full px-2.5 grid place-items-center shrink-0 outline-none"
+              aria-label="پسندیدن"
             >
-              <Icon
-                name="heart"
-                size={17}
-                className={liked ? "fill-white text-white" : ""}
-                strokeWidth={2}
-              />
-            </motion.span>
-            <span className="tabular-nums">{formatCount(likeCount)}</span>
-          </motion.button>
+              <motion.span
+                animate={likeBounce ? { scale: [1, 1.5, 0.85, 1.2, 1] } : { scale: 1 }}
+                transition={{ duration: 0.6 }}
+              >
+                <Icon
+                  name="heart"
+                  size={17}
+                  className={liked ? "fill-white text-white" : ""}
+                  strokeWidth={2}
+                />
+              </motion.span>
+            </motion.button>
+            <button
+              onClick={() => setLikersOpen(true)}
+              className="h-full flex-1 min-w-0 grid place-items-center text-[12.5px] font-extrabold hover:bg-black/5 dark:hover:bg-white/5 transition-colors outline-none rounded-l-full"
+              aria-label="مشاهده لایک‌کنندگان"
+            >
+              <span className="tabular-nums">{formatCount(likeCount)}</span>
+            </button>
+          </div>
 
           <motion.button
             whileTap={{ scale: 0.9 }}
@@ -231,6 +251,16 @@ export function PostCard({ post, index = 0 }: { post: PostWithRelations; index?:
           {formatFaDate(post.createdAt)}
         </div>
       </article>
+
+      {/* شیت لایک‌کنندگان پست */}
+      <LikersSheet
+        open={likersOpen}
+        onClose={() => setLikersOpen(false)}
+        title="لایک‌کنندگان پست"
+        fetcher={postLikersFetcher(post.id)}
+        emptyTitle="هنوز لایکی نیست"
+        emptyDesc="اولین لایک را تو بزن!"
+      />
     </motion.div>
   );
 }

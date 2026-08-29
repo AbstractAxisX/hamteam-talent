@@ -26,6 +26,8 @@ import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, timeAgoFa, formatFaDate } from "@/lib/format";
 import { ComposerTrigger, ComposerSheet, type ComposerTab } from "@/components/composer";
+import { RatingModal, RatingSummary } from "@/components/shared/rating-control";
+import { LikersSheet, commentLikersFetcher, postLikersFetcher } from "@/components/shared/likers-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { CategoryWithSkills } from "@/lib/types";
@@ -57,6 +59,9 @@ type ExplorePost = {
   likeCount: number;
   commentCount: number;
   likedByMe: boolean;
+  ratingAvg?: number;
+  ratingCount?: number;
+  myRating?: number | null;
   media: PostMedia[];
   user: {
     id: string;
@@ -486,15 +491,15 @@ function PostCard({
   index: number;
   onOpenComments: (post: ExplorePost) => void;
 }) {
-  const { user: me } = useUser();
   const catColor = post.categoryColor || "oklch(0.55 0.13 160)";
   const ringColor = post.user.mainCategoryColor || catColor;
 
   const [expanded, setExpanded] = useState(false);
-  const [liked, setLiked] = useState(post.likedByMe);
-  const [likeCount, setLikeCount] = useState(post.likeCount);
-  const [liking, setLiking] = useState(false);
-  const [likeBounce, setLikeBounce] = useState(false);
+  // امتیازدهی (لایک در استعدادهای برتر حذف شد)
+  const [ratingOpen, setRatingOpen] = useState(false);
+  const [avg, setAvg] = useState(post.ratingAvg ?? 0);
+  const [ratingCount, setRatingCount] = useState(post.ratingCount ?? 0);
+  const [myScore, setMyScore] = useState<number | null>(post.myRating ?? null);
   const [burst, setBurst] = useState<{ x: number; y: number; key: number } | null>(
     null
   );
@@ -511,42 +516,11 @@ function PostCard({
 
   const isLong = post.content.length > 220;
 
-  async function toggleLike(opts?: { fromDoubleTap?: boolean }) {
-    if (!me) {
-      toast({ title: "برای لایک کردن وارد شوید" });
-      navigate({ view: "auth" });
-      return;
-    }
-    if (opts?.fromDoubleTap && liked) return; // double-tap doesn't unlike
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikeCount((c) => c + (wasLiked ? -1 : 1));
-    if (!wasLiked) {
-      setLikeBounce(true);
-      setTimeout(() => setLikeBounce(false), 600);
-    }
-    setLiking(true);
-    try {
-      await apiPost(`/api/posts/${post.id}/like`);
-    } catch (e) {
-      setLiked(wasLiked);
-      setLikeCount((c) => c + (wasLiked ? 1 : -1));
-      toast({
-        title: "خطا",
-        description: (e as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setLiking(false);
-    }
-  }
-
   function onSlideTap(e: React.MouseEvent, idx: number) {
-    // Double-tap detection on media area
+    // دابل‌تپ روی رسانه → انفجار قلبی + باز شدن مودال امتیاز
     if (tapTimerRef.current) {
       clearTimeout(tapTimerRef.current);
       tapTimerRef.current = null;
-      // double tap → burst + like
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       setBurst({
         x: e.clientX - rect.left,
@@ -554,7 +528,7 @@ function PostCard({
         key: ++burstKeyRef.current,
       });
       setTimeout(() => setBurst(null), 850);
-      void toggleLike({ fromDoubleTap: true });
+      setRatingOpen(true);
     } else {
       tapTimerRef.current = setTimeout(() => {
         tapTimerRef.current = null;
@@ -682,6 +656,13 @@ function PostCard({
         </>
       )}
 
+      {/* ═══ خلاصهٔ امتیاز — میانگین + تعداد رأی، زیر متن پست ═══ */}
+      {(ratingCount > 0 || avg > 0) && (
+        <div className="px-4 pb-1">
+          <RatingSummary avg={avg} count={ratingCount} onClick={() => setRatingOpen(true)} />
+        </div>
+      )}
+
       {/* ═══ Media carousel ═══ */}
       {post.media.length > 0 && (
         <MediaCarousel
@@ -691,33 +672,22 @@ function PostCard({
         />
       )}
 
-      {/* ═══ Action bar — دکمه‌های قرصی با فنر ═══ */}
+      {/* ═══ Action bar — امتیاز + کامنت + اشتراک ═══ */}
       <div className="flex gap-2 px-3 pb-3 pt-2.5">
         <motion.button
           whileTap={{ scale: 0.9 }}
           transition={{ type: "spring", stiffness: 500, damping: 22 }}
-          onClick={() => void toggleLike()}
-          disabled={liking}
+          onClick={() => setRatingOpen(true)}
           className={cn(
             "flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-[12.5px] font-extrabold border transition-colors",
-            liked
-              ? "text-white bg-rose border-rose shadow-[0_6px_18px_rgba(225,29,72,0.35)]"
-              : "text-muted-foreground bg-card border-border hover:bg-muted/70 hover:text-rose"
+            myScore
+              ? "text-white grad-gold border-transparent shadow-glow-gold"
+              : "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20"
           )}
-          aria-label="پسندیدن"
+          aria-label={myScore ? `ویرایش امتیاز ${toFa(myScore)} از ۱۰` : "ثبت امتیاز"}
         >
-          <motion.span
-            animate={likeBounce ? { scale: [1, 1.5, 0.85, 1.2, 1] } : { scale: 1 }}
-            transition={{ duration: 0.6 }}
-          >
-            <Icon
-              name="heart"
-              size={19}
-              className={liked ? "fill-white text-white" : ""}
-              strokeWidth={2}
-            />
-          </motion.span>
-          <span className="tabular-nums">{formatCount(likeCount)}</span>
+          <Icon name="spark" size={19} strokeWidth={2} />
+          <span className="nums-fa">{myScore ? `ویرایش (${toFa(myScore)}/۱۰)` : "ثبت امتیاز"}</span>
         </motion.button>
 
         <motion.button
@@ -742,6 +712,19 @@ function PostCard({
           <span>اشتراک</span>
         </motion.button>
       </div>
+
+      {/* ═══ مودال امتیاز ۱ تا ۱۰ ستاره ═══ */}
+      <RatingModal
+        open={ratingOpen}
+        onClose={() => setRatingOpen(false)}
+        postId={post.id}
+        initialScore={myScore}
+        onSaved={({ avg: a, count: c, myScore: s }) => {
+          setAvg(a);
+          setRatingCount(c);
+          setMyScore(s);
+        }}
+      />
 
       {/* ═══ Lightbox ═══ */}
       <AnimatePresence>
@@ -1974,6 +1957,7 @@ function CommentNode({
   const showReplyInput = replyTargetId === comment.id;
   // Cap visual indentation at depth 4 to avoid excessive nesting
   const indentPx = Math.min(depth, 4) * 14;
+  const [likersOpen, setLikersOpen] = useState(false);
 
   return (
     <motion.div
@@ -2031,16 +2015,34 @@ function CommentNode({
                   ? "text-rose"
                   : "text-muted-foreground hover:text-rose"
               )}
+              aria-label="پسندیدن کامنت"
             >
               <Icon
                 name="heart"
                 size={13}
                 className={liked ? "fill-rose" : ""}
               />
-              {comment.likeCount > 0 && (
-                <span className="tabular-nums">{toFa(comment.likeCount)}</span>
-              )}
             </button>
+            {comment.likeCount > 0 && (
+              <button
+                onClick={() => setLikersOpen(true)}
+                className={cn(
+                  "-mr-3 text-[11px] font-bold tabular-nums transition-colors",
+                  liked ? "text-rose" : "text-muted-foreground hover:text-foreground"
+                )}
+                aria-label="مشاهده لایک‌کنندگان کامنت"
+              >
+                {toFa(comment.likeCount)}
+              </button>
+            )}
+            <LikersSheet
+              open={likersOpen}
+              onClose={() => setLikersOpen(false)}
+              title="لایک‌کنندگان کامنت"
+              fetcher={commentLikersFetcher(comment.id)}
+              emptyTitle="هنوز لایکی نیست"
+              emptyDesc="اولین لایک را تو بزن!"
+            />
             <button
               onClick={() => onReply(comment.id, comment.user.name)}
               className="text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors"
@@ -2187,17 +2189,24 @@ function applyCommentReaction(
    PostDetailView — full post view with inline comments
    ════════════════════════════════════════════════════════════════════ */
 
-export function PostDetailView({ id }: { id: string }) {
+export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: boolean }) {
   const { user: me } = useUser();
   const [post, setPost] = useState<ExplorePost | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Like
+  // لایک (مخصوص دید از پروفایل)
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [liking, setLiking] = useState(false);
   const [likeBounce, setLikeBounce] = useState(false);
+  const [likersOpen, setLikersOpen] = useState(false);
+
+  // امتیاز (مخصوص دید از استعدادهای برتر)
+  const [ratingOpen, setRatingOpen] = useState(false);
+  const [avg, setAvg] = useState(0);
+  const [ratingCount, setRatingCount] = useState(0);
+  const [myScore, setMyScore] = useState<number | null>(null);
 
   // Comments
   const [comments, setComments] = useState<Comment[]>([]);
@@ -2228,6 +2237,9 @@ export function PostDetailView({ id }: { id: string }) {
         setPost(found);
         setLiked(found.likedByMe);
         setLikeCount(found.likeCount);
+        setAvg(found.ratingAvg ?? 0);
+        setRatingCount(found.ratingCount ?? 0);
+        setMyScore(found.myRating ?? null);
         return;
       }
       // ۲) fallback: پست‌های عادی (مثل پست‌های پروفایل) + دسته‌بندی‌ها برای رنگ/آیکون
@@ -2538,6 +2550,13 @@ export function PostDetailView({ id }: { id: string }) {
           </>
         )}
 
+        {/* خلاصهٔ امتیاز — فقط در حالت استعدادهای برتر */}
+        {!fromProfile && (ratingCount > 0 || avg > 0) && (
+          <div className="px-3.5 pb-1">
+            <RatingSummary avg={avg} count={ratingCount} onClick={() => setRatingOpen(true)} />
+          </div>
+        )}
+
         {/* Media */}
         {post.media.length > 0 && (
           <MediaCarousel
@@ -2547,33 +2566,58 @@ export function PostDetailView({ id }: { id: string }) {
           />
         )}
 
-        {/* Actions */}
+        {/* Actions — مبدأ‌آگاه: از پروفایل = لایک، از استعدادهای برتر = امتیاز */}
         <div className="flex gap-2 p-2.5">
-          <motion.button
-            whileTap={{ scale: 0.94 }}
-            onClick={() => void toggleLike()}
-            disabled={liking}
-            className={cn(
-              "flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold transition-colors",
-              liked
-                ? "text-rose bg-rose/10"
-                : "text-muted-foreground bg-muted hover:bg-muted/70"
-            )}
-            aria-label="پسندیدن"
-          >
-            <motion.span
-              animate={likeBounce ? { scale: [1, 1.5, 0.85, 1.2, 1] } : { scale: 1 }}
-              transition={{ duration: 0.6 }}
+          {fromProfile ? (
+            <div
+              className={cn(
+                "flex-1 h-11 rounded-xl flex items-center justify-center gap-1 transition-colors overflow-hidden",
+                liked ? "text-rose bg-rose/10" : "text-muted-foreground bg-muted"
+              )}
             >
-              <Icon
-                name="heart"
-                size={20}
-                className={liked ? "fill-rose text-rose" : ""}
-                strokeWidth={2}
-              />
-            </motion.span>
-            <span className="tabular-nums">{formatCount(likeCount)}</span>
-          </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.85 }}
+                onClick={() => void toggleLike()}
+                disabled={liking}
+                className="h-full px-3 grid place-items-center shrink-0 outline-none"
+                aria-label="پسندیدن"
+              >
+                <motion.span
+                  animate={likeBounce ? { scale: [1, 1.5, 0.85, 1.2, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.6 }}
+                >
+                  <Icon
+                    name="heart"
+                    size={20}
+                    className={liked ? "fill-rose text-rose" : ""}
+                    strokeWidth={2}
+                  />
+                </motion.span>
+              </motion.button>
+              <button
+                onClick={() => setLikersOpen(true)}
+                className="h-full flex-1 min-w-0 grid place-items-center text-[12.5px] font-extrabold tabular-nums hover:bg-black/5 dark:hover:bg-white/10 transition-colors outline-none rounded-l-xl"
+                aria-label="مشاهده لایک‌کنندگان"
+              >
+                {formatCount(likeCount)}
+              </button>
+            </div>
+          ) : (
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              onClick={() => setRatingOpen(true)}
+              className={cn(
+                "flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold transition-colors",
+                myScore
+                  ? "text-white grad-gold shadow-glow-gold"
+                  : "text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20"
+              )}
+              aria-label={myScore ? "ویرایش امتیاز" : "ثبت امتیاز"}
+            >
+              <Icon name="spark" size={20} strokeWidth={2} />
+              <span className="nums-fa">{myScore ? `ویرایش (${toFa(myScore)}/۱۰)` : "ثبت امتیاز"}</span>
+            </motion.button>
+          )}
           <div className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold text-muted-foreground bg-muted">
             <Icon name="comment" size={20} strokeWidth={2} />
             <span className="tabular-nums">{formatCount(post.commentCount)}</span>
@@ -2588,6 +2632,33 @@ export function PostDetailView({ id }: { id: string }) {
             <span>اشتراک</span>
           </motion.button>
         </div>
+
+        {/* مودال امتیاز (فقط حالت استعدادهای برتر) */}
+        {!fromProfile && (
+          <RatingModal
+            open={ratingOpen}
+            onClose={() => setRatingOpen(false)}
+            postId={id}
+            initialScore={myScore}
+            onSaved={({ avg: a, count: c, myScore: s }) => {
+              setAvg(a);
+              setRatingCount(c);
+              setMyScore(s);
+            }}
+          />
+        )}
+
+        {/* شیت لایک‌کنندگان (فقط حالت پروفایل) */}
+        {fromProfile && (
+          <LikersSheet
+            open={likersOpen}
+            onClose={() => setLikersOpen(false)}
+            title="لایک‌کنندگان پست"
+            fetcher={postLikersFetcher(id)}
+            emptyTitle="هنوز لایکی نیست"
+            emptyDesc="اولین لایک را تو بزن!"
+          />
+        )}
       </motion.article>
 
       {/* Inline comments */}

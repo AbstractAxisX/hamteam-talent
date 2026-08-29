@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Icon } from "@/components/shared/icon";
+import { LikersSheet, postLikersFetcher } from "@/components/shared/likers-sheet";
 import { toFa, formatCount, formatFaDate, timeAgoFa } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { apiPost } from "@/lib/api-client";
@@ -273,6 +274,7 @@ function TimelinePost({ post, index }: { post: PostWithRelations; index: number 
   const [liked, setLiked] = useState(post.likedByMe);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [liking, setLiking] = useState(false);
+  const [likersOpen, setLikersOpen] = useState(false);
 
   async function toggleLike() {
     const wasLiked = liked;
@@ -355,6 +357,7 @@ function TimelinePost({ post, index }: { post: PostWithRelations; index: number 
             onClick={(e) => { e.stopPropagation(); toggleLike(); }}
             disabled={liking}
             className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-rose transition-colors"
+            aria-label="پسندیدن"
           >
             <Icon
               name="heart"
@@ -362,10 +365,24 @@ function TimelinePost({ post, index }: { post: PostWithRelations; index: number 
               strokeWidth={liked ? 2.6 : 2.2}
               className={liked ? "text-rose fill-rose" : "text-muted-foreground"}
             />
-            <span className={liked ? "text-rose" : ""}>{formatCount(likeCount)}</span>
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); navigate({ view: "post", id: post.id }); }}
+            onClick={(e) => { e.stopPropagation(); setLikersOpen(true); }}
+            className={cn("text-xs font-bold transition-colors", liked ? "text-rose" : "text-muted-foreground hover:text-foreground")}
+            aria-label="مشاهده لایک‌کنندگان"
+          >
+            {formatCount(likeCount)}
+          </button>
+          <LikersSheet
+            open={likersOpen}
+            onClose={() => setLikersOpen(false)}
+            title="لایک‌کنندگان پست"
+            fetcher={postLikersFetcher(post.id)}
+            emptyTitle="هنوز لایکی نیست"
+            emptyDesc="اولین لایک را تو بزن!"
+          />
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate({ view: "post", id: post.id, params: { from: "profile" } }); }}
             className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-primary transition-colors"
           >
             <Icon name="comment" size={14} strokeWidth={2.2} />

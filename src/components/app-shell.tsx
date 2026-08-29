@@ -41,7 +41,7 @@ function renderView(route: Route) {
     case "following": return <FollowingView />;
     case "discover": return <DiscoverView />;
     case "explore": return <ExploreView />;
-    case "post": return <PostDetailView id={route.id} />;
+    case "post": return <PostDetailView id={route.id} fromProfile={route.params?.from === "profile"} />;
     case "talents": return <TalentsView />;
     case "needs": return <NeedsView />;
     case "need": return <NeedDetailView id={route.id} />;
