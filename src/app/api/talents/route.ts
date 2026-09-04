@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { provinceCandidates } from "@/lib/geo";
 import type { TalentListItem } from "@/lib/types";
 
 // GET /api/talents — browse talents (users) with filters
@@ -25,7 +26,8 @@ export async function GET(req: Request) {
     where.userSkills = { some: { skillId } };
   }
   if (province) {
-    where.profile = { ...where.profile, province };
+    // DB دوفرمتی است (id یا نام فارسی) — فیلتر هر دو را می‌پذیرد
+    where.profile = { ...where.profile, province: { in: provinceCandidates(province) } };
   }
   if (city) {
     where.profile = { ...where.profile, city };

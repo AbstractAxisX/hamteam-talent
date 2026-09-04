@@ -72,12 +72,13 @@ const TOP_LEVEL = new Set([
   "feed", "explore", "discover", "talents", "needs", "following", "dashboard", "settings", "my-profile",
 ]);
 
-// Mobile bottom tab bar (5 tabs)
+// Mobile bottom tab bar (5 tabs + more)
 const MOBILE_TABS = [
   { key: "feed", label: "خانه", icon: "home" as const, route: { view: "feed" } as Route },
-  { key: "explore", label: "استعدادهای برتر", icon: "sparkles" as const, route: { view: "explore" } as Route },
+  { key: "explore", label: "برترین‌ها", icon: "sparkles" as const, route: { view: "explore" } as Route },
   { key: "discover", label: "کشف", icon: "compass" as const, route: { view: "discover" } as Route },
   { key: "talents", label: "استعدادها", icon: "users" as const, route: { view: "talents" } as Route },
+  { key: "needs", label: "نیازمندی", icon: "briefcase" as const, route: { view: "needs" } as Route },
 ];
 
 // Desktop top nav (center cluster)
@@ -264,7 +265,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
         </div>
       </main>
 
-      {/* ═══ Mobile: bottom tab bar (4 tabs + more sheet) ═══ */}
+      {/* ═══ Mobile: bottom tab bar (5 tabs + more sheet) ═══ */}
       <MobileTabBar
         tabs={MOBILE_TABS}
         isActive={isActive}
@@ -507,7 +508,7 @@ function MobileTabBar({
         {/* داکِ شیشه‌ای مایع — بدون z-index روی main تا شیت‌ها (z-70+) روی آن قرار گیرند
             (کلاس‌های backdrop-* خودِ Tailwind چون unprefixed کامپایل می‌شوند، در همه‌ی مرورگرها بلور واقعی می‌دهند) */}
         <div className="glass-liquid backdrop-blur-[28px] backdrop-saturate-200 backdrop-brightness-105 rounded-[26px] overflow-hidden">
-        <div className="grid grid-cols-5 h-[64px]">
+        <div className="grid grid-cols-6 h-[64px]">
           {tabs.map((tab) => {
             const active = isActive(tab.key);
             return (

@@ -1,10 +1,10 @@
 "use client";
 
 /* ═══════════════════════════════════════════════════════════
-   DiscoverFilter — دکمه شناور فیلتر کشف + پنل انیمیشنی
-   · FAB گرادیانی با نشان تعداد فیلترهای فعال
-   · پنل با انیمیشن transform-origin از مختصات خود دکمه باز می‌شود
-   · ثبت → فرم بسته و محتوا با state فیلتر در URL بازخوانی می‌شود
+   FilterFab — دکمه شناور فیلتر مشترک (کشف / استعدادها / نیازمندی‌ها)
+   · دکمه دایره‌ای فقط-آیکون هم‌سبک دکمه چت + نشان تعداد فیلتر فعال
+   · مودال وسط‌چین صفحه با انیمیشن فنری scale (فقط transform/opacity)
+   · ثبت → مقدار فیلتر + مرتب‌سازی به ویو برگردانده می‌شود
    ═══════════════════════════════════════════════════════════ */
 
 import * as React from "react";
@@ -17,44 +17,54 @@ import type { CategoryWithSkills } from "@/lib/types";
 import { toFa } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export type DiscoverFilters = {
+export type FilterFabValue = {
   categoryId: string;
   skillId: string;
   province: string;
   city: string;
-  postSort: "recent" | "popular";
-  userSort: "recent" | "followers";
 };
 
-export const EMPTY_FILTERS: DiscoverFilters = {
+export const EMPTY_FILTER_VALUE: FilterFabValue = {
   categoryId: "",
   skillId: "",
   province: "",
   city: "",
-  postSort: "recent",
-  userSort: "followers",
 };
 
-export function countActive(f: DiscoverFilters): number {
+export function countActiveFilters(f: FilterFabValue): number {
   return [f.categoryId, f.skillId, f.province, f.city].filter(Boolean).length;
 }
 
-export function DiscoverFilterFab({
-  cats, filters, onApply,
+export type FabSortOption = { value: string; label: string };
+
+export function FilterFab({
+  cats,
+  value,
+  sort = "",
+  sortOptions = [],
+  onApply,
+  title = "فیلترها",
+  subtitle = "نتایج را دقیق‌تر کن",
 }: {
   cats: CategoryWithSkills[];
-  filters: DiscoverFilters;
-  onApply: (f: DiscoverFilters) => void;
+  value: FilterFabValue;
+  sort?: string;
+  sortOptions?: FabSortOption[];
+  onApply: (value: FilterFabValue, sort: string) => void;
+  title?: string;
+  subtitle?: string;
 }) {
   const [open, setOpen] = React.useState(false);
-  const fabRef = React.useRef<HTMLButtonElement>(null);
-  const [origin, setOrigin] = React.useState<{ x: number; y: number }>({ x: 24, y: 0 });
 
   // پیش‌نویس محلی — تا ثبت اعمال نمی‌شود
-  const [draft, setDraft] = React.useState<DiscoverFilters>(filters);
+  const [draft, setDraft] = React.useState<FilterFabValue>(value);
+  const [draftSort, setDraftSort] = React.useState(sort);
   React.useEffect(() => {
-    if (open) setDraft(filters);
-  }, [open, filters]);
+    if (open) {
+      setDraft(value);
+      setDraftSort(sort);
+    }
+  }, [open]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -68,45 +78,40 @@ export function DiscoverFilterFab({
     };
   }, [open]);
 
-  function openPanel() {
-    // مبدأ انیمیشن: مختصات واقعی دکمه در صفحه
-    const r = fabRef.current?.getBoundingClientRect();
-    if (r) setOrigin({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-    setOpen(true);
-  }
-
-  const active = countActive(draft);
+  const active = countActiveFilters(draft);
   const currentCat = cats.find((c) => c.id === draft.categoryId);
 
   return (
     <>
-      {/* ═══ FAB شناور ═══ */}
+      {/* ═══ دکمه شناور — فقط آیکون، هم‌سبک دکمه چت ═══ */}
       <motion.button
-        ref={fabRef}
-        initial={{ scale: 0, rotate: -30 }}
-        animate={{ scale: 1, rotate: 0 }}
-        transition={SPRING.bounce}
-        whileTap={{ scale: 0.9 }}
-        onClick={openPanel}
-        aria-label="فیلترهای کشف"
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 500, damping: 25, delay: 0.1 }}
+        whileTap={{ scale: 0.88 }}
+        onClick={() => setOpen(true)}
+        aria-label={title}
         /* بالای دکمه‌ی چت (۸۰ + ۵۶ + ۱۲) تا روی آن نیفتد */
         className="fixed left-4 z-40 bottom-[calc(env(safe-area-inset-bottom,0px)+148px)] md:bottom-24
-                   h-14 pl-4 pr-5 rounded-full grad-brand text-white shadow-glow
-                   inline-flex items-center gap-2 font-extrabold text-[13px] outline-none safe-b"
+                   grid place-items-center size-14 rounded-full grad-brand text-white shadow-glow safe-b"
       >
-        <Icon name="filter" size={19} />
-        فیلترها
+        <Icon name="filter" size={22} strokeWidth={2.2} className="text-white" />
         {active > 0 && (
-          <span className="grid place-items-center size-6 rounded-full bg-white text-primary text-[11px] font-black nums-fa">
+          <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1 grid place-items-center rounded-full bg-gold text-background text-[11px] font-extrabold nums-fa ring-2 ring-background">
             {toFa(active)}
           </span>
         )}
       </motion.button>
 
-      {/* ═══ پنل — باز شدن از مختصات دکمه ═══ */}
+      {/* ═══ مودال وسط‌چین صفحه ═══ */}
       <AnimatePresence>
         {open && (
-          <div className="fixed inset-0 z-[65] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="فیلترهای کشف">
+          <div
+            className="fixed inset-0 z-[65] flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+          >
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -116,19 +121,13 @@ export function DiscoverFilterFab({
               className="absolute inset-0 bg-black/55 backdrop-blur-[6px]"
             />
 
-            {/* کارت پنل با مبدأ transform روی دکمه — فقط transform/opacity (۶۰fps) */}
+            {/* کارت پنل — پاپ وسط صفحه، فقط transform/opacity (۶۰fps) */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.12 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.15, transition: { duration: 0.2, ease: [0.3, 0, 0.8, 0.2] } }}
-              transition={{ type: "spring", stiffness: 340, damping: 30 }}
-              style={{
-                position: "fixed",
-                left: Math.min(origin.x, typeof window !== "undefined" ? window.innerWidth - 190 : 300),
-                top: Math.max(60, origin.y - 300),
-                transformOrigin: "0 300px",
-              }}
-              className="w-[min(92vw,420px)] max-h-[78dvh] flex flex-col bg-card rounded-[28px]
+              initial={{ opacity: 0, scale: 0.8, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.88, y: 16, transition: { duration: 0.18, ease: [0.3, 0, 0.8, 0.2] } }}
+              transition={{ type: "spring", stiffness: 340, damping: 28 }}
+              className="relative w-[min(92vw,420px)] max-h-[82dvh] flex flex-col bg-card rounded-[28px]
                          border border-border/70 shadow-float overflow-hidden"
             >
               <div className="h-[3px] w-full grad-brand shrink-0" aria-hidden />
@@ -139,8 +138,8 @@ export function DiscoverFilterFab({
                   <Icon name="filter" size={19} className="text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-[15px] font-black text-foreground leading-tight">فیلترهای دقیق</h2>
-                  <p className="text-[11.5px] text-muted-foreground mt-0.5">نتایج را دقیق‌تر کن</p>
+                  <h2 className="text-[15px] font-black text-foreground leading-tight">{title}</h2>
+                  <p className="text-[11.5px] text-muted-foreground mt-0.5">{subtitle}</p>
                 </div>
                 <button
                   onClick={() => setOpen(false)}
@@ -195,24 +194,24 @@ export function DiscoverFilterFab({
                 />
 
                 {/* مرتب‌سازی داخل پنل — صفحه تمیزتر */}
-                <div className="space-y-2">
-                  <p className="text-[12.5px] font-black text-foreground flex items-center gap-1.5">
-                    <Icon name="clock" size={15} className="text-primary" />
-                    مرتب‌سازی
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <SortOption
-                      active={draft.postSort === "recent" && draft.userSort === "recent"}
-                      label="جدیدترین"
-                      onClick={() => setDraft((d) => ({ ...d, postSort: "recent", userSort: "recent" }))}
-                    />
-                    <SortOption
-                      active={draft.postSort === "popular" && draft.userSort === "followers"}
-                      label="محبوب‌ترین"
-                      onClick={() => setDraft((d) => ({ ...d, postSort: "popular", userSort: "followers" }))}
-                    />
+                {sortOptions.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[12.5px] font-black text-foreground flex items-center gap-1.5">
+                      <Icon name="clock" size={15} className="text-primary" />
+                      مرتب‌سازی
+                    </p>
+                    <div className={cn("grid gap-2", sortOptions.length >= 3 ? "grid-cols-3" : "grid-cols-2")}>
+                      {sortOptions.map((o) => (
+                        <SortOption
+                          key={o.value}
+                          active={draftSort === o.value}
+                          label={o.label}
+                          onClick={() => setDraftSort(o.value)}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* چیپ‌های فعال */}
                 {active > 0 && (
@@ -237,7 +236,10 @@ export function DiscoverFilterFab({
               {/* فوتر */}
               <div className="shrink-0 px-4 py-3 border-t border-border/60 bg-card/95 backdrop-blur flex items-center gap-2.5 safe-b">
                 <button
-                  onClick={() => setDraft(EMPTY_FILTERS)}
+                  onClick={() => {
+                    setDraft(EMPTY_FILTER_VALUE);
+                    if (sortOptions.length > 0) setDraftSort(sortOptions[0].value);
+                  }}
                   className="h-12 px-4 rounded-2xl text-[13px] font-extrabold text-muted-foreground
                              hover:text-rose hover:bg-rose/5 transition-colors outline-none"
                 >
@@ -248,7 +250,7 @@ export function DiscoverFilterFab({
                   transition={SPRING.tap}
                   onClick={() => {
                     setOpen(false);
-                    onApply(draft);
+                    onApply(draft, draftSort);
                   }}
                   className="flex-1 h-12 rounded-2xl grad-brand text-white font-extrabold text-[13.5px] shadow-grad
                              inline-flex items-center justify-center gap-2 outline-none"

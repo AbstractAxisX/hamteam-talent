@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { provinceCandidates } from "@/lib/geo";
 import type { NeedListItem } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────
@@ -21,12 +22,13 @@ export async function GET(req: Request) {
   const where: {
     status: string;
     categoryId?: string;
-    province?: string;
+    province?: { in: string[] };
     city?: string;
     skills?: { some: { skillId: string } };
   } = { status: "open" };
   if (categoryId) where.categoryId = categoryId;
-  if (province) where.province = province;
+  // DB دوفرمتی است (id یا نام فارسی) — فیلتر هر دو را می‌پذیرد
+  if (province) where.province = { in: provinceCandidates(province) };
   if (city) where.city = city;
   if (skillId) where.skills = { some: { skillId } };
 

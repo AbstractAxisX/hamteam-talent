@@ -1,21 +1,38 @@
 "use client";
 
+/* ═══════════════════════════════════════════════════════════
+   TalentsView — استعدادها
+   · فرم فیلتر دائمی حذف شد → دکمه شناور + مودال (filter-fab)
+   · جستجوی متنی در خود صفحه · مرتب‌سازی داخل مودال
+   ═══════════════════════════════════════════════════════════ */
+
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { api } from "@/lib/api-client";
 import { navigate } from "@/lib/nav";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { SearchableSelect } from "@/components/shared/searchable-select";
 import { Icon } from "@/components/shared/icon";
+import {
+  FilterFab,
+  countActiveFilters,
+  type FilterFabValue,
+  type FabSortOption,
+} from "@/components/shared/filter-fab";
 import type { CategoryWithSkills, TalentListItem } from "@/lib/types";
-import { PROVINCES, getCitiesForProvince, getProvinceName } from "@/lib/geo";
+import { getProvinceName } from "@/lib/geo";
 import { cn } from "@/lib/utils";
 import { toFa, formatCount } from "@/lib/format";
+
+const TALENT_SORTS: FabSortOption[] = [
+  { value: "followers", label: "محبوب‌ترین" },
+  { value: "recent", label: "جدیدترین" },
+];
+
+const EMPTY: FilterFabValue = { categoryId: "", skillId: "", province: "", city: "" };
 
 export function TalentsView() {
   const [cats, setCats] = useState<CategoryWithSkills[]>([]);
@@ -23,10 +40,7 @@ export function TalentsView() {
   const [loading, setLoading] = useState(true);
 
   const [q, setQ] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [skillId, setSkillId] = useState("");
-  const [province, setProvince] = useState("");
-  const [city, setCity] = useState("");
+  const [filters, setFilters] = useState<FilterFabValue>(EMPTY);
   const [sort, setSort] = useState<"recent" | "followers">("followers");
 
   useEffect(() => {
@@ -36,18 +50,18 @@ export function TalentsView() {
   }, []);
 
   const currentCat = useMemo(
-    () => cats.find((c) => c.id === categoryId),
-    [cats, categoryId]
+    () => cats.find((c) => c.id === filters.categoryId),
+    [cats, filters.categoryId]
   );
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (categoryId) params.set("categoryId", categoryId);
-      if (skillId) params.set("skillId", skillId);
-      if (province) params.set("province", province);
-      if (city) params.set("city", city);
+      if (filters.categoryId) params.set("categoryId", filters.categoryId);
+      if (filters.skillId) params.set("skillId", filters.skillId);
+      if (filters.province) params.set("province", filters.province);
+      if (filters.city) params.set("city", filters.city);
       if (q.trim()) params.set("q", q.trim());
       params.set("sort", sort);
       const data = await api<{ talents: TalentListItem[] }>(
@@ -59,25 +73,23 @@ export function TalentsView() {
     } finally {
       setLoading(false);
     }
-  }, [categoryId, skillId, q, sort, province, city]);
+  }, [filters, q, sort]);
 
   useEffect(() => {
     const t = setTimeout(load, 300);
     return () => clearTimeout(t);
   }, [load]);
 
-  const hasFilters = Boolean(categoryId || skillId || q || province || city);
+  const activeFiltersCount = countActiveFilters(filters);
+  const hasFilters = activeFiltersCount > 0 || Boolean(q.trim());
 
   function clearAll() {
-    setCategoryId("");
-    setSkillId("");
+    setFilters(EMPTY);
     setQ("");
-    setProvince("");
-    setCity("");
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-5 max-w-6xl mx-auto">
       {/* ═══ Hero header ═══ */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -87,120 +99,62 @@ export function TalentsView() {
       >
         <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/15 blur-3xl" aria-hidden />
         <div className="absolute -bottom-12 -left-12 w-40 h-40 rounded-full bg-gold/10 blur-3xl" aria-hidden />
-        <div className="relative flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="grid place-items-center w-16 h-16 rounded-3xl bg-primary text-primary-foreground shadow-glow shrink-0">
-              <Icon name="sparkles" className="w-7 h-7" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-black tracking-tight leading-none">استعدادها</h1>
-              <p className="text-sm text-muted-foreground mt-2 leading-6">
-                {loading ? "در حال بارگذاری..." : `${toFa(talents.length)} استعداد یافت شد`}
-              </p>
-            </div>
+        <div className="relative flex items-center gap-4">
+          <div className="grid place-items-center w-16 h-16 rounded-3xl bg-primary text-primary-foreground shadow-glow shrink-0">
+            <Icon name="sparkles" className="w-7 h-7" />
           </div>
-          <div className="hidden sm:flex items-center gap-2">
-            <SortPill active={sort === "followers"} onClick={() => setSort("followers")} iconName="users" label="محبوب‌ترین" />
-            <SortPill active={sort === "recent"} onClick={() => setSort("recent")} iconName="clock" label="جدیدترین" />
+          <div>
+            <h1 className="text-3xl font-black tracking-tight leading-none">استعدادها</h1>
+            <p className="text-sm text-muted-foreground mt-2 leading-6">
+              {loading ? "در حال بارگذاری..." : `${toFa(talents.length)} استعداد یافت شد`}
+            </p>
           </div>
         </div>
       </motion.div>
 
-      {/* ═══ Mobile sort ═══ */}
-      <div className="sm:hidden flex items-center gap-2">
-        <SortPill active={sort === "followers"} onClick={() => setSort("followers")} iconName="users" label="محبوب" />
-        <SortPill active={sort === "recent"} onClick={() => setSort("recent")} iconName="clock" label="جدید" />
+      {/* ═══ جستجوی متنی ═══ */}
+      <div className="relative">
+        <Icon name="search" className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="جستجوی نام یا مهارت…"
+          className="w-full h-14 pr-12 pl-4 rounded-2xl glass border border-border/50 text-[14.5px]
+                     focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary/50
+                     transition-all shadow-soft"
+        />
       </div>
 
-      {/* ═══ Filters card — 4 lines, full-width stacked ═══ */}
-      <Card className="glass p-5 rounded-3xl border-border/50 shadow-soft space-y-4">
-        {/* Line 1: Category */}
-        <SearchableSelect
-          label="دسته‌بندی"
-          options={cats.map((c) => ({ value: c.id, label: `${c.iconUrl || "✨"} ${c.name}` }))}
-          value={categoryId}
-          onChange={(v) => {
-            setCategoryId(v === "all" ? "" : v);
-            setSkillId("");
-          }}
-          allLabel="همه"
-          placeholder="انتخاب دسته‌بندی"
-        />
-
-        {/* Line 2: Skill */}
-        <SearchableSelect
-          label="مهارت"
-          options={(currentCat?.skills || []).map((s) => ({ value: s.id, label: s.name }))}
-          value={skillId}
-          onChange={(v) => setSkillId(v === "all" ? "" : v)}
-          allLabel={categoryId ? "همه" : undefined}
-          placeholder={categoryId ? "انتخاب مهارت" : "ابتدا دسته‌بندی را انتخاب کنید"}
-          disabled={!categoryId}
-        />
-
-        {/* Line 3: Text search */}
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground mb-1.5">
-            جستجوی نام یا مهارت
-          </label>
-          <div className="relative">
-            <Icon name="search" className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="مثلاً: علی، طراحی، برنامه‌نویسی..."
-              className="w-full h-11 pr-10 pl-4 rounded-xl bg-background/60 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary/50 transition-all"
+      {/* ═══ چیپ‌های فیلتر فعال (جای فرم دائمی) ═══ */}
+      {hasFilters && (
+        <div className="flex flex-wrap items-center gap-2">
+          {filters.categoryId && currentCat && (
+            <FilterChip label={currentCat.name} onRemove={() => setFilters((f) => ({ ...f, categoryId: "", skillId: "" }))} />
+          )}
+          {filters.skillId && currentCat && (
+            <FilterChip
+              label={currentCat.skills.find((s) => s.id === filters.skillId)?.name || "مهارت"}
+              onRemove={() => setFilters((f) => ({ ...f, skillId: "" }))}
             />
-          </div>
+          )}
+          {filters.province && (
+            <FilterChip
+              label={getProvinceName(filters.province) || "استان"}
+              onRemove={() => setFilters((f) => ({ ...f, province: "", city: "" }))}
+            />
+          )}
+          {filters.city && <FilterChip label={filters.city} onRemove={() => setFilters((f) => ({ ...f, city: "" }))} />}
+          {q.trim() && <FilterChip label={`«${q.trim()}»`} onRemove={() => setQ("")} />}
+          <button
+            onClick={clearAll}
+            className="inline-flex items-center gap-1 h-9 px-3.5 rounded-full text-xs font-bold text-muted-foreground hover:text-rose transition-colors outline-none"
+          >
+            <Icon name="x" size={13} />
+            پاک کردن همه
+          </button>
         </div>
-
-        {/* Line 4: Province + City grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <SearchableSelect
-            label="استان"
-            options={PROVINCES.map((p) => ({ value: p.id, label: p.name }))}
-            value={province}
-            onChange={(v) => {
-              setProvince(v === "all" ? "" : v);
-              setCity("");
-            }}
-            allLabel="همه"
-            placeholder="انتخاب استان"
-          />
-          <SearchableSelect
-            label="شهر"
-            options={getCitiesForProvince(province).map((c) => ({ value: c, label: c }))}
-            value={city}
-            onChange={(v) => setCity(v === "all" ? "" : v)}
-            allLabel="همه"
-            placeholder="انتخاب شهر"
-            disabled={!province}
-          />
-        </div>
-
-        {/* Active filters + clear */}
-        {hasFilters && (
-          <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
-            <div className="flex flex-wrap items-center gap-2">
-              {categoryId && currentCat && (
-                <FilterChip label={currentCat.name} onRemove={() => { setCategoryId(""); setSkillId(""); }} />
-              )}
-              {skillId && currentCat && (
-                <FilterChip label={currentCat.skills.find((s) => s.id === skillId)?.name || "مهارت"} onRemove={() => setSkillId("")} />
-              )}
-              {province && (
-                <FilterChip label={getProvinceName(province) || "استان"} onRemove={() => { setProvince(""); setCity(""); }} />
-              )}
-              {city && <FilterChip label={city} onRemove={() => setCity("")} />}
-              {q.trim() && <FilterChip label={`«${q.trim()}»`} onRemove={() => setQ("")} />}
-            </div>
-            <Button variant="ghost" size="sm" onClick={clearAll} className="text-muted-foreground hover:text-rose h-8">
-              <Icon name="x" className="w-3.5 h-3.5" /> پاک کردن همه
-            </Button>
-          </div>
-        )}
-      </Card>
+      )}
 
       {/* ═══ Results grid ═══ */}
       {loading ? (
@@ -225,7 +179,9 @@ export function TalentsView() {
           title="استعدادی یافت نشد"
           description="فیلترها را تغییر بده یا عبارت دیگری جستجو کن."
           action={hasFilters ? (
-            <Button onClick={clearAll} className="rounded-2xl font-bold">پاک کردن فیلترها</Button>
+            <button onClick={clearAll} className="h-11 px-5 rounded-2xl grad-brand text-white font-extrabold text-sm shadow-grad outline-none">
+              پاک کردن فیلترها
+            </button>
           ) : undefined}
         />
       ) : (
@@ -235,31 +191,20 @@ export function TalentsView() {
           ))}
         </div>
       )}
-    </div>
-  );
-}
 
-function SortPill({
-  active,
-  onClick,
-  iconName,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  iconName: string;
-  label: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1.5 h-9 px-4 rounded-xl text-sm font-bold transition-all active:scale-95",
-        active ? "bg-primary text-primary-foreground shadow-soft" : "glass border border-border/50 text-muted-foreground hover:text-foreground"
-      )}
-    >
-      <Icon name={iconName} className="w-4 h-4" /> {label}
-    </button>
+      {/* ═══ دکمه شناور فیلتر ═══ */}
+      <FilterFab
+        cats={cats}
+        value={filters}
+        sort={sort}
+        sortOptions={TALENT_SORTS}
+        onApply={(v, s) => {
+          setFilters(v);
+          setSort(s === "recent" ? "recent" : "followers");
+        }}
+        title="فیلترهای استعدادها"
+      />
+    </div>
   );
 }
 
@@ -273,7 +218,7 @@ function FilterChip({
   return (
     <Badge
       variant="secondary"
-      className="h-8 pl-1 pr-3 rounded-full glass border border-primary/30 text-primary gap-1.5 text-xs font-bold"
+      className="h-9 pl-1 pr-3.5 rounded-full glass border border-primary/30 text-primary gap-1.5 text-xs font-bold"
     >
       <span className="max-w-[120px] truncate">{label}</span>
       <button
@@ -306,7 +251,10 @@ export function TalentCardLarge({
       }}
       whileHover={{ y: -2 }}
       onClick={() => navigate({ view: "profile", id: talent.id })}
-      className="flex flex-col items-start gap-3 p-5 rounded-3xl glass border border-border/50 hover:border-primary/40 hover:shadow-lift transition-all active:scale-95 text-right w-full"
+      className={cn(
+        "flex flex-col items-start gap-3 p-5 rounded-3xl glass border border-border/50",
+        "hover:border-primary/40 hover:shadow-lift transition-all active:scale-95 text-right w-full"
+      )}
     >
       <div className="flex items-center gap-3 w-full">
         <UserAvatar

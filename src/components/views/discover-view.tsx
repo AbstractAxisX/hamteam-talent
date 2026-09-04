@@ -16,13 +16,21 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { PostCard } from "@/components/shared/post-card";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Icon } from "@/components/shared/icon";
-import { DiscoverFilterFab, EMPTY_FILTERS, countActive, type DiscoverFilters } from "@/components/discover/filter-fab";
+import { FilterFab, countActiveFilters, type FilterFabValue, type FabSortOption } from "@/components/shared/filter-fab";
 import type { CategoryWithSkills, TalentListItem, PostWithRelations } from "@/lib/types";
 import { getProvinceName } from "@/lib/geo";
 import { cn } from "@/lib/utils";
 import { formatCount } from "@/lib/format";
 
 type Tab = "posts" | "users";
+
+/* فیلتر کشف = فیلترهای مشترک + مرتب‌سازی (ترکیبی برای تب پست/کاربر) */
+type DiscoverFilters = FilterFabValue & { postSort: "recent" | "popular" };
+
+const DISCOVER_SORTS: FabSortOption[] = [
+  { value: "recent", label: "جدیدترین" },
+  { value: "popular", label: "محبوب‌ترین" },
+];
 
 /* تبدیل فیلتر ↔ پارامترهای URL داخل هش */
 function filtersToParams(f: DiscoverFilters, tab: Tab): Record<string, string> {
@@ -43,7 +51,6 @@ function paramsToFilters(p: Record<string, string> | undefined, tab: Tab): { fil
     province: p?.prov || "",
     city: p?.city || "",
     postSort: p?.sort === "popular" ? "popular" : "recent",
-    userSort: p?.sort === "popular" ? "followers" : "recent",
   };
   return { filters: f, tab: p?.tab === "users" ? "users" : tab };
 }
@@ -83,7 +90,7 @@ export function DiscoverView() {
   }, []);
 
   const currentCat = useMemo(() => cats.find((c) => c.id === filters.categoryId), [cats, filters.categoryId]);
-  const activeFiltersCount = countActive(filters);
+  const activeFiltersCount = countActiveFilters(filters);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,7 +112,7 @@ export function DiscoverView() {
         if (filters.province) params.set("province", filters.province);
         if (filters.city) params.set("city", filters.city);
         if (q.trim()) params.set("q", q.trim());
-        params.set("sort", filters.userSort);
+        params.set("sort", filters.postSort === "popular" ? "followers" : "recent");
         const data = await api<{ talents: TalentListItem[] }>(`/api/talents?${params.toString()}`);
         setTalents(data.talents);
       }
@@ -123,7 +130,8 @@ export function DiscoverView() {
   }, [load]);
 
   /* ثبت فیلتر → نوشتن در URL؛ روتر همگام می‌کند و محتوا بازخوانی می‌شود */
-  function applyFilters(f: DiscoverFilters) {
+  function applyFilters(v: FilterFabValue, sort: string) {
+    const f: DiscoverFilters = { ...v, postSort: sort === "popular" ? "popular" : "recent" };
     navigate({ view: "discover", params: filtersToParams(f, tab) });
   }
 
@@ -284,7 +292,14 @@ export function DiscoverView() {
       )}
 
       {/* ═══ دکمه شناور فیلتر ═══ */}
-      <DiscoverFilterFab cats={cats} filters={filters} onApply={applyFilters} />
+      <FilterFab
+        cats={cats}
+        value={filters}
+        sort={filters.postSort}
+        sortOptions={DISCOVER_SORTS}
+        onApply={applyFilters}
+        title="فیلترهای کشف"
+      />
     </div>
   );
 }

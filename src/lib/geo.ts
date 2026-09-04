@@ -35,10 +35,25 @@ export const PROVINCES: { id: string; name: string; cities: string[] }[] = [
 
 export function getProvinceName(id: string | null | undefined): string | null {
   if (!id) return null;
-  return PROVINCES.find((p) => p.id === id)?.name ?? null;
+  // اگر ورودی شناسه باشد نام فارسی برمی‌گردد؛ اگر خودش نام فارسی باشد عیناً (ذخیره‌سازی دوفرمتی در DB)
+  return PROVINCES.find((p) => p.id === id)?.name ?? id;
+}
+
+/** همه‌ی حالت‌های ممکن یک مقدار استان (id یا نام فارسی) برای فیلتر مقاوم در برابر دو فرمت ذخیره‌سازی */
+export function provinceCandidates(v: string): string[] {
+  const set = new Set<string>([v]);
+  const byId = PROVINCES.find((p) => p.id === v)?.name;
+  if (byId) set.add(byId);
+  const byName = PROVINCES.find((p) => p.name === v)?.id;
+  if (byName) set.add(byName);
+  return [...set];
 }
 
 export function getCitiesForProvince(provinceId: string | null | undefined): string[] {
   if (!provinceId) return [];
-  return PROVINCES.find((p) => p.id === provinceId)?.cities ?? [];
+  return (
+    PROVINCES.find((p) => p.id === provinceId)?.cities ??
+    PROVINCES.find((p) => p.name === provinceId)?.cities ??
+    []
+  );
 }

@@ -91,9 +91,12 @@ export const useSettings = create<SettingsState>((set, get) => ({
     if (typeof window === "undefined") return;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      const mode = raw ? (JSON.parse(raw).mode || "light") : "light";
+      // همگام‌سازی با next-themes تا هنگام بوت، ThemeProvider کلاس dark را
+      // دوباره بازنویسی نکند (رفع باگ دو کنترل‌کنندهٔ موازی تم)
+      try { localStorage.setItem("theme", mode); } catch { /* ignore */ }
       if (raw) {
         const saved = JSON.parse(raw);
-        const mode = saved.mode || "light";
         const color = saved.color || "petrol";
         const font = saved.font || "vazir";
         set({ mode, color, font });
@@ -118,5 +121,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
 function persist(s: SettingsState) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode: s.mode, color: s.color, font: s.font }));
+    // کلید next-themes هم همگام شود تا رفرش بعدی همان تم را بپذیرد
+    try { localStorage.setItem("theme", s.mode); } catch { /* ignore */ }
   } catch { /* ignore */ }
 }

@@ -1,7 +1,13 @@
 "use client";
 
+/* ═══════════════════════════════════════════════════════════
+   NeedsView — نیازمندی‌ها
+   · فرم فیلتر تاشو حذف شد → دکمه شناور + مودال (filter-fab)
+   · مرتب‌سازی (جدیدترین / پرطرفدارترین) داخل مودال
+   ═══════════════════════════════════════════════════════════ */
+
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { api } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
@@ -12,25 +18,30 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { SearchableSelect } from "@/components/shared/searchable-select";
 import { Icon } from "@/components/shared/icon";
+import {
+  FilterFab,
+  countActiveFilters,
+  type FilterFabValue,
+  type FabSortOption,
+} from "@/components/shared/filter-fab";
 import { toast } from "@/hooks/use-toast";
 import { timeAgoFa, toFa, formatCount } from "@/lib/format";
-import { PROVINCES, getProvinceName, getCitiesForProvince } from "@/lib/geo";
-import { cn } from "@/lib/utils";
+import { getProvinceName } from "@/lib/geo";
 
-const ALL = "all";
+const NEED_SORTS: FabSortOption[] = [
+  { value: "recent", label: "جدیدترین" },
+  { value: "popular", label: "پرطرفدارترین" },
+];
+
+const EMPTY: FilterFabValue = { categoryId: "", skillId: "", province: "", city: "" };
 
 export function NeedsView() {
   const { user } = useUser();
   const [needs, setNeeds] = useState<NeedListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState<"recent" | "popular">("recent");
-  const [categoryId, setCategoryId] = useState<string>(ALL);
-  const [skillId, setSkillId] = useState<string>(ALL);
-  const [province, setProvince] = useState<string>(ALL);
-  const [city, setCity] = useState<string>(ALL);
-  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<FilterFabValue>(EMPTY);
   const [categories, setCategories] = useState<CategoryWithSkills[]>([]);
 
   useEffect(() => {
@@ -39,23 +50,16 @@ export function NeedsView() {
       .catch(() => {});
   }, []);
 
-  const activeFiltersCount = useMemo(
-    () =>
-      (categoryId !== ALL ? 1 : 0) +
-      (skillId !== ALL ? 1 : 0) +
-      (province !== ALL ? 1 : 0) +
-      (city !== ALL ? 1 : 0),
-    [categoryId, skillId, province, city]
-  );
+  const activeFiltersCount = useMemo(() => countActiveFilters(filters), [filters]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (categoryId !== ALL) params.set("categoryId", categoryId);
-      if (skillId !== ALL) params.set("skillId", skillId);
-      if (province !== ALL) params.set("province", province);
-      if (city !== ALL) params.set("city", city);
+      if (filters.categoryId) params.set("categoryId", filters.categoryId);
+      if (filters.skillId) params.set("skillId", filters.skillId);
+      if (filters.province) params.set("province", filters.province);
+      if (filters.city) params.set("city", filters.city);
       params.set("sort", sort);
       const data = await api<{ needs: NeedListItem[] }>(`/api/needs?${params.toString()}`);
       setNeeds(data.needs);
@@ -64,22 +68,12 @@ export function NeedsView() {
     } finally {
       setLoading(false);
     }
-  }, [categoryId, skillId, province, city, sort]);
+  }, [filters, sort]);
 
   useEffect(() => {
     const t = setTimeout(() => load(), 160);
     return () => clearTimeout(t);
   }, [load]);
-
-  const currentCategory = categories.find((c) => c.id === categoryId);
-  const currentProvince = PROVINCES.find((p) => p.id === province);
-
-  function clearFilters() {
-    setCategoryId(ALL);
-    setSkillId(ALL);
-    setProvince(ALL);
-    setCity(ALL);
-  }
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -125,84 +119,6 @@ export function NeedsView() {
         </div>
       </motion.div>
 
-      {/* ═══ Sort + Filter toggle ═══ */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <SortButton active={sort === "recent"} onClick={() => setSort("recent")} iconName="clock" label="جدیدترین" />
-        <SortButton active={sort === "popular"} onClick={() => setSort("popular")} iconName="heart" label="پرطرفدارترین" />
-        <Button
-          variant={activeFiltersCount > 0 ? "secondary" : "outline"}
-          size="sm"
-          onClick={() => setShowFilters((v) => !v)}
-          className={cn(
-            "gap-1.5 rounded-xl font-bold h-9",
-            activeFiltersCount > 0 && "bg-primary text-primary-foreground"
-          )}
-        >
-          <Icon name="grid" className="w-4 h-4" />
-          فیلترها
-          {activeFiltersCount > 0 && (
-            <span className="inline-grid place-items-center min-w-5 h-5 px-1 text-[10px] rounded-full bg-gold text-background">
-              {toFa(activeFiltersCount)}
-            </span>
-          )}
-        </Button>
-        {activeFiltersCount > 0 && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 h-9 text-muted-foreground hover:text-rose rounded-xl mr-auto">
-            <Icon name="x" className="w-3.5 h-3.5" /> پاک کردن
-          </Button>
-        )}
-      </div>
-
-      {/* ═══ Filters card (collapsible) ═══ */}
-      <AnimatePresence initial={false}>
-        {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-          >
-            <Card className="glass p-5 border-border/50 shadow-soft rounded-3xl space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <SearchableSelect
-                  label="دسته‌بندی"
-                  options={categories.map((c) => ({ value: c.id, label: `${c.iconUrl || "✨"} ${c.name}` }))}
-                  value={categoryId}
-                  onChange={(v) => { setCategoryId(v); setSkillId(ALL); }}
-                  allLabel="همه دسته‌ها"
-                />
-                <SearchableSelect
-                  label="مهارت"
-                  options={(currentCategory?.skills || []).map((s) => ({ value: s.id, label: s.name }))}
-                  value={skillId}
-                  onChange={setSkillId}
-                  allLabel="همه مهارت‌ها"
-                  placeholder={categoryId !== ALL ? "همه مهارت‌ها" : "ابتدا دسته را انتخاب کنید"}
-                  disabled={categoryId === ALL}
-                />
-                <SearchableSelect
-                  label="استان"
-                  options={PROVINCES.map((p) => ({ value: p.id, label: p.name }))}
-                  value={province}
-                  onChange={(v) => { setProvince(v); setCity(ALL); }}
-                  allLabel="همه استان‌ها"
-                />
-                <SearchableSelect
-                  label="شهر"
-                  options={(currentProvince?.cities || getCitiesForProvince(province)).map((c) => ({ value: c, label: c }))}
-                  value={city}
-                  onChange={setCity}
-                  allLabel="همه شهرها"
-                  placeholder={province !== ALL ? "همه شهرها" : "ابتدا استان را انتخاب کنید"}
-                  disabled={province === ALL}
-                />
-              </div>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* ═══ Needs grid ═══ */}
       {loading ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -232,7 +148,7 @@ export function NeedsView() {
           }
           action={
             activeFiltersCount > 0 ? (
-              <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1.5 rounded-xl">
+              <Button variant="outline" size="sm" onClick={() => setFilters(EMPTY)} className="gap-1.5 rounded-xl">
                 <Icon name="x" className="w-4 h-4" /> پاک کردن فیلترها
               </Button>
             ) : user ? (
@@ -254,33 +170,20 @@ export function NeedsView() {
           </p>
         </>
       )}
-    </div>
-  );
-}
 
-function SortButton({
-  active,
-  onClick,
-  iconName,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  iconName: string;
-  label: string;
-}) {
-  return (
-    <Button
-      variant={active ? "default" : "outline"}
-      size="sm"
-      onClick={onClick}
-      className={cn(
-        "gap-1.5 rounded-xl font-bold h-9 shadow-sm",
-        !active && "glass border-border/50"
-      )}
-    >
-      <Icon name={iconName} className="w-4 h-4" /> {label}
-    </Button>
+      {/* ═══ دکمه شناور فیلتر ═══ */}
+      <FilterFab
+        cats={categories}
+        value={filters}
+        sort={sort}
+        sortOptions={NEED_SORTS}
+        onApply={(v, s) => {
+          setFilters(v);
+          setSort(s === "popular" ? "popular" : "recent");
+        }}
+        title="فیلترهای نیازمندی‌ها"
+      />
+    </div>
   );
 }
 

@@ -170,6 +170,7 @@ async function run() {
 
   if (catCount > 0 && userCount > 1) {
     console.log(`DB already seeded (${catCount} cats, ${userCount} users) — skipping.`);
+    await seedNeeds();
     await db.$disconnect();
     return;
   }
@@ -318,7 +319,77 @@ async function run() {
   const finalLikes = await db.postLike.count();
   const finalComments = await db.comment.count();
   console.log(`\nDone: ${finalPosts} featured posts · ${finalLikes} likes · ${finalComments} comments`);
+  await seedNeeds();
   await db.$disconnect();
+}
+
+// ── نیازمندی‌های دمو (JobPost) — با idempotency روی عنوان ──
+const NEEDS: {
+  phone: string; title: string; description: string; cat: string;
+  skills: string[]; province: string; city: string; minutesAgo: number;
+}[] = [
+  {
+    phone: "09121110001", title: "همخوان برای پروژه آلبوم سنتی-پاپ",
+    description: "برای ضبط دو قطعه از آلبوم جدیدم یه همخوان خانم با صدای بم دنبالم. تمرین‌ها تو استودیوی مرکزی و ضبط پایان ماه. حضور در جلسه تنظیم هم لازمه.",
+    cat: "موسیقی", skills: ["خوانندگی"], province: "tehran", city: "تهران", minutesAgo: 90,
+  },
+  {
+    phone: "09121110002", title: "کمک برای توسعه اپلیکیشن همتیم (پارت‌تایم)",
+    description: "دنبال یه فرانت‌اند کار مسلط به React و Tailwind هستم که ۲۰ ساعت در هفته با تیم ما کار کنه. پروژه اوپن‌سورس و ریموت کامله، آشنایی با TypeScript الزامیه.",
+    cat: "برنامه‌نویسی و توسعه", skills: ["فرانت‌اند"], province: "tehran", city: "تهران", minutesAgo: 260,
+  },
+  {
+    phone: "09121110003", title: "شیرینی‌پز برای ورک‌شاپ سفارشی عید",
+    description: "برای فصل عید به یه شیرینی‌پز حرفه‌ای برای خط تولید کیک فوت‌لر نیاز دارم. محیط کاری شاد و حقوق توافقی، سابقه دکور کیک حتماً با نمونه کار بررسی میشه.",
+    cat: "آشپزی و شیرینی‌پزی", skills: ["شیرینی‌پزی", "کیک‌دکور"], province: "esfahan", city: "اصفهان", minutesAgo: 700,
+  },
+  {
+    phone: "09121110005", title: "مربی یوگا صبحگاهی — سانس ۷",
+    description: "باشگاه ما تو غرب تهران برای سانس صبح به یه مربی یوگا خانم نیاز داره. دو جلسه در هفته با امکان افزایش، مدرک مربیگری معتبر لازمه.",
+    cat: "ورزش و تناسب", skills: ["یوگا"], province: "tehran", city: "تهران", minutesAgo: 1500,
+  },
+  {
+    phone: "09121110006", title: "پیکسل‌آرتیست برای بازی ایندی",
+    description: "برای بازی پازل-اکشن موبایلی‌مون یه پیکسل‌آرتیست خلاق می‌خوایم که استایل ۱۶-بیت رو خوب بفهمه. همکاری درصدی از فروش یا پروژه‌ای، تو رشت ریموت.",
+    cat: "بازی‌سازی", skills: ["پیکسل‌آرت", "طراحی گیم‌پلی"], province: "gilan", city: "رشت", minutesAgo: 2200,
+  },
+  {
+    phone: "09121110008", title: "کپی‌رایتر برای کمپین تبلیغاتی رستوران",
+    description: "برای کمپین افتتاح شعبه دوم رستوران، محتوای تبلیغاتی فارسی روان و خلاقانه لازم داریم. سه متن کوتاه برای بنر و یه متن بلند برای شبکه‌های اجتماعی.",
+    cat: "نویسندگی و محتوا", skills: ["کپیرایتینگ"], province: "khorasan-razavi", city: "مشهد", minutesAgo: 3200,
+  },
+];
+
+async function seedNeeds() {
+  const needCount = await db.jobPost.count();
+  if (needCount > 0) {
+    console.log(`Needs already seeded (${needCount}) — skipping.`);
+    return;
+  }
+  for (const n of NEEDS) {
+    const user = await db.user.findUnique({ where: { phone: n.phone } });
+    if (!user) continue;
+    const cat = await db.category.findUnique({ where: { name: n.cat } });
+    const need = await db.jobPost.create({
+      data: {
+        userId: user.id,
+        title: n.title,
+        description: n.description,
+        categoryId: cat?.id || null,
+        province: n.province,
+        city: n.city,
+        status: "open",
+        createdAt: new Date(Date.now() - n.minutesAgo * 60 * 1000),
+      },
+    });
+    for (const s of n.skills) {
+      const skill = await db.skill.findFirst({ where: { name: s } });
+      if (skill) {
+        await db.jobPostSkill.create({ data: { jobPostId: need.id, skillId: skill.id } }).catch(() => {});
+      }
+    }
+    console.log(`✓ Need: ${n.title.slice(0, 40)}…`);
+  }
 }
 
 run().catch((e) => {
