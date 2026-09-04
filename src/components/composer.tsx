@@ -14,7 +14,8 @@ import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
 import { toFa } from "@/lib/format";
 import { Icon } from "@/components/shared/icon";
-import { GradAvatar, VerifiedMark, CrownMark } from "@/components/ui/grad-avatar";
+import { GradAvatar, VerifiedMark } from "@/components/ui/grad-avatar";
+import { GoldCheckMark } from "@/components/ui/elite";
 import { Btn, IconBtn, Chip, Sk, SPRING } from "@/components/ui/atoms";
 import {
   uploadWithProgress, validateAndWrap, MediaTile,
@@ -412,7 +413,7 @@ export function ComposerSheet({
                       <div className="flex items-center gap-1.5">
                         <span className="text-[14px] font-black text-foreground truncate">{user.name}</span>
                         {user.isVerifiedBadge && <VerifiedMark size={15} />}
-                        {user.isTopTalent && <CrownMark size={15} />}
+                        {user.isTopTalent && <GoldCheckMark size={15} />}
                       </div>
                       <span className="text-[11.5px] text-muted-foreground">انتشار عمومی در همتیم</span>
                     </div>

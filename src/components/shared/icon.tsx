@@ -77,6 +77,7 @@ export function Icon({ name, className, size = 22, strokeWidth }: { name: string
     search: Search01Icon,
     sparkles: SparklesIcon,
     spark: StarIcon,
+    star: StarIcon,
     more: MoreHorizontalIcon,
     bell: BellIcon,
     chat: Message01Icon,

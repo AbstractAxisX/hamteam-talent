@@ -24,6 +24,7 @@ import { Icon } from "@/components/shared/icon";
 import { ComposerSheet } from "@/components/composer";
 import { PortfolioTab } from "@/components/portfolio/portfolio-tab";
 import { AboutTab, ResumeTab, shadeColor } from "@/components/views/profile-tabs";
+import { EliteAvatar, GoldCheckMark, GoldSparkle, TopTalentBanner } from "@/components/ui/elite";
 import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, formatFaDate } from "@/lib/format";
 import { getProvinceName } from "@/lib/geo";
@@ -161,6 +162,19 @@ export function ProfileView({ id }: { id: string }) {
   const conn = profile.connectionStatus;
   const heroTint = ringColor || "#10b981";
 
+  /* ── کاور: ابیسیدین‌طلا برای استعداد برتر / زمردی برای بقیه ── */
+  const coverStyle = isTopTalent
+    ? {
+        background: `radial-gradient(130% 150% at 88% -12%, rgba(245,200,76,.28) 0%, transparent 55%),
+                      radial-gradient(100% 120% at 8% 112%, rgba(146,97,14,.4) 0%, transparent 60%),
+                      linear-gradient(160deg, #2a1a04 0%, #171005 48%, #241604 100%)`,
+      }
+    : {
+        background: `radial-gradient(120% 140% at 85% -10%, ${shadeColor(heroTint, 0.72, 160)} 0%, transparent 55%),
+                      radial-gradient(110% 130% at 10% 110%, #052e22 0%, transparent 60%),
+                      linear-gradient(160deg, #065f46 0%, #064e3b 45%, #052e22 100%)`,
+      };
+
   /* ── دکمهٔ اصلی بر اساس وضعیت ارتباط ── */
   const primaryAction = (() => {
     if (isSelf) {
@@ -218,12 +232,13 @@ export function ProfileView({ id }: { id: string }) {
       <button
         onClick={handleConnection}
         disabled={connBusy}
-        className="flex-1 h-12 rounded-2xl grad-brand text-white font-extrabold text-[13px] shadow-grad
-                   inline-flex items-center justify-center gap-2 hover:brightness-105 transition-[filter] outline-none
-                   disabled:opacity-60"
+        className={cn(
+          "flex-1 h-12 rounded-2xl text-white font-extrabold text-[13px] inline-flex items-center justify-center gap-2 hover:brightness-105 transition-[filter] outline-none disabled:opacity-60",
+          isTopTalent ? "grad-gold shadow-glow-gold" : "grad-brand shadow-grad"
+        )}
       >
         <Icon name={connBusy ? "loader" : "userPlus"} size={17} className={connBusy ? "animate-spin" : ""} />
-        برقراری ارتباط
+        {isTopTalent ? "دنبال کردن استعداد برتر" : "برقراری ارتباط"}
       </button>
     );
   })();
@@ -244,17 +259,13 @@ export function ProfileView({ id }: { id: string }) {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
           className="relative h-48 sm:h-56 overflow-hidden rounded-b-[36px]"
-          style={{
-            background: `radial-gradient(120% 140% at 85% -10%, ${shadeColor(heroTint, 0.72, 160)} 0%, transparent 55%),
-                         radial-gradient(110% 130% at 10% 110%, #052e22 0%, transparent 60%),
-                         linear-gradient(160deg, #065f46 0%, #064e3b 45%, #052e22 100%)`,
-          }}
+          style={coverStyle}
         >
           {/* بافت نقطه‌ای */}
           <div
             className="absolute inset-0 opacity-[0.13] pointer-events-none"
             style={{
-              backgroundImage: "radial-gradient(rgba(255,255,255,.9) 1px, transparent 1px)",
+              backgroundImage: `radial-gradient(${isTopTalent ? "rgba(245,200,76,.95)" : "rgba(255,255,255,.9)"} 1px, transparent 1px)`,
               backgroundSize: "18px 18px",
             }}
           />
@@ -263,7 +274,7 @@ export function ProfileView({ id }: { id: string }) {
             animate={{ scale: [1, 1.15, 1], opacity: [0.25, 0.4, 0.25] }}
             transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
             className="absolute -top-14 -left-10 w-52 h-52 rounded-full blur-3xl pointer-events-none"
-            style={{ background: heroTint }}
+            style={{ background: isTopTalent ? "#f5c84c" : heroTint }}
           />
           <motion.div
             animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.3, 0.15] }}
@@ -271,6 +282,24 @@ export function ProfileView({ id }: { id: string }) {
             className="absolute -bottom-16 -right-10 w-48 h-48 rounded-full blur-3xl pointer-events-none"
             style={{ background: "#fbbf24" }}
           />
+          {/* ستاره‌های طلایی — فقط استعداد برتر */}
+          {isTopTalent && (
+            <>
+              <GoldSparkle size={12} delay={0.2} style={{ top: "22%", left: "16%" }} />
+              <GoldSparkle size={9} delay={1.1} style={{ top: "58%", left: "7%" }} />
+              <GoldSparkle size={14} delay={0.6} style={{ top: "14%", right: "30%" }} />
+              <GoldSparkle size={8} delay={1.8} style={{ bottom: "24%", right: "14%" }} />
+              {/* خط طلایی پایین کاور */}
+              <div
+                aria-hidden
+                className="absolute bottom-0 inset-x-0 h-[3px]"
+                style={{
+                  background:
+                    "linear-gradient(90deg, transparent, #b45309, #f5c84c, #fef3c7, #f5c84c, #b45309, transparent)",
+                }}
+              />
+            </>
+          )}
 
           {/* اکشن‌های شناور بالای کاور */}
           <div className="absolute top-4 inset-x-4 flex items-center justify-between">
@@ -307,26 +336,38 @@ export function ProfileView({ id }: { id: string }) {
           </div>
         </motion.div>
 
-        {/* ═══════ سطر هویت — آواتار با رینگ دوتایی ═══════ */}
+        {/* ═══════ سطر هویت — آواتار با بورت طلایی (استعداد برتر) / رینگ دوتایی ═══════ */}
         <div className="relative px-4 -mt-12 z-10">
           <div className="flex items-end gap-3.5">
             <motion.div
               initial={{ scale: 0.7, opacity: 0, y: 16 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               transition={{ type: "spring", stiffness: 320, damping: 24, delay: 0.08 }}
-              className="shrink-0 rounded-full p-[3px] shadow-[0_10px_36px_rgba(6,95,70,0.5)]"
-              style={{ background: `conic-gradient(from 210deg, ${heroTint}, #0d9488, #10b981, ${heroTint})` }}
+              className="shrink-0"
             >
-              <div className="rounded-full p-[3px] bg-background">
-                <UserAvatar
+              {isTopTalent ? (
+                <EliteAvatar
                   name={profile.name}
-                  avatarUrl={profile.avatarUrl}
-                  verified={profile.isVerifiedBadge}
-                  gender={profile.gender}
-                  size="2xl"
-                  ringColor="transparent"
+                  src={profile.avatarUrl}
+                  box={124}
                 />
-              </div>
+              ) : (
+                <div
+                  className="rounded-full p-[3px] shadow-[0_10px_36px_rgba(6,95,70,0.5)]"
+                  style={{ background: `conic-gradient(from 210deg, ${heroTint}, #0d9488, #10b981, ${heroTint})` }}
+                >
+                  <div className="rounded-full p-[3px] bg-background">
+                    <UserAvatar
+                      name={profile.name}
+                      avatarUrl={profile.avatarUrl}
+                      verified={profile.isVerifiedBadge}
+                      gender={profile.gender}
+                      size="2xl"
+                      ringColor="transparent"
+                    />
+                  </div>
+                </div>
+              )}
             </motion.div>
 
             <div className="flex-1 min-w-0 pb-1">
@@ -340,14 +381,19 @@ export function ProfileView({ id }: { id: string }) {
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: "spring", stiffness: 380, damping: 20, delay: 0.25 }}
                     title="استعداد برتر"
-                    className="grid place-items-center size-6 rounded-full grad-gold shadow-glow-gold"
                   >
-                    <Icon name="crown" size={13} className="text-white" />
+                    <GoldCheckMark size={22} />
                   </motion.span>
                 )}
               </div>
               {profile.username && (
-                <p className="text-[12.5px] font-bold text-primary mt-0.5" dir="ltr">
+                <p
+                  className={cn(
+                    "text-[12.5px] font-bold mt-0.5",
+                    isTopTalent ? "text-amber-600 dark:text-amber-400" : "text-primary"
+                  )}
+                  dir="ltr"
+                >
                   @{profile.username}
                 </p>
               )}
@@ -381,11 +427,29 @@ export function ProfileView({ id }: { id: string }) {
           <p className="text-[14px] leading-7 text-foreground/90 px-1 text-center">{profile.bioShort}</p>
         )}
 
-        {/* نوار آمار شیشه‌ای تک‌تکه — الگوی مدرن */}
-        <div className="mt-4 glass rounded-[22px] shadow-card grid grid-cols-3 divide-x divide-border/70 rtl:divide-x-reverse">
-          <StatSeg value={formatCount(connCount)} label="ارتباطات" icon="users" />
-          <StatSeg value={toFa(profile.postCount)} label="پست‌ها" icon="image" />
-          <StatSeg value={toFa(profile.categories?.length || 0)} label="تخصص‌ها" icon="award" />
+        {/* بنر نخبگی — فقط استعداد برتر */}
+        {isTopTalent && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 24, delay: 0.2 }}
+            className="mt-4"
+          >
+            <TopTalentBanner />
+          </motion.div>
+        )}
+
+        {/* نوار آمار شیشه‌ای تک‌تکه — الگوی مدرن (طلایی برای نخبه) */}
+        <div
+          className={cn(
+            "mt-4 glass rounded-[22px] shadow-card grid grid-cols-3 divide-x divide-border/70 rtl:divide-x-reverse",
+            isTopTalent &&
+              "!bg-gradient-to-br !from-amber-500/12 !to-amber-600/5 border border-amber-400/25"
+          )}
+        >
+          <StatSeg value={formatCount(connCount)} label="ارتباطات" icon="users" gold={isTopTalent} />
+          <StatSeg value={toFa(profile.postCount)} label="پست‌ها" icon="image" gold={isTopTalent} />
+          <StatSeg value={toFa(profile.categories?.length || 0)} label="تخصص‌ها" icon="award" gold={isTopTalent} />
         </div>
 
         {/* اکشن اصلی + PDF */}
@@ -412,7 +476,10 @@ export function ProfileView({ id }: { id: string }) {
               {tab === t.key && (
                 <motion.div
                   layoutId="profile-tab-pill"
-                  className="absolute inset-0 rounded-xl grad-brand shadow-glow"
+                  className={cn(
+                    "absolute inset-0 rounded-xl shadow-glow",
+                    isTopTalent ? "grad-gold" : "grad-brand"
+                  )}
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}
@@ -516,13 +583,20 @@ function TabPane({ children, className }: { children: React.ReactNode; className
   );
 }
 
-function StatSeg({ value, label, icon }: { value: string; label: string; icon: string }) {
+function StatSeg({ value, label, icon, gold }: { value: string; label: string; icon: string; gold?: boolean }) {
   return (
     <div className="py-3.5 flex flex-col items-center gap-1">
-      <div className="grad-brand size-7 rounded-xl grid place-items-center text-white">
+      <div
+        className={cn(
+          "size-7 rounded-xl grid place-items-center text-white",
+          gold ? "grad-gold shadow-glow-gold" : "grad-brand"
+        )}
+      >
         <Icon name={icon} size={14} />
       </div>
-      <span className="font-black text-[17px] leading-none nums-fa">{value}</span>
+      <span className={cn("font-black text-[17px] leading-none nums-fa", gold && "text-amber-600 dark:text-amber-400")}>
+        {value}
+      </span>
       <span className="text-[10.5px] text-muted-foreground font-bold">{label}</span>
     </div>
   );

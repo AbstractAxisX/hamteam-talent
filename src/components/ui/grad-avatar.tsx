@@ -10,6 +10,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { EliteAvatar, GoldCheckMark } from "@/components/ui/elite";
 
 /* پالت گرادیان‌های رفرنس */
 const GRADS = [
@@ -56,15 +57,8 @@ export function VerifiedMark({ size = 15 }: { size?: number }) {
   );
 }
 
-/* ── تاج استعداد برتر ── */
-export function CrownMark({ size = 15 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-label="استعداد برتر" role="img" className="shrink-0">
-      <path d="M3 8l4 4 5-6 5 6 4-4v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z" fill="#f59e0b" />
-      <circle cx="12" cy="13" r="1.6" fill="#fff7ed" />
-    </svg>
-  );
-}
+/* ── تیک طلایی استعداد برتر (جایگزین تاج — درخواست کارفرما) ── */
+export const CrownMark = GoldCheckMark;
 
 export interface GradAvatarProps {
   name: string;
@@ -85,6 +79,19 @@ export function GradAvatar({
   const s = SIZES[size];
   const showImg = src && !broken;
   const Tag = onClick ? "button" : "span";
+
+  /* استعداد برتر → قاب طلایی چندلایه (بورت طلایی رفرنس) */
+  if (topTalent) {
+    return (
+      <EliteAvatar
+        name={name}
+        src={src}
+        box={s.box}
+        className={className}
+        onClick={onClick}
+      />
+    );
+  }
 
   return (
     <span className={cn("relative inline-block shrink-0", className)} style={{ width: s.box, height: s.box }}>
@@ -119,7 +126,7 @@ export function GradAvatar({
           className="absolute -bottom-0.5 -left-0.5 flex items-center justify-center rounded-full bg-card p-[2px]"
           style={{ width: s.badge + 4, height: s.badge + 4 }}
         >
-          {topTalent ? <CrownMark size={s.badge} /> : <VerifiedMark size={s.badge - 2} />}
+          {topTalent ? <GoldCheckMark size={s.badge} /> : <VerifiedMark size={s.badge - 2} />}
         </span>
       )}
     </span>

@@ -3,6 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EliteAvatar } from "@/components/ui/elite";
 
 // Default avatar SVGs — male (teal) and female (coral), solid colors
 function DefaultAvatarSVG({ gender }: { gender?: string | null; name: string }) {
@@ -28,6 +29,7 @@ export function UserAvatar({
   gender,
   ringColor,
   size = "md",
+  topTalent,
   className,
 }: {
   name: string;
@@ -37,6 +39,8 @@ export function UserAvatar({
   /** Category color for the ring around the avatar (hex or css color) */
   ringColor?: string | null;
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
+  /** استعداد برتر → بورت طلایی چندلایه + تیک طلایی */
+  topTalent?: boolean;
   className?: string;
 }) {
   const sizeClass = {
@@ -64,6 +68,19 @@ export function UserAvatar({
     xl: "p-1.5",
     "2xl": "p-2",
   }[size];
+
+  /* استعداد برتر → قاب طلایی چندلایه + تیک طلایی (جایگزین تاج) */
+  if (topTalent) {
+    const box = {
+      xs: 32,
+      sm: 40,
+      md: 48,
+      lg: 60,
+      xl: 84,
+      "2xl": 116,
+    }[size];
+    return <EliteAvatar name={name} src={avatarUrl} box={box} className={className} />;
+  }
 
   return (
     <div className={cn("relative inline-block shrink-0", className)}>

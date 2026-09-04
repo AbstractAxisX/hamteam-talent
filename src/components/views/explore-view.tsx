@@ -25,9 +25,9 @@ import { SearchableSelect } from "@/components/shared/searchable-select";
 import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, timeAgoFa, formatFaDate } from "@/lib/format";
-import { ComposerTrigger, ComposerSheet, type ComposerTab } from "@/components/composer";
 import { RatingModal, RatingSummary } from "@/components/shared/rating-control";
 import { LikersSheet, commentLikersFetcher, postLikersFetcher } from "@/components/shared/likers-sheet";
+import { GoldCheckMark, GoldSparkle, Laurel } from "@/components/ui/elite";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { CategoryWithSkills } from "@/lib/types";
@@ -95,19 +95,6 @@ type Comment = {
    ════════════════════════════════════════════════════════════════════ */
 
 /* ── Helpers ── */
-
-/* رنگ فعال دسته‌بندی → ته‌رنگ روشن‌تر برای شروع گرادیان هدر */
-function shadeActive(color: string): string {
-  if (color.startsWith("#")) {
-    // hex → rgb → روشن‌کردن برای شروع گرادیان
-    const hex = color.slice(1);
-    const r = Math.min(255, parseInt(hex.slice(0, 2), 16) + 60);
-    const g = Math.min(255, parseInt(hex.slice(2, 4), 16) + 60);
-    const b = Math.min(255, parseInt(hex.slice(4, 6), 16) + 60);
-    return `rgb(${r}, ${g}, ${b})`;
-  }
-  return color;
-}
 
 function formatFileSize(bytes: number): string {
   if (!bytes) return "—";
@@ -240,10 +227,6 @@ export function ExploreView() {
     null
   );
 
-  // Composer (فاز ۵)
-  const [composerOpen, setComposerOpen] = useState(false);
-  const [composerTab, setComposerTab] = useState<ComposerTab | undefined>(undefined);
-
   useEffect(() => {
     api<{ categories: CategoryWithSkills[] }>("/api/categories")
       .then((d) => setCats(d.categories))
@@ -285,56 +268,115 @@ export function ExploreView() {
 
   const activeColor = currentCat?.color || "oklch(0.55 0.13 160)";
 
+  /* مجموع امتیازهای کاربران در فید — حس رقابت نخبگان */
+  const eliteStats = useMemo(() => {
+    const topAuthors = new Set(posts.filter((p) => p.user.isTopTalent).map((p) => p.user.id));
+    const totalRatings = posts.reduce((s, p) => s + (p.ratingCount || 0), 0);
+    const avg = posts.length
+      ? posts.reduce((s, p) => s + (p.ratingAvg || 0), 0) / posts.length
+      : 0;
+    return { topAuthors: topAuthors.size, totalRatings, avg };
+  }, [posts]);
+
   return (
     <div className="max-w-2xl mx-auto pb-2">
-      {/* ═══ Header ═══ */}
+      {/* ═══ هدر سلطنتی نخبگان — ابیسیدین و طلا ═══ */}
       <motion.header
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-[28px] mb-3 text-white"
-        style={{
-          background: `linear-gradient(150deg, ${shadeActive(activeColor)} 0%, #065f46 60%, #052e22 100%)`,
-        }}
+        initial={{ opacity: 0, y: -10, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        className="relative overflow-hidden rounded-[28px] mb-3 elite-panel"
       >
+        {/* غارهای درخشان دو طرف */}
+        <motion.div
+          initial={{ opacity: 0, x: 12, rotate: -8 }}
+          animate={{ opacity: 1, x: 0, rotate: 0 }}
+          transition={{ delay: 0.25, duration: 0.6 }}
+          className="absolute top-3 left-2 opacity-80"
+        >
+          <Laurel size={62} />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, x: -12, rotate: 8 }}
+          animate={{ opacity: 1, x: 0, rotate: 0 }}
+          transition={{ delay: 0.25, duration: 0.6 }}
+          className="absolute top-3 right-2 opacity-80"
+        >
+          <Laurel size={62} flip />
+        </motion.div>
+
+        {/* ستاره‌های چشمک‌زن */}
+        <GoldSparkle size={13} delay={0} style={{ top: "14%", left: "18%" }} />
+        <GoldSparkle size={9} delay={0.9} style={{ top: "64%", left: "8%" }} />
+        <GoldSparkle size={11} delay={1.7} style={{ top: "22%", right: "22%" }} />
+        <GoldSparkle size={8} delay={0.4} style={{ bottom: "18%", right: "12%" }} />
+
+        {/* نور طلایی بالا */}
         <div
-          className="absolute -top-16 -left-10 w-56 h-56 rounded-full opacity-30 blur-3xl pointer-events-none"
-          style={{ background: "#10b981" }}
+          aria-hidden
+          className="absolute -top-20 left-1/2 -translate-x-1/2 w-72 h-40 rounded-full blur-3xl opacity-25 pointer-events-none"
+          style={{ background: "#f5c84c" }}
         />
-        <div
-          className="absolute -bottom-20 -right-8 w-48 h-48 rounded-full opacity-20 blur-3xl pointer-events-none"
-          style={{ background: "#fbbf24" }}
-        />
-        <div className="relative px-5 py-5 sm:px-6 sm:py-6 flex items-center gap-4">
+
+        <div className="relative px-5 py-6 sm:px-6 sm:py-7 flex flex-col items-center gap-3">
+          {/* مدال طلایی */}
           <motion.div
-            initial={{ scale: 0.6, rotate: -20 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 360, damping: 22, delay: 0.1 }}
-            className="grid place-items-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl shrink-0 bg-white/15 backdrop-blur-md border border-white/20"
+            initial={{ scale: 0.5, rotate: -14, opacity: 0 }}
+            animate={{ scale: 1, rotate: 0, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 340, damping: 20, delay: 0.12 }}
+            className="relative grid place-items-center w-[68px] h-[68px] rounded-[22px] rotate-45"
+            style={{
+              background: "linear-gradient(135deg, #fef3c7, #f5c84c 40%, #b45309 90%)",
+              boxShadow:
+                "0 8px 28px rgba(217,119,6,.5), inset 0 1px 0 rgba(255,255,255,.7), inset 0 -2px 6px rgba(120,53,15,.5)",
+            }}
           >
-            <Icon name="crown" size={28} className="text-amber-300" />
+            <span className="-rotate-45 drop-shadow-[0_1px_2px_rgba(120,53,15,.6)]">
+              <GoldCheckMark size={34} />
+            </span>
           </motion.div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-white">
+
+          <div className="text-center">
+            <h1 className="text-[22px] sm:text-2xl font-black tracking-tight leading-tight text-gold-grad">
               استعدادهای برتر
             </h1>
-            <p className="text-[12.5px] text-emerald-100/85 mt-0.5 leading-6">
-              بهترین کارهای استعدادهای برتر جامعهٔ همتیم
+            <p className="text-[12.5px] text-amber-100/70 mt-1 leading-6">
+              منتخب رسمی مدیران · برترین کارهای جامعهٔ همتیم
             </p>
           </div>
-        </div>
-      </motion.header>
 
-      {/* ═══ Composer Trigger (فاز ۵) ═══ */}
-      <div className="mb-4">
-        <ComposerTrigger
-          onOpen={() => setComposerOpen(true)}
-          onOpenTab={(t) => {
-            setComposerTab(t);
-            setComposerOpen(true);
+          {/* آمار رقابتی */}
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            <span className="h-7 px-3 rounded-full bg-amber-500/12 border border-amber-400/25 text-amber-200/90
+                           text-[10.5px] font-bold inline-flex items-center gap-1.5">
+              <Icon name="users" size={12} />
+              {toFa(eliteStats.topAuthors)} استعداد برتر
+            </span>
+            <span className="h-7 px-3 rounded-full bg-amber-500/12 border border-amber-400/25 text-amber-200/90
+                           text-[10.5px] font-bold inline-flex items-center gap-1.5">
+              <Icon name="star" size={12} />
+              میانگین {toFa(eliteStats.avg.toFixed(1))} از ۱۰
+            </span>
+          </div>
+        </div>
+
+        {/* پایین طلایی + عبور نور */}
+        <div
+          aria-hidden
+          className="absolute bottom-0 inset-x-0 h-[3px]"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, #b45309, #f5c84c, #fef3c7, #f5c84c, #b45309, transparent)",
           }}
         />
-      </div>
+        <div
+          aria-hidden
+          className="absolute top-0 bottom-0 w-16 -skew-x-12 animate-elite-shine pointer-events-none"
+          style={{
+            background: "linear-gradient(90deg, transparent, rgba(255,251,215,.14), transparent)",
+          }}
+        />
+      </motion.header>
 
       {/* ═══ Filters ═══ */}
       <motion.div
@@ -395,7 +437,7 @@ export function ExploreView() {
           description={
             (categoryId || skillId)
               ? "با فیلترهای انتخاب‌شده پست برجسته‌ای موجود نیست."
-              : "هنوز پست برجسته‌ای برای نمایش وجود دارد. پس از تأیید مدیر، پست‌های استعدادهای برتر اینجا نمایش داده می‌شوند."
+              : "هنوز پست برجسته‌ای برای نمایش وجود ندارد. پست‌ها پس از تأیید و انتخاب مدیر، در این صفحه نمایش داده می‌شوند."
           }
           action={
             (categoryId || skillId) ? (
@@ -430,14 +472,6 @@ export function ExploreView() {
           />
         )}
       </AnimatePresence>
-
-      {/* ═══ Composer Sheet (فاز ۵) ═══ */}
-      <ComposerSheet
-        open={composerOpen}
-        onClose={() => setComposerOpen(false)}
-        onPosted={() => setComposerTab(undefined)}
-        initialTab={composerTab}
-      />
     </div>
   );
 }
@@ -556,16 +590,37 @@ function PostCard({
         delay: Math.min(index * 0.05, 0.35),
         ease: [0.16, 1, 0.3, 1],
       }}
-      className="relative bg-card rounded-[24px] overflow-hidden shadow-card border border-border/50"
+      className={cn(
+        "relative bg-card rounded-[24px] overflow-hidden shadow-card border",
+        post.user.isTopTalent
+          ? "border-amber-500/35 shadow-[0_10px_32px_rgba(217,119,6,.14)]"
+          : "border-border/50"
+      )}
     >
       {/* خط گرادیانی امضای برند بالای کارت */}
       <div
         className="absolute top-0 inset-x-0 h-[3px] z-10"
         style={{
-          background: `linear-gradient(90deg, transparent, ${catColor}, transparent)`,
+          background: post.user.isTopTalent
+            ? "linear-gradient(90deg, transparent, #b45309, #f5c84c, #fef3c7, #f5c84c, #b45309, transparent)"
+            : `linear-gradient(90deg, transparent, ${catColor}, transparent)`,
           opacity: 0.75,
         }}
       />
+
+      {/* نشان «برتر» کارت — فقط نویسندهٔ استعداد برتر */}
+      {post.user.isTopTalent && (
+        <span
+          className="absolute z-20 top-3 left-3 h-6 px-2.5 rounded-full text-[10px] font-black text-[#3a2405]
+                     inline-flex items-center gap-1 shadow-[0_4px_12px_rgba(217,119,6,.4)]"
+          style={{ background: "linear-gradient(135deg, #fef3c7, #f5c84c 45%, #e08a00)" }}
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M12 0c.9 6.2 4.9 10.2 12 12-7.1 1.8-11.1 5.8-12 12-.9-6.2-4.9-10.2-12-12C7.1 10.2 11.1 6.2 12 0z" />
+          </svg>
+          برتر
+        </span>
+      )}
 
       {/* ═══ Header ═══ */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-2">
@@ -580,7 +635,8 @@ function PostCard({
             verified={post.user.isVerifiedBadge}
             gender={post.user.gender}
             size="md"
-            ringColor={ringColor}
+            topTalent={post.user.isTopTalent}
+            ringColor={post.user.isTopTalent ? null : ringColor}
           />
         </button>
         <div className="flex-1 min-w-0">
@@ -591,7 +647,7 @@ function PostCard({
             >
               {post.user.name}
             </button>
-            {post.user.isVerifiedBadge && (
+            {post.user.isVerifiedBadge && !post.user.isTopTalent && (
               <Icon
                 name="badgeCheck"
                 size={15}
@@ -599,12 +655,7 @@ function PostCard({
               />
             )}
             {post.user.isTopTalent && (
-              <span
-                className="grid place-items-center w-4 h-4 rounded-full text-black shrink-0"
-                style={{ background: "linear-gradient(135deg, #f59e0b, #fbbf24)" }}
-              >
-                <Icon name="crown" size={10} />
-              </span>
+              <GoldCheckMark size={16} />
             )}
           </div>
           <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
@@ -918,7 +969,6 @@ function ImageSlide({
         </svg>
         عکس
       </span>
-      <style>{`@keyframes shimmer{to{background-position:-200% 0}}`}</style>
     </div>
   );
 }
@@ -1993,11 +2043,7 @@ function CommentNode({
               >
                 {comment.user.name}
               </button>
-              {comment.user.isTopTalent && (
-                <span className="grid place-items-center w-3.5 h-3.5 rounded-full bg-gold text-black">
-                  <Icon name="crown" size={8} />
-                </span>
-              )}
+              {comment.user.isTopTalent && <GoldCheckMark size={13} />}
               <span className="text-[10.5px] text-muted-foreground mr-auto">
                 {timeAgoFa(comment.createdAt)}
               </span>
@@ -2484,7 +2530,8 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
               verified={post.user.isVerifiedBadge}
               gender={post.user.gender}
               size="md"
-              ringColor={ringColor}
+              topTalent={post.user.isTopTalent}
+              ringColor={post.user.isTopTalent ? null : ringColor}
             />
           </button>
           <div className="flex-1 min-w-0">
@@ -2495,14 +2542,10 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
               >
                 {post.user.name}
               </button>
-              {post.user.isVerifiedBadge && (
+              {post.user.isVerifiedBadge && !post.user.isTopTalent && (
                 <Icon name="badgeCheck" size={15} className="text-gold fill-gold/15" />
               )}
-              {post.user.isTopTalent && (
-                <span className="grid place-items-center w-4 h-4 rounded-full bg-gold text-black shrink-0">
-                  <Icon name="crown" size={10} />
-                </span>
-              )}
+              {post.user.isTopTalent && <GoldCheckMark size={16} />}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
               <span>{timeAgoFa(post.createdAt)}</span>

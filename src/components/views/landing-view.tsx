@@ -482,7 +482,7 @@ function TopTalentSection() {
         <div className="relative space-y-5">
           <div className="flex items-center gap-3">
             <div className="grid place-items-center w-12 h-12 rounded-2xl bg-gold/15">
-              <Icon name="crown" size={26} className="text-gold" strokeWidth={2.2} />
+              <Icon name="badgeCheck" size={26} className="text-gold" strokeWidth={2.2} />
             </div>
             <p className="text-xs font-bold text-gold tracking-widest">استعداد برتر</p>
           </div>
@@ -576,7 +576,7 @@ function StatusMessage({ status }: { status: TopTalentMyStatus }) {
     return (
       <div className="text-center space-y-4 py-4">
         <div className="grid place-items-center w-14 h-14 rounded-2xl bg-gold/15 text-gold mx-auto">
-          <Icon name="crown" size={28} className="text-gold" strokeWidth={2.2} />
+          <Icon name="badgeCheck" size={28} className="text-gold" strokeWidth={2.2} />
         </div>
         <div className="space-y-1">
           <h3 className="text-lg font-extrabold">شما استعداد برتر هستید ✅</h3>
