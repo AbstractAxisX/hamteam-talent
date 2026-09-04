@@ -251,9 +251,10 @@ export function ProfileView({ id }: { id: string }) {
   ];
 
   return (
-    <div className="max-w-2xl mx-auto pb-16">
+    <div className="max-w-2xl mx-auto pb-16 relative ">
       {/* ═══════ کاور aurora مشبک — هویت بصری جدید ═══════ */}
-      <div className="relative">
+      <div className="flex justify-center">
+      <div className="relative w-screen -mx-8 -mt-6">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -279,7 +280,7 @@ export function ProfileView({ id }: { id: string }) {
           <motion.div
             animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.3, 0.15] }}
             transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-            className="absolute -bottom-16 -right-10 w-48 h-48 rounded-full blur-3xl pointer-events-none"
+            className="absolute -bottom-16 -right-10 w-48 h-48 rounded-full blur-3xl pointer-events-none "
             style={{ background: "#fbbf24" }}
           />
           {/* ستاره‌های طلایی — فقط استعداد برتر */}
@@ -302,15 +303,8 @@ export function ProfileView({ id }: { id: string }) {
           )}
 
           {/* اکشن‌های شناور بالای کاور */}
-          <div className="absolute top-4 inset-x-4 flex items-center justify-between">
-            <button
-              onClick={() => window.history.back()}
-              aria-label="بازگشت"
-              className="grid place-items-center size-11 rounded-full bg-black/25 backdrop-blur-md text-white
-                         hover:bg-black/40 transition-colors outline-none"
-            >
-              <Icon name="chevronRight" size={20} />
-            </button>
+          <div className="absolute top-4 inset-x-4 flex items-center justify-between ">
+
             <div className="flex items-center gap-2">
               {isSelf && (
                 <button
@@ -337,7 +331,7 @@ export function ProfileView({ id }: { id: string }) {
         </motion.div>
 
         {/* ═══════ سطر هویت — آواتار با بورت طلایی (استعداد برتر) / رینگ دوتایی ═══════ */}
-        <div className="relative px-4 -mt-12 z-10">
+        <div className="relative px-4 -mt-12 z-10 ">
           <div className="flex items-end gap-3.5">
             <motion.div
               initial={{ scale: 0.7, opacity: 0, y: 16 }}
@@ -414,13 +408,14 @@ export function ProfileView({ id }: { id: string }) {
           </div>
         </div>
       </div>
+      </div>
 
       {/* ═══════ بدنه ═══════ */}
       <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.15 }}
-        className="px-4 pt-4"
+        className="px-4 pt-4 rounded-t-xl"
       >
         {/* بایو */}
         {profile.bioShort && (
