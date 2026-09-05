@@ -110,9 +110,13 @@ import {
   Sparkles,
   User as UserIcon,
   Megaphone as MegaphoneIcon,
+  Flag,
+  Ticket as TicketIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BannersTab } from "@/components/admin/banners-tab";
+import { ReportsTab } from "@/components/admin/reports-tab";
+import { TicketsTab } from "@/components/admin/tickets-tab";
 
 // ═══════════════════════════════════════════════════════════════════
 // Theme constants — White / Blue admin theme (separate from main site)
@@ -273,7 +277,7 @@ type CategoryRow = {
 // Top-level AdminView
 // ═══════════════════════════════════════════════════════════════════
 export function AdminView() {
-  const [admin, setAdmin] = useState<AdminInfo>(undefined);
+  const [admin, setAdmin] = useState<AdminInfo | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -442,15 +446,19 @@ type PageKey =
   | "top-talent"
   | "broadcast"
   | "banners"
+  | "reports"
+  | "tickets"
   | "settings";
 
 const PAGES: { key: PageKey; label: string; icon: typeof UsersIcon }[] = [
   { key: "dashboard", label: "داشبورد", icon: LayoutDashboard },
   { key: "users", label: "کاربران", icon: UsersIcon },
-  { key: "categories", label: "دسته‌بندی‌ها", icon: FolderTree },
+  { key: "reports", label: "گزارش‌های تخلف", icon: Flag },
   { key: "posts", label: "پست‌ها", icon: FileText },
+  { key: "categories", label: "دسته‌بندی‌ها", icon: FolderTree },
   { key: "needs", label: "نیازمندی‌ها", icon: Briefcase },
   { key: "top-talent", label: "درخواست‌های استعداد برتر", icon: Award },
+  { key: "tickets", label: "تیکت‌های پشتیبانی", icon: TicketIcon },
   { key: "banners", label: "بنرها و تبلیغات", icon: MegaphoneIcon },
   { key: "broadcast", label: "اعلان سراسری", icon: Megaphone },
   { key: "settings", label: "تنظیمات", icon: SettingsIcon },
@@ -624,6 +632,8 @@ function AdminDashboard({
               {page === "top-talent" && <TopTalentTab />}
               {page === "broadcast" && <BroadcastTab />}
               {page === "banners" && <BannersTab />}
+              {page === "reports" && <ReportsTab />}
+              {page === "tickets" && <TicketsTab />}
               {page === "settings" && <SettingsTab admin={admin} onLogout={onLogout} />}
             </motion.div>
           </AnimatePresence>

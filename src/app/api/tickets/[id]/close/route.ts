@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
-// POST /api/tickets/[id]/close — close ticket (owner or admin)
+// POST /api/tickets/[id]/close — close ticket (فقط مالک؛ ادمین از مسیر ادمین بسته/باز می‌کند)
 export async function POST(_req: Request, ctx: RouteCtx) {
   const { id } = await ctx.params;
   const user = await getCurrentUser();
@@ -17,9 +17,7 @@ export async function POST(_req: Request, ctx: RouteCtx) {
     return NextResponse.json({ error: "تیکت یافت نشد" }, { status: 404 });
   }
 
-  const isOwner = ticket.userId === user.id;
-  const isAdmin = user.role === "admin";
-  if (!isOwner && !isAdmin) {
+  if (ticket.userId !== user.id) {
     return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   }
 

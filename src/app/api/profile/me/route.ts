@@ -43,10 +43,10 @@ export async function GET() {
   const [expCats, expSkills] = await Promise.all([
     catIds.length
       ? db.category.findMany({ where: { id: { in: catIds } }, select: { id: true, name: true } })
-      : [],
+      : ([] as { id: string; name: string }[]),
     skillIdsForExp.length
       ? db.skill.findMany({ where: { id: { in: skillIdsForExp } }, select: { id: true, name: true } })
-      : [],
+      : ([] as { id: string; name: string }[]),
   ]);
   const catMap = new Map(expCats.map((c) => [c.id, c.name]));
   const skillMap = new Map(expSkills.map((s) => [s.id, s.name]));
@@ -61,6 +61,7 @@ export async function GET() {
   const categories = user.userCategories.map((uc) => ({
     id: uc.category.id,
     name: uc.category.name,
+    iconUrl: uc.category.iconUrl ?? null,
     skills: uc.category.skills
       .filter((s) => skillIds.has(s.id))
       .map((s) => ({ id: s.id, name: s.name })),
@@ -91,7 +92,6 @@ export async function GET() {
     username: user.username,
     name: user.name,
     isVerifiedBadge: user.isVerifiedBadge,
-    role: user.role,
     bioShort: user.profile?.bioShort ?? "",
     bioLong: user.profile?.bioLong ?? "",
     avatarUrl: user.profile?.avatarUrl ?? null,

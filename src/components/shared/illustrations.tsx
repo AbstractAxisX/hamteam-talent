@@ -106,7 +106,7 @@ export function AuthIllustration({ className }: { className?: string }) {
 }
 
 /* ── Empty State Illustrations ── */
-type EmptyKind = "posts" | "jobs" | "people" | "chat" | "notif" | "connections" | "tickets" | "search" | "generic";
+export type EmptyKind = "posts" | "jobs" | "people" | "chat" | "notif" | "connections" | "tickets" | "search" | "generic";
 
 export function EmptyIllustration({ kind, className }: { kind: EmptyKind; className?: string }) {
   const gradients: Record<EmptyKind, [string, string]> = {

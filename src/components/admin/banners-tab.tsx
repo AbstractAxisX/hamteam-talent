@@ -407,6 +407,9 @@ function CreateBannerForm({ onCreated }: { onCreated: () => void }) {
         <div>
           <h3 className="font-bold text-sm text-gray-900">بنر جدید</h3>
           <p className="text-[10px] text-gray-500">در اسلایدر پایین هیروی صفحه اصلی نمایش داده می‌شود</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">
+            📐 سایز پیشنهادی تصویر: <span className="font-bold text-gray-600" dir="ltr">۱۶۰۰ × ۵۰۰</span> پیکسل (نسبت ۳.۲:۱) — محتوای مهم در مرکز تصویر
+          </p>
         </div>
       </div>
 

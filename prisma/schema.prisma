@@ -28,6 +28,7 @@ model User {
   likes           PostLike[]
   comments        Comment[]
   commentLikes    CommentLike[]
+  reports         PostReport[]
   connectionsReq  Connection[] @relation("ConnectionRequester")
   connectionsRec  Connection[] @relation("ConnectionReceiver")
   conversationsA  Conversation[] @relation("ConvUserA")
@@ -180,11 +181,29 @@ model Post {
   likes      PostLike[]
   comments   Comment[]
   ratings    PostRating[]
+  reports    PostReport[]
 
   @@index([userId])
   @@index([createdAt])
   @@index([categoryId])
   @@index([isFeatured])
+}
+
+/* ─── گزارش تخلف پست‌ها (مدیریت محتوا) ─── */
+model PostReport {
+  id         String   @id @default(cuid())
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter   User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  reason     String   // "spam" | "inappropriate" | "insult" | "illegal" | "other"
+  note       String   @default("")
+  status     String   @default("open") // "open" | "resolved" | "dismissed"
+  createdAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([postId, reporterId])
+  @@index([status])
 }
 
 model PostMedia {

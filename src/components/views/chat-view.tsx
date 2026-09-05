@@ -21,10 +21,14 @@ import { cn } from "@/lib/utils";
 type OtherUser = {
   id: string;
   name: string;
+  username?: string | null;
   isVerifiedBadge: boolean;
+  isTopTalent?: boolean;
   avatarUrl: string | null;
   gender?: string | null;
   bioShort?: string;
+  city?: string | null;
+  province?: string | null;
 };
 
 type ConversationListItem = {
@@ -53,6 +57,8 @@ type ChatMessage = {
 type ConversationDetail = {
   conversation: {
     id: string;
+    status?: "active" | "pending_request";
+    initiatorId?: string | null;
     otherUser: OtherUser;
   } | null;
   messages: ChatMessage[];
@@ -250,24 +256,37 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     return el.scrollHeight - el.scrollTop - el.clientHeight < 180;
   }, []);
 
-  /* ── Socket.io connection (mini-service on port 3003 via gateway) ── */
+  /* ── Socket.io connection (mini-service on port 3003 via gateway) ──
+     🔒 اول توکن امضاشده از /api/chat/socket-token گرفته می‌شود؛ سرویس
+     userId کلاینت را اعتماد نمی‌کند (رفع جعل هویت) */
+  const [socketReady, setSocketReady] = useState(false);
+
   useEffect(() => {
     if (!user) return;
-    const socket = io("/", {
-      path: "/",
-      query: { XTransformPort: "3003" },
-      auth: { userId: user.id },
-      transports: ["websocket", "polling"],
-      reconnection: true,
-      reconnectionDelay: 1500,
-    });
-    socketRef.current = socket;
+    let cancelled = false;
+    let localSocket: Socket | null = null;
 
-    socket.on("connect_error", (err: Error) => {
-      console.warn("[chat] socket connect_error", err.message);
-    });
+    (async () => {
+      try {
+        const { token } = await api<{ token: string }>("/api/chat/socket-token");
+        if (cancelled) return;
+        const socket = io("/", {
+          path: "/",
+          query: { XTransformPort: "3003" },
+          auth: { token },
+          transports: ["websocket", "polling"],
+          reconnection: true,
+          reconnectionDelay: 1500,
+        });
+        localSocket = socket;
+        socketRef.current = socket;
+        setSocketReady(true);
 
-    socket.on("message", (msg: ChatMessage) => {
+        socket.on("connect_error", (err: Error) => {
+          console.warn("[chat] socket connect_error", err.message);
+        });
+
+        socket.on("message", (msg: ChatMessage) => {
       const myId = myUserIdRef.current;
       const activeId = activeConvIdRef.current;
 
@@ -338,18 +357,24 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
         }
       }
     );
+      } catch (e) {
+        console.warn("[chat] socket setup failed", e);
+      }
+    })();
 
     return () => {
-      socket.disconnect();
-      socketRef.current = null;
+      cancelled = true;
+      localSocket?.disconnect();
+      if (socketRef.current === localSocket) socketRef.current = null;
+      setSocketReady(false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       if (typingClearRef.current) clearTimeout(typingClearRef.current);
     };
   }, [user, loadConversations, scrollToBottom, isNearBottom]);
 
-  /* ── Emit join when active conversation changes ── */
+  /* ── Emit join when active conversation changes (or socket becomes ready) ── */
   useEffect(() => {
-    if (!conversationId || !socketRef.current) return;
+    if (!conversationId || !socketRef.current || !socketReady) return;
     if (socketRef.current.connected) {
       socketRef.current.emit("join", { conversationId });
     } else {
@@ -357,7 +382,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
         socketRef.current?.emit("join", { conversationId });
       });
     }
-  }, [conversationId]);
+  }, [conversationId, socketReady]);
 
   /* ── Poll for read-status every 5s while chat is open ── */
   useEffect(() => {
@@ -464,7 +489,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     }
   };
 
-  /* ── Active conversation status (from list) ── */
+  /* ── Active conversation status (from list or detail — برای درخواست‌های تازه) ── */
   const activeConvInfo = useMemo(() => {
     if (!conversationId) return null;
     const inList =
@@ -480,8 +505,8 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
         avatarUrl: null,
       },
       lastMessage: null,
-      status: "active" as const,
-      initiatorId: null,
+      status: (activeConv?.conversation?.status ?? "active") as "active" | "pending_request",
+      initiatorId: (activeConv?.conversation?.initiatorId ?? null) as string | null,
       unreadCount: 0,
     };
   }, [conversationId, conversations, requests, activeConv]);
@@ -1076,6 +1101,46 @@ function ChatThread({
         )}
       </div>
 
+      {/* ── کارت پروفایل فرد بالای گفتگو — «پروفایل او بالا می‌آید» ── */}
+      {other && (
+        <button
+          onClick={() => navigate({ view: "profile", id: other.id })}
+          className="shrink-0 w-full flex items-center gap-3.5 px-4 py-3.5 border-b border-border/60 bg-card hover:bg-muted/50 transition-colors text-right"
+          aria-label={`مشاهده پروفایل ${other.name}`}
+        >
+          <UserAvatar
+            name={other.name}
+            avatarUrl={other.avatarUrl}
+            verified={other.isVerifiedBadge}
+            gender={other.gender}
+            size="xl"
+            topTalent={other.isTopTalent}
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-extrabold text-[15px] text-foreground truncate">{other.name}</span>
+              {other.isTopTalent && <span className="text-[10px] font-black px-2 py-0.5 rounded-full grad-gold text-white">نخبه</span>}
+            </div>
+            {other.username && (
+              <p className="text-[11px] font-bold text-primary mt-0.5" dir="ltr">@{other.username}</p>
+            )}
+            {other.bioShort && (
+              <p className="text-[11.5px] text-muted-foreground mt-1 line-clamp-2 leading-5">{other.bioShort}</p>
+            )}
+            {(other.city || other.province) && (
+              <p className="text-[10.5px] text-muted-foreground/80 mt-1 inline-flex items-center gap-1">
+                <Icon name="mapPin" size={11} />
+                {other.province}{other.city && other.province ? " · " : ""}{other.city}
+              </p>
+            )}
+          </div>
+          <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-extrabold text-primary bg-primary/8 border border-primary/25 rounded-full px-3 py-1.5">
+            پروفایل
+            <Icon name="chevronLeft" size={12} />
+          </span>
+        </button>
+      )}
+
       {/* ── Messages ── */}
       <div
         ref={messagesContainerRef}
@@ -1216,15 +1281,23 @@ function ChatThread({
 
       {/* ── Input area ── */}
       <div className="shrink-0 p-3 border-t border-border/60 glass lg:rounded-b-3xl pb-safe">
-        {status === "active" ? (
+        {status === "active" || isMyRequestPending ? (
           <>
+            {isMyRequestPending && (
+              <div className="flex items-center gap-2 mb-2.5 py-2 px-3 rounded-xl bg-gold/10 border border-gold/25">
+                <Icon name="clock" size={14} className="text-gold shrink-0" />
+                <p className="text-[11px] font-bold text-gold leading-4">
+                  درخواست پیام ارسال شده — متن‌های شما بعد از تأیید برای او نمایش داده می‌شود.
+                </p>
+              </div>
+            )}
             <div className="flex items-end gap-2">
               <div className="flex-1 relative">
                 <Textarea
                   value={draft}
                   onChange={(e) => onDraftChange(e.target.value)}
                   onKeyDown={onKeyDown}
-                  placeholder="پیام بنویسید..."
+                  placeholder={isMyRequestPending ? "متن درخواست پیام… (چرا می‌خواهید گفتگو کنید؟)" : "پیام بنویسید..."}
                   className="flex-1 min-h-[44px] max-h-32 resize-none text-sm rounded-2xl pr-4 pl-3 py-2.5 border-border/60 focus-visible:ring-1 focus-visible:ring-primary/40"
                   rows={1}
                 />
@@ -1235,23 +1308,18 @@ function ChatThread({
                 onClick={onSend}
                 disabled={!draft.trim()}
                 className="h-11 w-11 p-0 shrink-0 rounded-full bg-primary text-primary-foreground grid place-items-center shadow-lg shadow-primary/30 disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed transition-shadow hover:shadow-xl"
-                aria-label="ارسال"
+                aria-label={isMyRequestPending ? "ارسال درخواست" : "ارسال"}
               >
                 <Icon name="send" size={18} className="-scale-x-100" />
               </motion.button>
             </div>
             <p className="text-[10px] text-muted-foreground mt-1.5 px-2 flex items-center gap-1">
               <Icon name="sparkles" size={11} className="text-gold/70" />
-              Enter برای ارسال · Shift+Enter برای خط جدید
+              {isMyRequestPending
+                ? "متن درخواست برای او ارسال می‌شود و پس از تأیید گفتگو آغاز می‌شود"
+                : "Enter برای ارسال · Shift+Enter برای خط جدید"}
             </p>
           </>
-        ) : isMyRequestPending ? (
-          <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gold/10 border border-gold/20">
-            <Icon name="clock" size={16} className="text-gold" />
-            <p className="text-xs font-medium text-gold">
-              در انتظار تأیید درخواست — پس از پذیرش طرف مقابل می‌توانید پیام دهید.
-            </p>
-          </div>
         ) : isTheirRequestPending ? (
           <div className="flex items-center gap-2">
             <p className="text-xs text-muted-foreground flex-1 px-2">

@@ -526,6 +526,7 @@ function PostCard({
   onOpenComments: (post: ExplorePost) => void;
 }) {
   const catColor = post.categoryColor || "oklch(0.55 0.13 160)";
+  // رنگ فرد — دستهٔ اصلی کاربر؛ رینگ آواتار و نوار بالای کارت هم‌رنگ می‌شوند
   const ringColor = post.user.mainCategoryColor || catColor;
 
   const [expanded, setExpanded] = useState(false);
@@ -597,13 +598,13 @@ function PostCard({
           : "border-border/50"
       )}
     >
-      {/* خط گرادیانی امضای برند بالای کارت */}
+      {/* خط گرادیانی امضای برند بالای کارت — رنگِ فرد (هم‌رنگ رینگ آواتار) */}
       <div
         className="absolute top-0 inset-x-0 h-[3px] z-10"
         style={{
           background: post.user.isTopTalent
             ? "linear-gradient(90deg, transparent, #b45309, #f5c84c, #fef3c7, #f5c84c, #b45309, transparent)"
-            : `linear-gradient(90deg, transparent, ${catColor}, transparent)`,
+            : `linear-gradient(90deg, transparent, ${ringColor}, transparent)`,
           opacity: 0.75,
         }}
       />

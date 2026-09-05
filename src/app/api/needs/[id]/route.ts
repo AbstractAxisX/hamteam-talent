@@ -196,11 +196,12 @@ export async function PUT(
           { status: 400 }
         );
       }
+      const newSkillIds = newSkills.map((s: unknown) => String(s));
       const validSkills = await db.skill.findMany({
-        where: { id: { in: newSkills }, categoryId: newCategoryId },
+        where: { id: { in: newSkillIds }, categoryId: newCategoryId },
         select: { id: true },
       });
-      if (validSkills.length !== newSkills.length) {
+      if (validSkills.length !== newSkillIds.length) {
         return NextResponse.json(
           { error: "یکی از مهارت‌ها به این دسته‌بندی تعلق ندارد" },
           { status: 400 }
@@ -209,7 +210,7 @@ export async function PUT(
       // Replace: delete old, create new
       await db.jobPostSkill.deleteMany({ where: { jobPostId: id } });
       await db.jobPostSkill.createMany({
-        data: newSkills.map((skillId) => ({ jobPostId: id, skillId })),
+        data: newSkillIds.map((skillId) => ({ jobPostId: id, skillId: String(skillId) })),
       });
     }
   }

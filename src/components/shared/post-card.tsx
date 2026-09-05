@@ -9,6 +9,7 @@ import type { PostWithRelations } from "@/lib/types";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Icon } from "@/components/shared/icon";
 import { LikersSheet, postLikersFetcher } from "@/components/shared/likers-sheet";
+import { ReportDialog } from "@/components/shared/report-dialog";
 import { toast } from "@/hooks/use-toast";
 import { timeAgoFa, formatCount, formatFaDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -80,6 +81,10 @@ export function PostCard({ post, index = 0 }: { post: PostWithRelations; index?:
   const [liking, setLiking] = useState(false);
   const [likeBounce, setLikeBounce] = useState(false);
   const [likersOpen, setLikersOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+
+  // رنگ فرد — دستهٔ اصلی کاربر (سقوط: رنگ دستهٔ پست)؛ رینگ و نوار بالا هم‌رنگ می‌شوند
+  const userColor = post.user?.mainCategoryColor || post.categoryColor || null;
 
   function openDetail() {
     // مبدأ پروفایل — در صفحه جزئیات، تعامل لایک (نه امتیاز) فعال می‌شود
@@ -128,8 +133,13 @@ export function PostCard({ post, index = 0 }: { post: PostWithRelations; index?:
       transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3), ease: [0.16, 1, 0.3, 1] }}
     >
       <article className="relative bg-card rounded-[24px] overflow-hidden border border-border/50 shadow-card">
-        {/* خط گرادیانی امضای برند */}
-        <div className="absolute top-0 inset-x-0 h-[3px] grad-brand opacity-80" />
+        {/* نوار بالای پست — رنگ دستهٔ اصلیِ فرد (هماهنگ با رینگ آواتار) */}
+        <div
+          className="absolute top-0 inset-x-0 h-[3px] opacity-80"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${userColor || "var(--primary)"}, transparent)`,
+          }}
+        />
 
         {/* Header */}
         <div className="p-4 pt-4 flex items-start gap-3">
@@ -142,7 +152,10 @@ export function PostCard({ post, index = 0 }: { post: PostWithRelations; index?:
               name={post.user.name}
               avatarUrl={post.user.avatarUrl}
               verified={post.user.isVerifiedBadge}
+              gender={post.user.gender}
               size="md"
+              topTalent={post.user.isTopTalent}
+              ringColor={post.user.isTopTalent ? null : userColor || "var(--primary)"}
             />
           </button>
           <div className="flex-1 min-w-0">
@@ -244,6 +257,19 @@ export function PostCard({ post, index = 0 }: { post: PostWithRelations; index?:
           >
             <Icon name="share" size={17} strokeWidth={2} />
           </motion.button>
+
+          {/* گزارش تخلف — مدیریت محتوا */}
+          {user && user.id !== post.user.id && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              transition={{ type: "spring", stiffness: 500, damping: 22 }}
+              onClick={() => setReportOpen(true)}
+              className="h-10 w-10 shrink-0 rounded-full grid place-items-center text-muted-foreground bg-card border border-border hover:bg-rose/5 hover:text-rose hover:border-rose/30 transition-colors"
+              aria-label="گزارش تخلف"
+            >
+              <Icon name="flag" size={16} strokeWidth={2} />
+            </motion.button>
+          )}
         </div>
 
         {/* تاریخ */}
@@ -261,6 +287,9 @@ export function PostCard({ post, index = 0 }: { post: PostWithRelations; index?:
         emptyTitle="هنوز لایکی نیست"
         emptyDesc="اولین لایک را تو بزن!"
       />
+
+      {/* دیالوگ گزارش تخلف */}
+      <ReportDialog postId={post.id} open={reportOpen} onClose={() => setReportOpen(false)} />
     </motion.div>
   );
 }

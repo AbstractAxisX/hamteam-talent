@@ -10,6 +10,7 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icon } from "@/components/shared/icon";
+import { useUser } from "@/lib/use-user";
 import { SearchableSelect } from "@/components/shared/searchable-select";
 import { SPRING } from "@/components/ui/atoms";
 import { PROVINCES, getCitiesForProvince, getProvinceName } from "@/lib/geo";
@@ -55,6 +56,7 @@ export function FilterFab({
   subtitle?: string;
 }) {
   const [open, setOpen] = React.useState(false);
+  const { user } = useUser();
 
   // پیش‌نویس محلی — تا ثبت اعمال نمی‌شود
   const [draft, setDraft] = React.useState<FilterFabValue>(value);
@@ -83,17 +85,21 @@ export function FilterFab({
 
   return (
     <>
-      {/* ═══ دکمه شناور — فقط آیکون، هم‌سبک دکمه چت ═══ */}
+      {/* ═══ دکمه شناور — هم‌طراز دکمه چت، آیکون دقیقاً وسط (بدون padding اضافه) ═══ */}
       <motion.button
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 500, damping: 25, delay: 0.1 }}
+        transition={{ type: "spring", stiffness: 400, damping: 28, delay: 0.1 }}
         whileTap={{ scale: 0.88 }}
         onClick={() => setOpen(true)}
         aria-label={title}
-        /* بالای دکمه‌ی چت (۸۰ + ۵۶ + ۱۲) تا روی آن نیفتد */
-        className="fixed left-4 z-40 bottom-[calc(env(safe-area-inset-bottom,0px)+148px)] md:bottom-24
-                   grid place-items-center size-14 rounded-full grad-brand text-white shadow-glow safe-b"
+        className={cn(
+          "fixed left-4 z-40 grid place-items-center size-14 rounded-full grad-brand text-white shadow-glow",
+          user
+            ? "bottom-[calc(env(safe-area-inset-bottom,0px)+148px)]"
+            : "bottom-[calc(env(safe-area-inset-bottom,0px)+80px)]",
+          "md:bottom-24"
+        )}
       >
         <Icon name="filter" size={22} strokeWidth={2.2} className="text-white" />
         {active > 0 && (

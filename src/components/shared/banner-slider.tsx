@@ -2,10 +2,10 @@
 
 /* ═══════════════════════════════════════════════════════════
    BannerSlider — اسلایدر بنرها و تبلیغات صفحه اصلی
-   · embla + پخش خودکار ۴ ثانیه (توقف هنگام درگ/هاور)
-   · کارت‌های گرد با گرادیان تیره + عنوان/زیرعنوان + دات‌ها
-   · کلیک → POST /api/banners/[id]/click سپس ناوبری (هش داخلی یا لینک)
-   · بدون بنر فعال → هیچ رندر نمی‌شود
+   · embla + پخش خودکار ۴ ثانیه (توقف هنگام هاور)
+   · 🔧 ریشه‌ی «فقط یک اسلاید»: اسلایدها بعد از fetch رندر می‌شوند و
+     موتور embla باید reInit شود — وگرنه نه autoplay روشن می‌شود نه درگ
+   · سایز پیشنهادی بنر: ۱۶۰۰×۵۰۰ پیکسل (نسبت ۳.۲:۱، محتوا در مرکز)
    ═══════════════════════════════════════════════════════════ */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,8 +22,8 @@ export function BannerSlider({ className }: { className?: string }) {
   const [index, setIndex] = useState(0);
 
   const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: true, align: "start", direction: "rtl" },
-    [Autoplay({ delay: 4000, stopOnInteraction: true, stopOnMouseEnter: true })]
+    { loop: true, align: "start", direction: "rtl", containScroll: "trimSnaps" },
+    [Autoplay({ delay: 4000, stopOnInteraction: false, stopOnMouseEnter: true })]
   );
 
   useEffect(() => {
@@ -31,6 +31,14 @@ export function BannerSlider({ className }: { className?: string }) {
       .then((d) => setBanners(d.banners || []))
       .catch(() => setBanners([]));
   }, []);
+
+  // 🔧 بنرها async لود می‌شوند → ویوپورت embla بعد از mount اولیه ساخته می‌شود؛
+  // بدون reInit موتور خالی می‌ماند (باقی اسلایدها هیچ‌وقت نمایش داده نمی‌شوند)
+  useEffect(() => {
+    if (!emblaApi || !banners || banners.length === 0) return;
+    emblaApi.reInit();
+    setIndex(0);
+  }, [emblaApi, banners]);
 
   // sync active dot
   useEffect(() => {
@@ -41,12 +49,12 @@ export function BannerSlider({ className }: { className?: string }) {
     return () => {
       emblaApi.off("select", onSelect);
     };
-  }, [emblaApi, banners]);
+  }, [emblaApi]);
 
   const onBannerClick = useCallback(
     async (b: BannerPublic) => {
       try {
-        // ثبت کلیک؛ ناوبری را منتظر نمی‌کنیم که UX سریع بماند
+        // ثبت کلیک؛ ناوبری را منتظر نمی‌مانیم که UX سریع بماند
         apiPost(`/api/banners/${b.id}/click`).catch(() => {});
       } catch { /* ignore */ }
       if (!b.linkUrl) return;
@@ -66,11 +74,13 @@ export function BannerSlider({ className }: { className?: string }) {
   return (
     <div className={cn("relative", className)}>
       <div
-        className="overflow-hidden rounded-3xl border border-border/60 shadow-soft bg-muted/30"
+        className="relative overflow-hidden rounded-3xl border border-border/60 shadow-soft bg-muted/30"
         role="region"
         aria-label="بنرها و تبلیغات"
       >
-        <div ref={emblaRef} className="flex">
+        {/* embla v8 = ساختار دو لایه: ویوپورت (ref) > کانتینر (transform) > اسلایدها */}
+        <div ref={emblaRef} className="overflow-hidden">
+          <div className="flex">
           {banners.map((b) => (
             <button
               key={b.id}
@@ -78,12 +88,13 @@ export function BannerSlider({ className }: { className?: string }) {
               className="relative shrink-0 w-full h-40 sm:h-48 md:h-56 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded-3xl"
               aria-label={b.title}
             >
-              {/* تصویر */}
+              {/* تصویر — ۱۶۰۰×۵۰۰ توصیه می‌شود، محتوای مهم در مرکز */}
               <img
                 src={b.imageUrl}
                 alt={b.title}
                 loading="lazy"
                 decoding="async"
+                draggable={false}
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03] rounded-3xl"
               />
               {/* گرادیان خوانایی */}
@@ -114,12 +125,9 @@ export function BannerSlider({ className }: { className?: string }) {
                   </span>
                 )}
               </span>
-              {/* نشان تبلیغ — شفافیت کامل با ادمین */}
-              <span className="absolute top-3 left-3 text-[9px] font-bold text-white/70 bg-black/35 backdrop-blur-sm rounded-full px-2 py-0.5">
-                تبلیغ
-              </span>
             </button>
           ))}
+          </div>
         </div>
 
         {/* دات‌ها — فقط وقتی بیش از یک بنر */}

@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentAdmin } from "@/lib/auth";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
 // GET /api/admin/users/[id]/posts — admin: list user's posts
 export async function GET(_req: Request, ctx: RouteCtx) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: "ابتدا وارد شوید" }, { status: 401 });
-  }
-  if (user.role !== "admin") {
+  const admin = await getCurrentAdmin();
+  if (!admin) {
     return NextResponse.json({ error: "دسترسی غیرمجاز" }, { status: 403 });
   }
 

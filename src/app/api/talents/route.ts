@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { provinceCandidates } from "@/lib/geo";
+import { categoryColorMap, resolveUserColor } from "@/lib/cat-color";
 import type { TalentListItem } from "@/lib/types";
 
 // GET /api/talents — browse talents (users) with filters
@@ -56,11 +57,14 @@ export async function GET(req: Request) {
     },
   });
 
+  const catMap = await categoryColorMap();
+
   const result: TalentListItem[] = users.map((u) => ({
     id: u.id,
     name: u.name,
     username: u.username,
     isVerifiedBadge: u.isVerifiedBadge,
+    isTopTalent: u.isTopTalent,
     bioShort: u.profile?.bioShort || "",
     avatarUrl: u.profile?.avatarUrl ?? null,
     gender: (u.profile?.gender as string | null) ?? null,
@@ -70,8 +74,14 @@ export async function GET(req: Request) {
       id: uc.category.id,
       name: uc.category.name,
       iconUrl: uc.category.iconUrl,
+      color: uc.category.color,
     })),
     followersCount: u.connectionsRec.length,
+    mainCategoryColor: resolveUserColor(
+      catMap,
+      u.profile?.mainCategoryId,
+      u.userCategories?.[0]?.categoryId
+    ),
   }));
 
   // Sort by followers if requested

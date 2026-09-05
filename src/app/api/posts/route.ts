@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { categoryColorMap, resolveUserColor } from "@/lib/cat-color";
 import type { PostWithRelations } from "@/lib/types";
 
 // GET /api/posts?sort=recent|popular&userId=xxx
@@ -19,7 +20,12 @@ export async function GET(req: Request) {
     orderBy,
     take: 50,
     include: {
-      user: { include: { profile: true } },
+      user: {
+        include: {
+          profile: true,
+          userCategories: { select: { categoryId: true }, take: 1 },
+        },
+      },
       category: true,
       skill: true,
       likes: user ? { where: { userId: user.id }, select: { id: true } } : false,
@@ -28,6 +34,8 @@ export async function GET(req: Request) {
     },
   });
 
+  const catMap = await categoryColorMap();
+
   const result: PostWithRelations[] = posts.map((p) => ({
     id: p.id,
     content: p.content,
@@ -35,12 +43,20 @@ export async function GET(req: Request) {
     categoryId: p.categoryId,
     skillId: p.skillId,
     categoryName: p.category?.name ?? null,
+    categoryColor: p.category?.color ?? null,
     skillName: p.skill?.name ?? null,
     user: {
       id: p.user.id,
       name: p.user.name,
       isVerifiedBadge: p.user.isVerifiedBadge,
       avatarUrl: p.user.profile?.avatarUrl ?? null,
+      gender: p.user.profile?.gender ?? null,
+      isTopTalent: p.user.isTopTalent,
+      mainCategoryColor: resolveUserColor(
+        catMap,
+        p.user.profile?.mainCategoryId,
+        p.user.userCategories?.[0]?.categoryId
+      ),
     },
     likeCount: p._count.likes,
     likedByMe: user ? p.likes.length > 0 : false,

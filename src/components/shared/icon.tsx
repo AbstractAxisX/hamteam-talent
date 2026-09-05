@@ -67,12 +67,16 @@ import {
   File01Icon,
   PauseIcon,
   FilterIcon,
+  Flag01Icon,
+  EyeIcon,
 } from "@hugeicons/core-free-icons";
 
 type IconProps = { className?: string; size?: number; strokeWidth?: number };
 
 export function Icon({ name, className, size = 22, strokeWidth }: { name: string } & IconProps) {
   const iconMap: Record<string, any> = {
+    flag: Flag01Icon,
+    eye: EyeIcon,
     home: Home02Icon,
     search: Search01Icon,
     sparkles: SparklesIcon,

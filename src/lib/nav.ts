@@ -7,7 +7,6 @@ type RouteBase =
   | { view: "dashboard" }
   | { view: "explore" }
   | { view: "post"; id: string }
-  | { view: "following" }
   | { view: "discover" }
   | { view: "talents" }
   | { view: "needs" }
@@ -44,7 +43,6 @@ function parseBase(path: string, rest: string[]): RouteBase {
     case "feed": return { view: "feed" };
     case "dashboard": return { view: "dashboard" };
     case "explore": return { view: "explore" };
-    case "following": return { view: "following" };
     case "talents": return { view: "talents" };
     case "needs": return { view: "needs" };
     case "create-need": return { view: "create-need" };

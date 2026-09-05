@@ -71,7 +71,7 @@ export function TicketsView() {
   if (!userLoading && !user) {
     return (
       <div className="max-w-2xl mx-auto space-y-5">
-        <Header count={null} />
+        <Header count={null} loading={false} onRefresh={() => {}} onCreate={() => navigate({ view: "tickets" })} />
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}

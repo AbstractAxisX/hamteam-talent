@@ -263,7 +263,8 @@ export function TalentCardLarge({
           verified={talent.isVerifiedBadge}
           gender={talent.gender}
           size="lg"
-          ringColor="oklch(0.6 0.15 160 / 0.3)"
+          topTalent={talent.isTopTalent}
+          ringColor={talent.isTopTalent ? null : talent.mainCategoryColor || "var(--primary)"}
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">

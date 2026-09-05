@@ -29,7 +29,7 @@ function Spinner({ className }: { className?: string }) {
 type TicketUser = {
   id: string;
   name: string;
-  role: string;
+  role?: string;
   isVerifiedBadge: boolean;
   isBanned?: boolean;
   avatarUrl: string | null;
@@ -44,11 +44,11 @@ type TicketUser = {
 type Reply = {
   id: string;
   content: string;
+  isAdmin?: boolean;
   createdAt: string;
   user: {
     id: string;
     name: string;
-    role: string;
     avatarUrl: string | null;
   };
 };
@@ -157,7 +157,6 @@ export function TicketDetailView({ id }: { id: string }) {
 
   const isClosed = ticket.status === "closed";
   const isOwner = user?.id === ticket.userId;
-  const isAdmin = user?.role === "admin";
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
@@ -220,12 +219,10 @@ export function TicketDetailView({ id }: { id: string }) {
               />
               <div className="text-right">
                 <p className="text-sm font-bold">{ticket.user.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {ticket.user.role === "admin" ? "پشتیبانی" : "سازنده‌ی تیکت"}
-                </p>
+                <p className="text-xs text-muted-foreground">سازنده‌ی تیکت</p>
               </div>
             </button>
-            {(isOwner || isAdmin) && !isClosed && (
+            {isOwner && !isClosed && (
               <Button
                 variant="outline"
                 size="sm"
@@ -256,7 +253,7 @@ export function TicketDetailView({ id }: { id: string }) {
           <div className="space-y-3 max-h-[480px] overflow-y-auto slim-scroll pl-1">
             {ticket.replies.map((r, i) => {
               const isOwn = user?.id === r.user.id;
-              const isStaff = r.user.role === "admin";
+              const isStaff = !!r.isAdmin;
               return (
                 <motion.div
                   key={r.id}

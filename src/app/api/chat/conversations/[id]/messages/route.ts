@@ -37,8 +37,12 @@ export async function GET(
     },
   });
 
-  // Also fetch the "other" user info for the header
+  // Also fetch the "other" user info for the header + status
   const otherId = conv.userAId === me.id ? conv.userBId : conv.userAId;
+  const convFull = await db.conversation.findUnique({
+    where: { id },
+    select: { status: true, initiatorId: true, userAId: true, userBId: true },
+  });
   const other = await db.user.findUnique({
     where: { id: otherId },
     include: { profile: true },
@@ -47,13 +51,19 @@ export async function GET(
   return NextResponse.json({
     conversation: {
       id,
+      status: convFull?.status ?? "active",
+      initiatorId: convFull?.initiatorId ?? null,
       otherUser: other
         ? {
             id: other.id,
             name: other.name,
+            username: other.username ?? null,
             isVerifiedBadge: other.isVerifiedBadge,
+            isTopTalent: other.isTopTalent,
             avatarUrl: other.profile?.avatarUrl ?? null,
             bioShort: other.profile?.bioShort ?? "",
+            city: other.profile?.city ?? null,
+            province: other.profile?.province ?? null,
           }
         : null,
     },

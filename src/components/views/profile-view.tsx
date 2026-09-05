@@ -243,6 +243,23 @@ export function ProfileView({ id }: { id: string }) {
     );
   })();
 
+  /* دکمهٔ ثانویه «درخواست پیام» — وقتی ارتباط برقرار نیست (جریان لینکدینی):
+     باز شدن گفتگو با پروفایل فرد + نوشتن متن درخواست → تأیید/رد توسط گیرنده */
+  const secondaryChatAction =
+    !isSelf && conn !== "accepted" ? (
+      <button
+        onClick={handleStartChat}
+        disabled={chatBusy}
+        className="h-12 px-4 shrink-0 rounded-2xl glass-strong border border-primary/30 text-primary font-extrabold text-[12.5px]
+                   inline-flex items-center justify-center gap-1.5 hover:bg-primary/5 transition-colors outline-none
+                   disabled:opacity-60"
+        aria-label="درخواست پیام"
+      >
+        <Icon name={chatBusy ? "loader" : "chat"} size={16} className={chatBusy ? "animate-spin" : ""} />
+        درخواست پیام
+      </button>
+    ) : null;
+
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "about", label: "درباره" },
     { key: "portfolio", label: "نمونه کارها" },
@@ -251,15 +268,15 @@ export function ProfileView({ id }: { id: string }) {
   ];
 
   return (
-    <div className="max-w-2xl mx-auto pb-16 relative ">
+    <div className="max-w-2xl mx-auto pb-16 relative">
       {/* ═══════ کاور aurora مشبک — هویت بصری جدید ═══════ */}
-      <div className="flex justify-center">
-      <div className="relative w-screen -mx-8 -mt-6">
+      {/* بهینه‌سازی کارفرما: کاور تمام‌عرض لبه‌به‌لبه — بلوک با مارجین منفی (بدون flex تا عرض واقعی گرفته شود) */}
+      <div className="relative -mx-4 md:-mx-8 md:rounded-[36px] -mt-6">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
-          className="relative h-48 sm:h-56 overflow-hidden rounded-b-[36px]"
+          className="relative h-48 sm:h-56 overflow-hidden rounded-b-[36px] md:rounded-[36px]"
           style={coverStyle}
         >
           {/* بافت نقطه‌ای */}
@@ -280,7 +297,7 @@ export function ProfileView({ id }: { id: string }) {
           <motion.div
             animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.3, 0.15] }}
             transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-            className="absolute -bottom-16 -right-10 w-48 h-48 rounded-full blur-3xl pointer-events-none "
+            className="absolute -bottom-16 -right-10 w-48 h-48 rounded-full blur-3xl pointer-events-none"
             style={{ background: "#fbbf24" }}
           />
           {/* ستاره‌های طلایی — فقط استعداد برتر */}
@@ -302,9 +319,8 @@ export function ProfileView({ id }: { id: string }) {
             </>
           )}
 
-          {/* اکشن‌های شناور بالای کاور */}
-          <div className="absolute top-4 inset-x-4 flex items-center justify-between ">
-
+          {/* اکشن‌های شناور بالای کاور — دکمه بازگشت به هدر موبایل منتقل شد (کاور تمیز) */}
+          <div className="absolute top-4 inset-x-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               {isSelf && (
                 <button
@@ -319,7 +335,10 @@ export function ProfileView({ id }: { id: string }) {
                 </button>
               )}
               <button
-                onClick={() => navigate(isSelf ? { view: "edit-profile" } : { view: "chat" })}
+                onClick={() => {
+                  if (isSelf) navigate({ view: "edit-profile" });
+                  else handleStartChat();
+                }}
                 aria-label={isSelf ? "ویرایش" : "گفتگو"}
                 className="grid place-items-center size-11 rounded-full bg-black/25 backdrop-blur-md text-white
                            hover:bg-black/40 transition-colors outline-none"
@@ -331,7 +350,7 @@ export function ProfileView({ id }: { id: string }) {
         </motion.div>
 
         {/* ═══════ سطر هویت — آواتار با بورت طلایی (استعداد برتر) / رینگ دوتایی ═══════ */}
-        <div className="relative px-4 -mt-12 z-10 ">
+        <div className="relative px-4 -mt-12 z-10">
           <div className="flex items-end gap-3.5">
             <motion.div
               initial={{ scale: 0.7, opacity: 0, y: 16 }}
@@ -408,7 +427,6 @@ export function ProfileView({ id }: { id: string }) {
           </div>
         </div>
       </div>
-      </div>
 
       {/* ═══════ بدنه ═══════ */}
       <motion.div
@@ -447,9 +465,10 @@ export function ProfileView({ id }: { id: string }) {
           <StatSeg value={toFa(profile.categories?.length || 0)} label="تخصص‌ها" icon="award" gold={isTopTalent} />
         </div>
 
-        {/* اکشن اصلی + PDF */}
+        {/* اکشن اصلی + درخواست پیام + PDF */}
         <div className="mt-4 flex items-center gap-2.5">
           {primaryAction}
+          {secondaryChatAction}
           <button
             onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
             aria-label="دانلود رزومه PDF"

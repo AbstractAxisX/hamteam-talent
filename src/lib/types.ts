@@ -33,12 +33,16 @@ export type PostWithRelations = {
   categoryId: string | null;
   skillId: string | null;
   categoryName: string | null;
+  categoryColor?: string | null; // رنگ دستهٔ پست
   skillName: string | null;
   user: {
     id: string;
     name: string;
     isVerifiedBadge: boolean;
     avatarUrl: string | null;
+    gender?: string | null;
+    isTopTalent?: boolean;
+    mainCategoryColor?: string | null; // رنگ دستهٔ اصلی کاربر — رینگ آواتار
   };
   likeCount: number;
   likedByMe: boolean;
@@ -50,13 +54,15 @@ export type TalentListItem = {
   name: string;
   username?: string | null;
   isVerifiedBadge: boolean;
+  isTopTalent?: boolean;
   bioShort: string;
   avatarUrl: string | null;
   gender: string | null;
   province: string | null;
   city: string | null;
-  categories: { id: string; name: string; iconUrl: string | null }[];
+  categories: { id: string; name: string; iconUrl: string | null; color?: string | null }[];
   followersCount: number;
+  mainCategoryColor?: string | null; // رنگ دستهٔ اصلی — رینگ آواتار
 };
 
 // ─── Needs (نیازمندی‌ها) ───────────────────────────────────────

@@ -12,7 +12,6 @@ import { BackButton } from "@/components/shared/back-button";
 import { AuthView } from "@/components/views/auth-view";
 import { FeedView } from "@/components/views/feed-view";
 import { DashboardView } from "@/components/views/dashboard-view";
-import { FollowingView } from "@/components/views/following-view";
 import { DiscoverView } from "@/components/views/discover-view";
 import { ExploreView, PostDetailView } from "@/components/views/explore-view";
 import { TalentsView } from "@/components/views/talents-view";
@@ -40,7 +39,6 @@ function renderView(route: Route) {
   switch (route.view) {
     case "feed": return <FeedView />;
     case "dashboard": return <DashboardView />;
-    case "following": return <FollowingView />;
     case "discover": return <DiscoverView />;
     case "explore": return <ExploreView />;
     case "post": return <PostDetailView id={route.id} fromProfile={route.params?.from === "profile"} />;
@@ -72,14 +70,16 @@ function renderView(route: Route) {
 
 // Top-level views: no back button shown on detail pages
 const TOP_LEVEL = new Set([
-  "feed", "explore", "discover", "talents", "needs", "following", "dashboard", "settings", "my-profile",
+  "feed", "explore", "discover", "talents", "needs", "dashboard", "settings", "my-profile",
 ]);
 
-// Mobile bottom tab bar (5 tabs + more)
+// Bottom tab bar (5 tabs + more) — ترتیب بر اساس جریان طبیعی اپ اجتماعی:
+// خانه → کشف محتوا → برترین‌ها → دایرکتوری افراد → فرصت‌ها
+// دکمه اول برای مهمان «عمومی» (لندینگ) و برای کاربر لاگین‌شده «خانه» (فید شخصی) است
 const MOBILE_TABS = [
   { key: "feed", label: "خانه", icon: "home" as const, route: { view: "feed" } as Route },
-  { key: "explore", label: "برترین‌ها", icon: "sparkles" as const, route: { view: "explore" } as Route },
   { key: "discover", label: "کشف", icon: "compass" as const, route: { view: "discover" } as Route },
+  { key: "explore", label: "برترین‌ها", icon: "sparkles" as const, route: { view: "explore" } as Route },
   { key: "talents", label: "استعدادها", icon: "users" as const, route: { view: "talents" } as Route },
   { key: "needs", label: "نیازمندی", icon: "briefcase" as const, route: { view: "needs" } as Route },
 ];
@@ -87,8 +87,8 @@ const MOBILE_TABS = [
 // Desktop top nav (center cluster)
 const DESKTOP_NAV = [
   { key: "feed", label: "خانه", route: { view: "feed" } as Route },
-  { key: "explore", label: "استعدادهای برتر", route: { view: "explore" } as Route },
   { key: "discover", label: "کشف", route: { view: "discover" } as Route },
+  { key: "explore", label: "استعدادهای برتر", route: { view: "explore" } as Route },
   { key: "talents", label: "استعدادها", route: { view: "talents" } as Route },
   { key: "needs", label: "نیازمندی", route: { view: "needs" } as Route },
 ];
@@ -159,6 +159,11 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
   const activeView = route.view;
   const showBack = !TOP_LEVEL.has(activeView);
 
+  // تب اول برای مهمان «عمومی» (لندینگ) و برای کاربر «خانه» (فید شخصی) است
+  const mobileTabs: typeof MOBILE_TABS = MOBILE_TABS.map((t) =>
+    t.key === "feed" ? { ...t, label: user ? "خانه" : "عمومی" } : t
+  );
+
   // Route key for transitions
   const routeKey =
     route.view +
@@ -193,8 +198,8 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
         <span className="aurora-blob aurora-3" />
       </div>
 
-      {/* ═══ Mobile: هدر شیشه‌ای چسبان (لوگو + دکمه ورود/اکشن‌ها) ═══ */}
-      <MobileHeader user={user} loading={loading} unread={unread} />
+      {/* ═══ Mobile: هدر شیشه‌ای چسبان (بازگشت در صفحات داخلی + لوگو + دکمه ورود/اکشن‌ها) ═══ */}
+      <MobileHeader user={user} loading={loading} unread={unread} showBack={showBack} />
 
       {/* ═══ Desktop: clean top bar (glass, logo start, nav center, actions end) ═══ */}
       <DesktopTopBar
@@ -253,7 +258,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
 
       {/* ═══ Mobile: bottom tab bar (5 tabs + more sheet) ═══ */}
       <MobileTabBar
-        tabs={MOBILE_TABS}
+        tabs={mobileTabs}
         isActive={isActive}
         onTabClick={handleTabClick}
         user={user}
@@ -269,28 +274,50 @@ function MobileHeader({
   user,
   loading,
   unread,
+  showBack,
 }: {
   user: any;
   loading: boolean;
   unread: number;
+  showBack: boolean;
 }) {
+  function goBack() {
+    if (window.history.length <= 1) {
+      navigate({ view: "feed" });
+      return;
+    }
+    window.history.back();
+  }
+
   return (
     <header
       className="md:hidden sticky top-0 z-40 h-14 glass-strong border-b border-border/50"
       aria-label="هدر موبایل"
     >
-      <div className="h-full px-4 flex items-center justify-between gap-3">
-        {/* لوگو — سمت راست */}
-        <button
-          onClick={() => navigate({ view: "feed" })}
-          className="flex items-center gap-2 shrink-0"
-          aria-label="همتیم"
-        >
-          <span className="grid place-items-center w-9 h-9 rounded-xl grad-brand shadow-glow">
-            <LogoMark className="w-6 h-6" />
-          </span>
-          <span className="text-lg font-extrabold tracking-tight text-foreground">همتیم</span>
-        </button>
+      <div className="h-full px-3 flex items-center justify-between gap-2">
+        {/* راست: بازگشت (صفحات داخلی) + لوگو */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          {showBack && (
+            <motion.button
+              whileTap={{ scale: 0.88 }}
+              onClick={goBack}
+              className="grid place-items-center w-9 h-9 rounded-xl text-foreground hover:bg-muted/60 transition-colors shrink-0"
+              aria-label="بازگشت"
+            >
+              <Icon name="arrowRight" size={19} strokeWidth={2.4} className="rtl:rotate-0" />
+            </motion.button>
+          )}
+          <button
+            onClick={() => navigate({ view: "feed" })}
+            className="flex items-center gap-2 shrink-0 min-w-0"
+            aria-label="همتیم"
+          >
+            <span className="grid place-items-center w-9 h-9 rounded-xl grad-brand shadow-glow">
+              <LogoMark className="w-6 h-6" />
+            </span>
+            <span className="text-lg font-extrabold tracking-tight text-foreground">همتیم</span>
+          </button>
+        </div>
 
         {/* اکشن‌ها — سمت چپ */}
         <div className="flex items-center gap-2 shrink-0">
@@ -372,6 +399,7 @@ function DesktopTopBar({
         <nav className="flex items-center gap-1">
           {DESKTOP_NAV.map((item) => {
             const active = isActive(item.key);
+            const label = item.key === "feed" ? (user ? "خانه" : "عمومی") : item.label;
             return (
               <button
                 key={item.key}
@@ -390,7 +418,7 @@ function DesktopTopBar({
                     transition={{ type: "spring", stiffness: 400, damping: 32 }}
                   />
                 )}
-                <span className="relative">{item.label}</span>
+                <span className="relative">{label}</span>
               </button>
             );
           })}
@@ -458,12 +486,11 @@ function DesktopTopBar({
   );
 }
 
-// ── Desktop: "more" dropdown for secondary destinations (connections, my-needs, tickets, settings, dashboard, following) ──
+// ── Desktop: "more" dropdown for secondary destinations (connections, my-needs, tickets, settings, dashboard) ──
 function DesktopMoreMenu() {
   const [open, setOpen] = useState(false);
   const items = [
     { label: "داشبورد", icon: "grid" as const, route: { view: "dashboard" } as Route },
-    { label: "دنبال‌شده", icon: "userCheck" as const, route: { view: "following" } as Route },
     { label: "ارتباطات", icon: "userPlus" as const, route: { view: "connections" } as Route },
     { label: "نیازمندی‌های من", icon: "briefcase" as const, route: { view: "my-needs" } as Route },
     { label: "تیکت‌ها", icon: "ticket" as const, route: { view: "tickets" } as Route },
@@ -546,14 +573,13 @@ function MobileTabBar({
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
 
+  // ترتیب بر اساس اهمیت — پروفایل با کارت کاربر بالای شیت انجام می‌شود
   const moreItems = [
-    { key: "my-profile", label: "پروفایل", icon: "user" as const, route: { view: "my-profile" } as Route },
     { key: "chat", label: "چت", icon: "chat" as const, route: { view: "chat" } as Route, badge: chatUnread },
     { key: "notifications", label: "اعلان‌ها", icon: "bell" as const, route: { view: "notifications" } as Route, badge: unread },
     { key: "connections", label: "ارتباطات", icon: "userPlus" as const, route: { view: "connections" } as Route },
-    { key: "my-needs", label: "نیازمندی‌های من", icon: "briefcase" as const, route: { view: "my-needs" } as Route },
     { key: "dashboard", label: "داشبورد", icon: "grid" as const, route: { view: "dashboard" } as Route },
-    { key: "following", label: "دنبال‌شده", icon: "userCheck" as const, route: { view: "following" } as Route },
+    { key: "my-needs", label: "نیازمندی‌های من", icon: "briefcase" as const, route: { view: "my-needs" } as Route },
     { key: "edit-profile", label: "ویرایش پروفایل", icon: "pencil" as const, route: { view: "edit-profile" } as Route },
     { key: "tickets", label: "تیکت‌ها", icon: "ticket" as const, route: { view: "tickets" } as Route },
     { key: "settings", label: "تنظیمات", icon: "settings" as const, route: { view: "settings" } as Route },

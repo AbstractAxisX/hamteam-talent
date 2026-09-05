@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { categoryColorMap, resolveUserColor } from "@/lib/cat-color";
 
 // GET /api/explore/posts — featured posts for Top Talents explore
 // ?categoryId=&skillId=
@@ -42,6 +43,9 @@ export async function GET(req: Request) {
   });
   const avgByPost = new Map(ratingAgg.map((r) => [r.postId, r._avg.score ?? 0]));
 
+  // رنگ دستهٔ اصلی هر کاربر — منبع واحد (mainCategoryId → اولین دسته)
+  const catMap = await categoryColorMap();
+
   const result = posts.map((p) => ({
     id: p.id,
     content: p.content,
@@ -66,7 +70,11 @@ export async function GET(req: Request) {
       gender: p.user.profile?.gender ?? null,
       isTopTalent: p.user.isTopTalent,
       isVerifiedBadge: p.user.isVerifiedBadge,
-      mainCategoryColor: p.user.userCategories?.[0]?.category?.color ?? null,
+      mainCategoryColor: resolveUserColor(
+        catMap,
+        p.user.profile?.mainCategoryId,
+        p.user.userCategories?.[0]?.categoryId
+      ),
     },
   }));
 

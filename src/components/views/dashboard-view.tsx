@@ -18,10 +18,9 @@ import { toast } from "@/hooks/use-toast";
 import type { PostWithRelations, TalentListItem } from "@/lib/types";
 
 type HomeData = {
-  followedPosts: PostWithRelations[];
-  relevantTalents: TalentListItem[];
-  sameSkillPeople: TalentListItem[];
-  followingCount: number;
+  posts: PostWithRelations[];
+  suggestions: TalentListItem[];
+  stats: { connectionsCount: number; postsCount: number; followersCount: number };
 };
 
 export function DashboardView() {
@@ -64,8 +63,8 @@ export function DashboardView() {
     { label: "تنظیمات", icon: "settings" as const, route: { view: "settings" as const }, tone: "default" as const },
   ];
 
-  // Activity timeline: combine followed posts into a vertical timeline
-  const timelineItems = (data?.followedPosts || []).slice(0, 5);
+  // Activity timeline: posts from my connections (فقط همتیمی‌ها — پست‌های خودم نیست)
+  const timelineItems = (data?.posts || []).filter((p) => p.user.id !== user?.id).slice(0, 5);
 
   return (
     <div className="max-w-3xl mx-auto space-y-7 pb-4">
@@ -117,19 +116,19 @@ export function DashboardView() {
         {/* Stats row inside hero */}
         <div className="relative mt-6 md:mt-7 grid grid-cols-3 gap-2 md:gap-3">
           <HeroStat
-            value={data ? formatCount(data.followingCount) : "۰"}
-            label="دنبال‌شده"
-            icon="userCheck"
-          />
-          <HeroStat
-            value={data ? formatCount(data.relevantTalents.length) : "۰"}
-            label="مرتبط"
-            icon="sparkles"
-          />
-          <HeroStat
-            value={data ? formatCount(data.sameSkillPeople.length) : "۰"}
-            label="هم‌مهارت"
+            value={data ? formatCount(data.stats.connectionsCount) : "۰"}
+            label="ارتباطات"
             icon="users"
+          />
+          <HeroStat
+            value={data ? formatCount(data.stats.postsCount) : "۰"}
+            label="پست‌های من"
+            icon="image"
+          />
+          <HeroStat
+            value={data ? formatCount(data.stats.followersCount) : "۰"}
+            label="دنبال‌کننده"
+            icon="userCheck"
           />
         </div>
       </motion.section>
@@ -168,13 +167,13 @@ export function DashboardView() {
         <div className="flex items-end justify-between mb-4">
           <div>
             <p className="text-xs font-bold text-primary tracking-widest mb-1">خط زمانی فعالیت</p>
-            <h2 className="text-xl md:text-2xl font-black tracking-tight">از کسانی که دنبال می‌کنی</h2>
+            <h2 className="text-xl md:text-2xl font-black tracking-tight">از همتیمی‌های متصل</h2>
           </div>
           <button
-            onClick={() => navigate({ view: "following" })}
+            onClick={() => navigate({ view: "feed" })}
             className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:gap-1.5 transition-all"
           >
-            همه
+            خانه
             <Icon name="arrowLeft" size={14} strokeWidth={2.6} className="text-primary" />
           </button>
         </div>
@@ -183,7 +182,7 @@ export function DashboardView() {
           <EmptyState
             kind="posts"
             title="هنوز پستی نیست"
-            description="برای دیدن پست‌های دنبال‌شوندگان، ابتدا کسی را دنبال کنید."
+            description="برای دیدن پست‌ها در خط زمانی، با استعدادها ارتباط برقرار کنید."
             action={
               <button
                 onClick={() => navigate({ view: "discover" })}
@@ -208,8 +207,8 @@ export function DashboardView() {
         )}
       </section>
 
-      {/* ══════ RELEVANT TALENTS — horizontal tall cards ══════ */}
-      {data && data.relevantTalents.length > 0 && (
+      {/* ══════ SUGGESTIONS — horizontal tall cards ══════ */}
+      {data && data.suggestions.length > 0 && (
         <section>
           <div className="flex items-end justify-between mb-4">
             <div>
@@ -218,25 +217,8 @@ export function DashboardView() {
             </div>
           </div>
           <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
-            {data.relevantTalents.slice(0, 8).map((t, i) => (
+            {data.suggestions.slice(0, 8).map((t, i) => (
               <TalentTallCard key={t.id} talent={t} index={i} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ══════ SAME SKILL PEOPLE — horizontal avatar rail ══════ */}
-      {data && data.sameSkillPeople.length > 0 && (
-        <section>
-          <div className="flex items-end justify-between mb-4">
-            <div>
-              <p className="text-xs font-bold text-primary tracking-widest mb-1">هم‌مسیرها</p>
-              <h2 className="text-xl md:text-2xl font-black tracking-tight">افراد هم‌مهارت</h2>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3">
-            {data.sameSkillPeople.slice(0, 6).map((t, i) => (
-              <SameSkillCard key={t.id} talent={t} index={i} />
             ))}
           </div>
         </section>
@@ -448,36 +430,3 @@ function TalentTallCard({
 }
 
 // ───────────────────────────── Same Skill Card ─────────────────────────────
-function SameSkillCard({
-  talent,
-  index,
-}: {
-  talent: TalentListItem;
-  index: number;
-}) {
-  return (
-    <motion.button
-      onClick={() => navigate({ view: "profile", id: talent.id })}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3) }}
-      whileTap={{ scale: 0.97 }}
-      className="flex items-center gap-3 p-3.5 rounded-2xl glass border border-border/60 text-right"
-    >
-      <UserAvatar
-        name={talent.name}
-        avatarUrl={talent.avatarUrl}
-        verified={talent.isVerifiedBadge}
-        gender={talent.gender}
-        size="md"
-      />
-      <div className="flex-1 min-w-0">
-        <p className="font-bold text-sm truncate">{talent.name}</p>
-        <p className="text-[11px] text-muted-foreground truncate mt-0.5 line-clamp-1">
-          {talent.bioShort}
-        </p>
-      </div>
-      <Icon name="chevronLeft" size={16} className="text-muted-foreground shrink-0" />
-    </motion.button>
-  );
-}
