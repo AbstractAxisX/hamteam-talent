@@ -3,7 +3,7 @@
 
 import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { api, apiPost, apiDelete, apiPut } from "@/lib/api-client";
+import { api, apiPost, apiDelete, apiPut, apiPatch } from "@/lib/api-client";
 import { navigate } from "@/lib/nav";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,8 +109,10 @@ import {
   AtSign,
   Sparkles,
   User as UserIcon,
+  Megaphone as MegaphoneIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BannersTab } from "@/components/admin/banners-tab";
 
 // ═══════════════════════════════════════════════════════════════════
 // Theme constants — White / Blue admin theme (separate from main site)
@@ -439,6 +441,7 @@ type PageKey =
   | "needs"
   | "top-talent"
   | "broadcast"
+  | "banners"
   | "settings";
 
 const PAGES: { key: PageKey; label: string; icon: typeof UsersIcon }[] = [
@@ -448,6 +451,7 @@ const PAGES: { key: PageKey; label: string; icon: typeof UsersIcon }[] = [
   { key: "posts", label: "پست‌ها", icon: FileText },
   { key: "needs", label: "نیازمندی‌ها", icon: Briefcase },
   { key: "top-talent", label: "درخواست‌های استعداد برتر", icon: Award },
+  { key: "banners", label: "بنرها و تبلیغات", icon: MegaphoneIcon },
   { key: "broadcast", label: "اعلان سراسری", icon: Megaphone },
   { key: "settings", label: "تنظیمات", icon: SettingsIcon },
 ];
@@ -619,6 +623,7 @@ function AdminDashboard({
               {page === "needs" && <NeedsTab />}
               {page === "top-talent" && <TopTalentTab />}
               {page === "broadcast" && <BroadcastTab />}
+              {page === "banners" && <BannersTab />}
               {page === "settings" && <SettingsTab admin={admin} onLogout={onLogout} />}
             </motion.div>
           </AnimatePresence>
@@ -2937,7 +2942,7 @@ function NeedsTab() {
     setActionLoading(id);
     try {
       const next = current === "open" ? "closed" : "open";
-      await apiPut(`/api/admin/jobs/${id}`, { status: next });
+      await apiPatch(`/api/admin/jobs/${id}`, { status: next });
       toast({
         title: next === "open" ? "نیازمندی باز شد" : "نیازمندی بسته شد",
       });

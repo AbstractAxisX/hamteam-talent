@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
+import { BackButton } from "@/components/shared/back-button";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -100,6 +101,7 @@ export function TicketsView() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
+      <BackButton label="بازگشت" />
       <Header count={tickets.length} openCount={openCount} loading={loading} onRefresh={load} onCreate={() => setShowDialog(true)} />
 
       {loading ? (

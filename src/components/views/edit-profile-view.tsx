@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { api, apiPost, apiPut, apiDelete } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
+import { BackButton } from "@/components/shared/back-button";
 import type { ProfileDetail, CategoryWithSkills, ProfileMeta } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -152,6 +153,7 @@ export function EditProfileView() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
+      <BackButton label="بازگشت به پروفایل" />
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}

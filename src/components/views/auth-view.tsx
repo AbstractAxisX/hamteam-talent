@@ -96,11 +96,21 @@ export function AuthView() {
           <span className="text-lg font-extrabold tracking-tight text-foreground">همتیم</span>
         </button>
         <button
-          onClick={() => navigate({ view: "admin" })}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
+          onClick={() => navigate({ view: "feed" })}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="بازگشت به صفحه اصلی"
         >
-          ورود ادمین ←
+          <Icon name="arrowLeft" size={15} strokeWidth={2.4} className="rotate-180" />
+          بازگشت
         </button>
+        {process.env.NODE_ENV !== "production" && (
+          <button
+            onClick={() => navigate({ view: "admin" })}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
+          >
+            ورود ادمین ←
+          </button>
+        )}
       </motion.div>
 
       {/* ═══ Centered glass card ═══ */}
@@ -134,15 +144,17 @@ export function AuthView() {
 
                 <InfoForm submitting={submitting} onSubmit={submitInfo} />
 
-                {/* Demo OTP hint */}
-                <div className="mt-5 p-3.5 rounded-2xl bg-muted/40">
-                  <p className="text-xs text-foreground/70 leading-6 flex items-start gap-1.5">
-                    <Icon name="sparkles" size={14} className="text-primary shrink-0 mt-0.5" strokeWidth={2.4} />
-                    <span>
-                      کد تایید برای همه <strong>۱۲۳۴</strong> است (نسخه دمو).
-                    </span>
-                  </p>
-                </div>
+                {/* Demo OTP hint — فقط در توسعه */}
+                {process.env.NODE_ENV !== "production" && (
+                  <div className="mt-5 p-3.5 rounded-2xl bg-muted/40">
+                    <p className="text-xs text-foreground/70 leading-6 flex items-start gap-1.5">
+                      <Icon name="sparkles" size={14} className="text-primary shrink-0 mt-0.5" strokeWidth={2.4} />
+                      <span>
+                        کد تایید برای همه <strong>۱۲۳۴</strong> است (نسخه دمو).
+                      </span>
+                    </p>
+                  </div>
+                )}
               </motion.div>
             ) : (
               <motion.div
@@ -174,13 +186,15 @@ export function AuthView() {
                   </p>
                 </div>
 
-                {/* Demo OTP box */}
-                <div className="mb-6 p-4 rounded-2xl bg-primary/8 text-center border border-primary/20">
-                  <p className="text-xs text-muted-foreground mb-1">کد دمو</p>
-                  <p className="font-mono text-3xl tracking-[0.5em] font-extrabold text-primary" dir="ltr">
-                    {demoOtp}
-                  </p>
-                </div>
+                {/* Demo OTP box — فقط در توسعه */}
+                {demoOtp && process.env.NODE_ENV !== "production" && (
+                  <div className="mb-6 p-4 rounded-2xl bg-primary/8 text-center border border-primary/20">
+                    <p className="text-xs text-muted-foreground mb-1">کد دمو</p>
+                    <p className="font-mono text-3xl tracking-[0.5em] font-extrabold text-primary" dir="ltr">
+                      {demoOtp}
+                    </p>
+                  </div>
+                )}
 
                 {/* OTP input */}
                 <div className="mb-6">

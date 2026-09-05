@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
+import { BackButton } from "@/components/shared/back-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -656,6 +657,7 @@ function ChatListPanel({
       <div className="shrink-0 p-4 border-b border-border/60 space-y-3">
         {/* Mobile title */}
         <div className="flex items-center gap-3 lg:hidden">
+          <BackButton />
           <div className="grid place-items-center w-11 h-11 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30">
             <Icon name="chat" size={22} />
           </div>

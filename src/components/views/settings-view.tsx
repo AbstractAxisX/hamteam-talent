@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { BackButton } from "@/components/shared/back-button";
 import { useSettings, FONTS, type ThemeMode } from "@/lib/settings";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ export function SettingsView() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
+      <BackButton label="بازگشت" />
       {/* ═══ Header ═══ */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}

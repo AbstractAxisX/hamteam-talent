@@ -21,24 +21,37 @@ export async function POST(req: Request) {
     if (existing.isBanned) {
       return NextResponse.json({ error: "حساب شما مسدود شده است" }, { status: 403 });
     }
-    const otp = stageAuth({
+    stageAuth({
       name: existing.name,
       phone,
       otp: DEMO_OTP,
       expires: Date.now() + 5 * 60 * 1000,
     });
-    return NextResponse.json({ ok: true, otp, mode: "login", message: "کد تایید ارسال شد (نسخه دمو)" });
+    // در تولید، کد هرگز به کلاینت برنمی‌گردد (باید از SMS بیاید)
+    const isProd = process.env.NODE_ENV === "production";
+    return NextResponse.json({
+      ok: true,
+      ...(isProd ? {} : { otp: DEMO_OTP }),
+      mode: "login",
+      message: "کد تایید ارسال شد",
+    });
   }
 
   // REGISTER — name required
   if (name.length < 2) {
     return NextResponse.json({ error: "نام را کامل وارد کنید" }, { status: 400 });
   }
-  const otp = stageAuth({
+  stageAuth({
     name,
     phone,
     otp: DEMO_OTP,
     expires: Date.now() + 5 * 60 * 1000,
   });
-  return NextResponse.json({ ok: true, otp, mode: "register", message: "کد تایید ارسال شد (نسخه دمو)" });
+  const isProd = process.env.NODE_ENV === "production";
+  return NextResponse.json({
+    ok: true,
+    ...(isProd ? {} : { otp: DEMO_OTP }),
+    mode: "register",
+    message: "کد تایید ارسال شد",
+  });
 }

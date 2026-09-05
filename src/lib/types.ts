@@ -183,3 +183,21 @@ export type TopTalentMyStatus = {
   status: "none" | "pending" | "approved" | "rejected";
   rejectReason?: string | null;
 };
+
+/* ─── بنرها و تبلیغات ─── */
+export type BannerPublic = {
+  id: string;
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  linkUrl: string | null;
+};
+
+export type BannerAdmin = BannerPublic & {
+  placement: string;
+  order: number;
+  isActive: boolean;
+  views: number;
+  clicks: number;
+  createdAt: string;
+};

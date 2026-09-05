@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
+import { BackButton } from "@/components/shared/back-button";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -137,6 +138,7 @@ export function ConnectionsView() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
+      <BackButton label="بازگشت" />
       <Header counts={counts} loading={loading} />
 
       <Tabs defaultValue={counts.pending > 0 ? "pending" : "accepted"} className="w-full">

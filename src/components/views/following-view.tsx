@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { api } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
+import { BackButton } from "@/components/shared/back-button";
 import type { PostWithRelations } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ export function FollowingView() {
   if (!userLoading && !user) {
     return (
       <div className="max-w-2xl mx-auto space-y-5">
+        <BackButton label="بازگشت" />
         <Header />
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -73,6 +75,7 @@ export function FollowingView() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
+      <BackButton label="بازگشت" />
       <Header />
 
       {/* ═══ Sort toggle ═══ */}

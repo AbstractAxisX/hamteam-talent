@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Icon } from "@/components/shared/icon";
 import { LogoMark } from "@/components/shared/illustrations";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { BackButton } from "@/components/shared/back-button";
 import { AuthView } from "@/components/views/auth-view";
 import { FeedView } from "@/components/views/feed-view";
 import { DashboardView } from "@/components/views/dashboard-view";
@@ -28,6 +29,7 @@ import { NotificationsView } from "@/components/views/notifications-view";
 import { TicketsView } from "@/components/views/tickets-view";
 import { TicketDetailView } from "@/components/views/ticket-detail-view";
 import { SettingsView } from "@/components/views/settings-view";
+import { TopTalentView } from "@/components/views/top-talent-view";
 import { OnboardingView } from "@/components/views/onboarding-view";
 import { AdminView } from "@/components/views/admin-view";
 import { apiPost } from "@/lib/api-client";
@@ -57,6 +59,7 @@ function renderView(route: Route) {
     case "tickets": return <TicketsView />;
     case "ticket": return <TicketDetailView id={route.id} />;
     case "settings": return <SettingsView />;
+    case "top-talent": return <TopTalentView />;
     case "onboarding": return <OnboardingView />;
     // ادمین با پالت سبز قبلی (ایزوله — کد ادمین دست‌نخورده)
     case "admin": return <div className="admin-legacy"><AdminView /></div>;
@@ -156,10 +159,6 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
   const activeView = route.view;
   const showBack = !TOP_LEVEL.has(activeView);
 
-  function goBack() {
-    if (typeof window !== "undefined") window.history.back();
-  }
-
   // Route key for transitions
   const routeKey =
     route.view +
@@ -194,6 +193,9 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
         <span className="aurora-blob aurora-3" />
       </div>
 
+      {/* ═══ Mobile: هدر شیشه‌ای چسبان (لوگو + دکمه ورود/اکشن‌ها) ═══ */}
+      <MobileHeader user={user} loading={loading} unread={unread} />
+
       {/* ═══ Desktop: clean top bar (glass, logo start, nav center, actions end) ═══ */}
       <DesktopTopBar
         isActive={isActive}
@@ -201,24 +203,8 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
         loading={loading}
         unread={unread}
         chatUnread={chatUnread}
+        showBack={showBack}
       />
-
-      {/* ═══ Mobile: floating top-left back button (detail pages only) ═══ */}
-      {showBack && (
-        <motion.button
-          initial={{ opacity: 0, scale: 0.8, x: -10 }}
-          animate={{ opacity: 1, scale: 1, x: 0 }}
-          exit={{ opacity: 0, scale: 0.8, x: -10 }}
-          transition={{ type: "spring", stiffness: 500, damping: 28 }}
-          onClick={goBack}
-          whileTap={{ scale: 0.88 }}
-          className="md:hidden fixed top-4 left-4 z-40 grid place-items-center w-10 h-10 rounded-full glass-strong text-foreground"
-          style={{ boxShadow: "0 4px 18px rgba(0,0,0,0.3)" }}
-          aria-label="بازگشت"
-        >
-          <Icon name="arrowLeft" size={20} strokeWidth={2.4} />
-        </motion.button>
-      )}
 
       {/* ═══ Mobile: floating chat FAB (bottom-left, above tab bar) ═══ */}
       {user && activeView !== "chat" && (
@@ -250,7 +236,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
 
       {/* ═══ Main content ═══ */}
       <main ref={mainRef} className="relative flex-1 w-full">
-        <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-4 md:pt-24 pb-28 md:pb-12">
+        <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-[4.5rem] md:pt-24 pb-28 md:pb-12">
           <AnimatePresence mode="wait">
             <motion.div
               key={routeKey}
@@ -278,6 +264,77 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
   );
 }
 
+// ── Mobile: sticky glass header — لوگو راست، دکمه ورود/اکشن‌ها چپ ──
+function MobileHeader({
+  user,
+  loading,
+  unread,
+}: {
+  user: any;
+  loading: boolean;
+  unread: number;
+}) {
+  return (
+    <header
+      className="md:hidden sticky top-0 z-40 h-14 glass-strong border-b border-border/50"
+      aria-label="هدر موبایل"
+    >
+      <div className="h-full px-4 flex items-center justify-between gap-3">
+        {/* لوگو — سمت راست */}
+        <button
+          onClick={() => navigate({ view: "feed" })}
+          className="flex items-center gap-2 shrink-0"
+          aria-label="همتیم"
+        >
+          <span className="grid place-items-center w-9 h-9 rounded-xl grad-brand shadow-glow">
+            <LogoMark className="w-6 h-6" />
+          </span>
+          <span className="text-lg font-extrabold tracking-tight text-foreground">همتیم</span>
+        </button>
+
+        {/* اکشن‌ها — سمت چپ */}
+        <div className="flex items-center gap-2 shrink-0">
+          {user ? (
+            <>
+              <button
+                onClick={() => navigate({ view: "notifications" })}
+                className="relative grid place-items-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                aria-label="اعلان‌ها"
+              >
+                <Icon name="bell" size={18} strokeWidth={2.2} />
+                {unread > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-0.5 grid place-items-center rounded-full bg-rose text-white text-[9px] font-extrabold">
+                    {unread > 9 ? toFa(9) + "+" : toFa(unread)}
+                  </span>
+                )}
+              </button>
+              <button onClick={() => navigate({ view: "my-profile" })} aria-label="پروفایل من">
+                <UserAvatar
+                  name={user.name}
+                  avatarUrl={user.profile?.avatarUrl}
+                  verified={user.isVerifiedBadge}
+                  topTalent={user.isTopTalent}
+                  gender={user.profile?.gender}
+                  size="sm"
+                />
+              </button>
+            </>
+          ) : loading ? (
+            <span className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+          ) : (
+            <button
+              onClick={() => navigate({ view: "auth" })}
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl grad-brand text-white font-extrabold text-[13px] shadow-glow hover:opacity-95 transition-opacity"
+            >
+              ورود / ثبت‌نام
+            </button>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
 // ── Desktop top bar: clean, glass, logo start, nav center, actions end ──
 function DesktopTopBar({
   isActive,
@@ -285,12 +342,14 @@ function DesktopTopBar({
   loading,
   unread,
   chatUnread,
+  showBack,
 }: {
   isActive: (key: string) => boolean;
   user: any;
   loading: boolean;
   unread: number;
   chatUnread: number;
+  showBack: boolean;
 }) {
   return (
     <header
@@ -337,8 +396,9 @@ function DesktopTopBar({
           })}
         </nav>
 
-        {/* ── End: Actions (chat, notifications, profile / login) ── */}
+        {/* ── End: Actions (back on detail pages, chat, notifications, profile / login) ── */}
         <div className="flex items-center gap-2 shrink-0">
+          {showBack && <BackButton label="بازگشت" className="hidden md:inline-flex" />}
           {user ? (
             <>
               {/* Chat */}

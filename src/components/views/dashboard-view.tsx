@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { navigate } from "@/lib/nav";
+import { BackButton } from "@/components/shared/back-button";
 import { useUser } from "@/lib/use-user";
 import { api } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,6 +69,7 @@ export function DashboardView() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-7 pb-4">
+      <BackButton label="بازگشت" />
       {/* ══════ FULL-WIDTH HERO GREETING ══════ */}
       <motion.section
         initial={{ opacity: 0, y: -10 }}

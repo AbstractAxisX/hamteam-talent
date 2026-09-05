@@ -3,7 +3,11 @@ import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 
 // Seed: creates talent categories + skills + admin account + demo users.
+// ⚠️ فقط برای توسعه — در تولید غیرفعال است (ایجاد ادمین/دیتای دمو عمومی نباشد)
 export async function GET() {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "غیرفعال در محیط تولید" }, { status: 403 });
+  }
   const log: string[] = [];
 
   // ── Talent categories (with emoji icons) ──

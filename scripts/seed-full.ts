@@ -156,6 +156,43 @@ const COMMENTS = [
 ];
 const REPLIES = ["ممنون از نظرت! 🙏", "مرسی! ❤️", "خوشحالم خوشت اومده", "به زودی قسمت دومش میاد"];
 
+
+/* ── بنرهای دمو (اسلایدر صفحه اصلی) — idempotent روی عنوان ── */
+async function seedBanners() {
+  const count = await db.banner.count();
+  if (count > 0) {
+    console.log(`✓ Banners: ${count} existing (skip)`);
+    return;
+  }
+  const BANNERS = [
+    {
+      title: "مسابقه استعدادیابی همتیم",
+      subtitle: "فصل اول · ثبت‌نام باز است",
+      imageUrl: "/seed/seed-music.png",
+      linkUrl: "#/top-talent",
+      order: 0,
+    },
+    {
+      title: "استعدادهای برتر را کشف کن",
+      subtitle: "برگزیده‌های جامعه همتیم",
+      imageUrl: "/seed/seed-art.png",
+      linkUrl: "#/explore",
+      order: 1,
+    },
+    {
+      title: "جامعه هنرمندان دیجیتال",
+      subtitle: "عضویت رایگان برای همیشه",
+      imageUrl: "/seed/seed-code.png",
+      linkUrl: "#/discover",
+      order: 2,
+    },
+  ];
+  for (const b of BANNERS) {
+    await db.banner.create({ data: b });
+  }
+  console.log(`✓ Banners: ${BANNERS.length} created`);
+}
+
 async function run() {
   const catCount = await db.category.count();
   const userCount = await db.user.count();
@@ -320,6 +357,7 @@ async function run() {
   const finalComments = await db.comment.count();
   console.log(`\nDone: ${finalPosts} featured posts · ${finalLikes} likes · ${finalComments} comments`);
   await seedNeeds();
+  await seedBanners();
   await db.$disconnect();
 }
 

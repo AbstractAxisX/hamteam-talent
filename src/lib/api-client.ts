@@ -42,6 +42,13 @@ export function apiPut<T = unknown>(path: string, body?: unknown) {
   });
 }
 
+export function apiPatch<T = unknown>(path: string, body?: unknown) {
+  return api<T>(path, {
+    method: "PATCH",
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+}
+
 export function apiDelete<T = unknown>(path: string) {
   return api<T>(path, { method: "DELETE" });
 }

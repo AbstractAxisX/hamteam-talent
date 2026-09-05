@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
+import { BackButton } from "@/components/shared/back-button";
 import type { NotificationCounts } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -151,6 +152,7 @@ export function NotificationsView() {
   if (!userLoading && !user) {
     return (
       <div className="max-w-2xl mx-auto space-y-5">
+        <BackButton label="بازگشت" />
         <Header unreadCount={null} loading={false} />
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -181,6 +183,7 @@ export function NotificationsView() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
+      <BackButton label="بازگشت" />
       <Header unreadCount={unread} loading={loading} onMarkAll={markAllRead} />
 
       <Tabs

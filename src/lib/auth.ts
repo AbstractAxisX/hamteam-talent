@@ -9,6 +9,10 @@ import { db } from "./db";
 const USER_COOKIE = "hamteam_u";
 const ADMIN_COOKIE = "hamteam_a";
 const SECRET = process.env.SESSION_SECRET || "dev-secret-change-in-production-please";
+// هشدار امنیتی: در تولید حتماً SESSION_SECRET واقعی تنظیم شود
+if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
+  console.error("⚠️ SESSION_SECRET تنظیم نشده — کوکی‌ها قابل جعل هستند!");
+}
 
 function sign(payload: string): string {
   const hmac = crypto.createHmac("sha256", SECRET).update(payload).digest("hex");

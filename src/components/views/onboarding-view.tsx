@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { api, apiPost } from "@/lib/api-client";
+import { api, apiPost, apiPut } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
@@ -78,24 +78,62 @@ export function OnboardingView() {
     else setStep("mainCategory");
   }
 
+  /* ذخیرهٔ دسته‌ها + مهارت‌ها + دستهٔ اصلی — رفع باگ گم‌شدن انتخاب‌های آنبوردینگ */
+  async function persistSelections() {
+    for (const catId of selectedCats) {
+      try { await apiPost("/api/profile/me/categories", { categoryId: catId }); } catch { /* idempotent */ }
+    }
+    for (const skillId of selectedSkills) {
+      try { await apiPost("/api/profile/me/skills", { skillId }); } catch { /* idempotent */ }
+    }
+    if (mainCategory) {
+      try { await apiPut("/api/profile/me", { mainCategoryId: mainCategory }); } catch { /* قبلاً ثبت شده */ }
+    }
+  }
+
   async function submitMainCategory() {
     setSubmitting(true);
     try {
-      if (mainCategory) {
-        await apiPut("/api/profile/me", { mainCategoryId: mainCategory });
-      }
+      await persistSelections();
       setStep("welcome");
     } catch (e) { toast({ title: "خطا", description: (e as Error).message, variant: "destructive" }); }
     finally { setSubmitting(false); }
   }
 
   async function finish() {
+    // تک‌دسته: انتخاب‌ها هنوز ذخیره نشده‌اند — قبل از خروج ثبت کن
+    if (selectedCats.length > 0 && mainCategory) {
+      await persistSelections();
+    }
     await fetchUser();
     navigate({ view: "feed" });
   }
 
+  // بازگشت مرحله‌ای در ویزارد
+  function stepBack() {
+    if (step === "username") { navigate({ view: "feed" }); return; }
+    if (step === "categories") { setStep("username"); return; }
+    if (step === "mainCategory") { setStep("categories"); return; }
+  }
+
+  const canStepBack = step !== "welcome";
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* دکمه بازگشت مرحله‌ای — بالا-چپ */}
+      {canStepBack && (
+        <button
+          onClick={stepBack}
+          className="fixed top-4 left-4 z-40 inline-flex items-center gap-1.5 h-10 px-3 rounded-xl glass-strong text-sm font-bold text-foreground hover:bg-muted/70 transition-colors"
+          aria-label="بازگشت"
+        >
+          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.4}>
+            <path d="M14 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {step === "username" ? "خروج" : "بازگشت"}
+        </button>
+      )}
+
       {/* Progress bar */}
       <div className="h-1.5 bg-muted">
         <motion.div
@@ -211,7 +249,7 @@ export function OnboardingView() {
                   {selectedCats.map((catId) => {
                     const cat = categories.find(c => c.id === catId);
                     if (!cat) return null;
-                    const color = cat.color || "#6366f1";
+                    const color = cat.color || "#067647";
                     const selected = mainCategory === catId;
                     return (
                       <button key={catId} onClick={() => setMainCategory(catId)} className={cn("w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-3 text-right", selected ? "border-primary bg-accent" : "border-border hover:border-foreground/15")}>

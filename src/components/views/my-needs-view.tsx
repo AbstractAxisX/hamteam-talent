@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { api } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
+import { BackButton } from "@/components/shared/back-button";
 import type { MyNeedsData, NeedListItem } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export function MyNeedsView() {
   if (!userLoading && !user) {
     return (
       <div className="max-w-2xl mx-auto space-y-5">
+        <BackButton label="بازگشت" />
         <Header />
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -76,6 +78,7 @@ export function MyNeedsView() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">
+      <BackButton label="بازگشت" />
       <Header
         postedCount={loading ? null : postedCount}
         appliedCount={loading ? null : appliedCount}
