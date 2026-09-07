@@ -66,3 +66,16 @@ Stage Summary:
 - DB fully restored + enriched (social graph), uploads working E2E, music plays INSIDE posts, skill button alive.
 - Local repo history realigned with remote → client's `git pull` will work after simple local HEAD-ref repair (commands delivered in report).
 - Pushed as fast-forward commit on origin/main.
+
+---
+Task ID: RESTORE-BATCH (addendum)
+Agent: Z.ai Code (maintainer)
+
+Work Log:
+- POST-PUSH discovery: db/custom.db had been TRACKED on remote (legacy) — `git reset --hard origin/main` during realignment checked out the STALE remote DB over the fresh seed. Fix: full re-seed chain (wipe → seed-full → seed-featured → seed-social) + recreated mixed-media demo post via API. Dev server restarted (next-server had been silently OOM-killed during git ops).
+- PDF-without-type-field now correctly saved as "doc" (verified in re-created demo post) — MIME inference fix confirmed in production flow.
+- Final E2E sweep: login → home feed 12 posts + music post PLAYING (audio 1s/2s) → explore 13 cards → talents people list → needs 4+ → profile complete. lint 0, dev.log 47×200, no failed /api calls.
+- User's GitHub pull error = broken local `refs/remotes/origin/HEAD` + previously-diverged remote (now realigned). Remote fsck clean; fix commands delivered to user.
+
+Stage Summary:
+- DB is now UNTRACKED (git rm --cached) — future git operations can never clobber it again. After pull, user must run `bun scripts/seed-full.ts` (their local db file will be removed by the pull since it was previously tracked).
