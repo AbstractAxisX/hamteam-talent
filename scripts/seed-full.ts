@@ -197,11 +197,29 @@ async function run() {
   const catCount = await db.category.count();
   const userCount = await db.user.count();
 
-  // ترمیم پرچم‌ها/نام‌کاربری کاربران دمو حتی وقتی seed کامل skip شود
+  // ترمیم پرچم‌ها/نام‌کاربری/پروفایل کاربران دمو حتی وقتی seed کامل skip شود
+  const demoCatIds = new Map<string, string>();
+  if (catCount > 0) {
+    const cats = await db.category.findMany({ select: { id: true, name: true } });
+    for (const c of cats) demoCatIds.set(c.name, c.id);
+  }
   for (const u of USERS) {
     await db.user.update({
       where: { phone: u.phone },
       data: { username: u.username, name: u.name, isVerifiedBadge: !!u.verified, isTopTalent: !!u.top },
+    }).catch(() => {});
+    // ترمیم پروفایل خالی (bio/موقعیت/دستهٔ اصلی) — upsert بی‌خطر
+    const mainCatId = demoCatIds.get(u.cat) ?? null;
+    await db.profile.update({
+      where: { userId: (await db.user.findUnique({ where: { phone: u.phone }, select: { id: true } }))!.id },
+      data: {
+        bioShort: u.bioShort,
+        bioLong: u.bioLong || "",
+        gender: u.gender,
+        province: u.province,
+        city: u.city,
+        mainCategoryId: mainCatId,
+      },
     }).catch(() => {});
   }
 
@@ -265,7 +283,15 @@ async function run() {
         city: u.city,
         mainCategoryId: cat.id,
       },
-      update: {},
+      // آپدیت واقعی — پروفایلِ موجودِ خالی (مثلاً بعد از ثبت‌نام دستی) پر می‌شود
+      update: {
+        bioShort: u.bioShort,
+        bioLong: u.bioLong || "",
+        gender: u.gender,
+        province: u.province,
+        city: u.city,
+        mainCategoryId: cat.id,
+      },
     });
     await db.userCategory.upsert({
       where: { userId_categoryId: { userId: user.id, categoryId: cat.id } },
