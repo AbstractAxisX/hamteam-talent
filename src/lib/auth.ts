@@ -14,6 +14,13 @@ if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
   console.error("⚠️ SESSION_SECRET تنظیم نشده — کوکی‌ها قابل جعل هستند!");
 }
 
+// استقرار روی HTTP (بدون SSL): با COOKIE_SECURE=false فلگ secure کوکی خاموش می‌شود
+// تا لاگین روی آی‌پی خام (مثل دمو بدون دامنه) کار کند. پیش‌فرض: فقط در production.
+const COOKIE_SECURE =
+  process.env.COOKIE_SECURE === "false"
+    ? false
+    : process.env.NODE_ENV === "production";
+
 function sign(payload: string): string {
   const hmac = crypto.createHmac("sha256", SECRET).update(payload).digest("hex");
   return `${payload}.${hmac}`;
@@ -44,7 +51,7 @@ export async function createUserSession(userId: string) {
   store.set(USER_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: COOKIE_SECURE,
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });
@@ -83,7 +90,7 @@ export async function createAdminSession(adminId: string) {
   store.set(ADMIN_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: COOKIE_SECURE,
     path: "/",
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
