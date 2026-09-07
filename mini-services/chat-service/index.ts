@@ -22,7 +22,8 @@ import path from "path";
 
 // Configure DB URL to point at the parent project's SQLite file.
 // Bun resolves `@prisma/client` from the parent project's node_modules.
-process.env.DATABASE_URL = "file:/home/z/my-project/db/custom.db";
+// در استقرار واقعی (مثلاً /opt/hamteam) DATABASE_URL از env سرویس داده می‌شود.
+process.env.DATABASE_URL = process.env.DATABASE_URL || "file:/home/z/my-project/db/custom.db";
 
 const prisma = new PrismaClient({
   log: ["error", "warn"],
