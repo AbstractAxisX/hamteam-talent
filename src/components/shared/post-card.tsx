@@ -8,6 +8,7 @@ import { useUser } from "@/lib/use-user";
 import type { PostWithRelations } from "@/lib/types";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Icon } from "@/components/shared/icon";
+import { MediaPlayer } from "@/components/shared/media-player";
 import { LikersSheet, postLikersFetcher } from "@/components/shared/likers-sheet";
 import { ReportDialog } from "@/components/shared/report-dialog";
 import { toast } from "@/hooks/use-toast";
@@ -20,7 +21,7 @@ import { cn } from "@/lib/utils";
    • کامنت و اشتراک فعال‌اند → صفحه‌ی کامل پست باز می‌شود
    ════════════════════════════════════════════════════════════════════ */
 
-function MediaBlock({ media }: { media: { id: string; url: string; type: string }[] }) {
+function MediaBlock({ media }: { media: { id: string; url: string; type: string; fileName?: string | null; fileSize?: number }[] }) {
   if (!media || media.length === 0) return null;
 
   const images = media.filter((m) => m.type === "image");
@@ -39,7 +40,7 @@ function MediaBlock({ media }: { media: { id: string; url: string; type: string 
             <img
               key={m.id}
               src={m.url}
-              alt="رسانه پست"
+              alt={m.fileName || "رسانه پست"}
               loading="lazy"
               className={cn(
                 "w-full object-cover bg-muted",
@@ -50,25 +51,15 @@ function MediaBlock({ media }: { media: { id: string; url: string; type: string 
         </div>
       )}
       {others.map((m) => (
-        <a
+        <div
           key={m.id}
-          href={m.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-3 p-3 rounded-2xl bg-muted/70 hover:bg-muted transition-colors"
-          aria-label={`رسانه ${m.type}`}
+          className={cn(
+            "rounded-2xl overflow-hidden border border-border/60 bg-muted/40",
+            m.type === "video" ? "aspect-video max-h-[420px]" : m.type === "audio" ? "h-[76px]" : "h-[150px]"
+          )}
         >
-          <span className="grid place-items-center w-10 h-10 rounded-xl grad-brand text-white shrink-0">
-            <Icon name={m.type === "audio" ? "music" : m.type === "video" ? "play" : "file"} size={18} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-bold truncate">
-              {m.type === "audio" ? "فایل صوتی" : m.type === "video" ? "ویدیو" : "سند پیوست"}
-            </p>
-            <p className="text-[11px] text-muted-foreground truncate">{(m as { fileName?: string }).fileName || m.url.split("/").pop()}</p>
-          </div>
-          <Icon name="download" size={16} className="text-muted-foreground shrink-0" />
-        </a>
+          <MediaPlayer file={{ url: m.url, type: m.type, fileName: m.fileName }} />
+        </div>
       ))}
     </div>
   );

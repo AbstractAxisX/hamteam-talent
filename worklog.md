@@ -44,3 +44,25 @@ Stage Summary:
 - App-wide visual identity switched to user's reference language via token layer (all 23 views reskinned instantly, zero view code changed).
 - Atoms foundation ready for Phase 3 (post card rebuild): Btn/IconBtn/Field/Chip/Badge/Sk/GradAvatar + SPRING physics.
 - Admin panel fully isolated on legacy green (hard constraint respected).
+
+---
+Task ID: RESTORE-BATCH
+Agent: Z.ai Code (maintainer)
+Task: Client's urgent restore batch: empty database reseed, dead skill-category button, avatar/banner upload 404, GitHub pull error, full E2E (post+music+files).
+
+Work Log:
+- Diagnosed "no data": sandbox snapshot regression AGAIN deleted src/app/api/upload/route.ts (4th time) + api/top-talent/upload (5th) + wiped DB. Restored both routes from git history.
+- Wrote scripts/wipe-db.ts (all 31 models, FK-safe order) → clean slate; seed-full.ts CRASHED on empty DB (repair loop asserted existing user via `!` non-null) — fixed with existingUser guard, re-seeded: 10 users, 12 cats, 44 skills, 13 posts (seed-featured), 6 needs, 3 banners, 78 likes, 54 comments.
+- NEW scripts/seed-social.ts: 7 connections (4 accepted / 3 pending), 2 conversations (1 active, 1 pending_request), 4 messages — home feed + chat + requests now have data.
+- «ثبت دسته مهارت» button ROOT-CAUSE = empty DB (no categories to pick). After reseed E2E-verified: dialog opens, category adds, toast «دسته‌بندی اضافه شد ✅», userCategories 3 in DB.
+- API-verified all uploads: /api/upload avatar+banner 200 + auto-persist; /api/posts/upload-media music(wav)+pdf+image 200; correct composer flow (post → attach with postId) confirmed; file serving 200.
+- FIXED upload-media type-inference bug: MIME must beat form hint (PDF saved as "image" when type field omitted) — actualType now infers doc from MIME.
+- UPGRADED PostCard MediaBlock → real MediaPlayer (audio: custom play/pause player h-76; video: aspect-video native player; doc: PDF preview + download) — previously non-image media was just a download link in home/profile feeds. fileName/fileSize added to media serializers (posts, feed/home, feed/following) + types.
+- E2E browser (via :81 gateway): landing → OTP login → home (banner slider, 67%→ checklist, inline composer, top-talent CTA, suggestions, category grid, connection feed) → published post WITH music file → REAL playback verified (audio playing 1s/2s) → music player visible (VLM: "test-music.wav / فایل صوتی") → category add zero-jump → avatar+banner upload UI → persisted in DB → professional profile (VLM: complete). lint 0, dev.log clean.
+- GIT ROOT-CAUSE of client's GitHub Desktop pull error: local sandbox history had become UNRELATED to remote (different root commits 3936459 vs 28d29eb — snapshot regression re-created repo). Remote itself is HEALTHY. Fix: rebased local onto origin/main (backup branch backup-diverged), re-applied 13 fix files, .env aligned to remote (relative DATABASE_URL + SESSION_SECRET restored).
+- Removed db/custom.db from tracking (gitignored content, DB must not ship in repo).
+
+Stage Summary:
+- DB fully restored + enriched (social graph), uploads working E2E, music plays INSIDE posts, skill button alive.
+- Local repo history realigned with remote → client's `git pull` will work after simple local HEAD-ref repair (commands delivered in report).
+- Pushed as fast-forward commit on origin/main.

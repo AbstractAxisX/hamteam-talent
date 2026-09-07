@@ -1,4 +1,4 @@
-// Chat socket.io mini-service for همتیم (HamTeam)
+// Chat socket.io mini-service for فرصتینو (Forsatino)
 // Runs on port 3003. The Next.js frontend connects via Caddy gateway using:
 //   io("/", { path: "/", query: { XTransformPort: "3003" }, auth: { token } })
 //

@@ -71,7 +71,7 @@ export async function GET() {
     },
     likeCount: p._count.likes,
     likedByMe: p.likes.length > 0,
-    media: p.media.map((m) => ({ id: m.id, url: m.url, type: m.type })),
+    media: p.media.map((m) => ({ id: m.id, url: m.url, type: m.type, fileName: m.fileName, fileSize: m.fileSize })),
   }));
 
   // ── ۲. پیشنهاد افراد (شاید بشناسید) ──

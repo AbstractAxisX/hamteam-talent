@@ -204,6 +204,9 @@ async function run() {
     for (const c of cats) demoCatIds.set(c.name, c.id);
   }
   for (const u of USERS) {
+    // فقط کاربرانِ موجود ترمیم می‌شوند — روی دیتابیس خالی از ادامه می‌گذاریم (در جریان اصلی ساخته می‌شوند)
+    const existingUser = await db.user.findUnique({ where: { phone: u.phone }, select: { id: true } });
+    if (!existingUser) continue;
     await db.user.update({
       where: { phone: u.phone },
       data: { username: u.username, name: u.name, isVerifiedBadge: !!u.verified, isTopTalent: !!u.top },
@@ -211,7 +214,7 @@ async function run() {
     // ترمیم پروفایل خالی (bio/موقعیت/دستهٔ اصلی) — upsert بی‌خطر
     const mainCatId = demoCatIds.get(u.cat) ?? null;
     await db.profile.update({
-      where: { userId: (await db.user.findUnique({ where: { phone: u.phone }, select: { id: true } }))!.id },
+      where: { userId: existingUser.id },
       data: {
         bioShort: u.bioShort,
         bioLong: u.bioLong || "",

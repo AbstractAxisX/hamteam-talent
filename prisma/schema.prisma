@@ -1,4 +1,4 @@
-// Prisma schema — همتیم: پلتفرم استعدادیابی
+// Prisma schema — فرصتینو: پلتفرم استعدادیابی
 // Talent discovery platform (arts, sports, cooking, creative skills)
 // SQLite backend. Enums modeled as String with app-level validation.
 

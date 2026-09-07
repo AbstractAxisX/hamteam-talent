@@ -51,7 +51,10 @@ export async function POST(req: Request) {
   };
   const actualType = file.type.startsWith("image/") ? "image" :
                      file.type.startsWith("video/") ? "video" :
-                     file.type.startsWith("audio/") ? "audio" : finalType;
+                     file.type.startsWith("audio/") ? "audio" :
+                     // MIME معتبرتر از hint فرم است — pdf/word/excel/ppt/text همیشه doc
+                     (file.type.startsWith("text/") || file.type.includes("pdf") || file.type.includes("document") ||
+                      file.type.includes("sheet") || file.type.includes("presentation")) ? "doc" : finalType;
   if (file.size > maxSizes[actualType]) {
     return NextResponse.json({ error: `حجم فایل باید کمتر از ${maxSizes[actualType] / 1024 / 1024}MB باشد` }, { status: 400 });
   }

@@ -60,7 +60,7 @@ export async function GET(req: Request) {
     },
     likeCount: p._count.likes,
     likedByMe: user ? p.likes.length > 0 : false,
-    media: p.media.map((m) => ({ id: m.id, url: m.url, type: m.type })),
+    media: p.media.map((m) => ({ id: m.id, url: m.url, type: m.type, fileName: m.fileName, fileSize: m.fileSize })),
   }));
 
   return NextResponse.json({ posts: result });

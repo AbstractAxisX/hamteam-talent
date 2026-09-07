@@ -46,7 +46,7 @@ export type PostWithRelations = {
   };
   likeCount: number;
   likedByMe: boolean;
-  media: { id: string; url: string; type: string }[];
+  media: { id: string; url: string; type: string; fileName?: string | null; fileSize?: number }[];
 };
 
 export type TalentListItem = {
