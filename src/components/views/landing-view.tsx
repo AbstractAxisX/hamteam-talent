@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { navigate } from "@/lib/nav";
 import { api } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LogoMark } from "@/components/shared/illustrations";
+import { LogoFull } from "@/components/shared/illustrations";
 import { Icon } from "@/components/shared/icon";
 import { BannerSlider } from "@/components/shared/banner-slider";
 import { GoldCheckMark, Laurel, GoldSparkle } from "@/components/ui/elite";
@@ -35,21 +35,21 @@ export function LandingView() {
   }, []);
 
   return (
-    <div className="relative -mt-4">
+    <div className="relative">
       {/* ══════ FULL-SCREEN DARK GREEN HERO ══════ */}
       <section className="relative min-h-[88vh] md:min-h-[80vh] -mx-4 md:-mx-8 px-4 md:px-8 overflow-hidden">
         {/* Ambient blobs — pure solid colors at low opacity, no gradient */}
         <div
           className="absolute -top-20 -right-20 w-[420px] h-[420px] rounded-full opacity-30 blur-3xl pointer-events-none animate-float"
-          style={{ backgroundColor: "oklch(0.6 0.15 160 / 0.6)" }}
+          style={{ backgroundColor: "rgba(61, 124, 190, 0.5)" }}
         />
         <div
           className="absolute top-1/3 -left-24 w-[360px] h-[360px] rounded-full opacity-20 blur-3xl pointer-events-none"
-          style={{ backgroundColor: "oklch(0.75 0.15 80 / 0.5)" }}
+          style={{ backgroundColor: "rgba(164, 232, 109, 0.35)" }}
         />
         <div
           className="absolute -bottom-24 right-1/4 w-[300px] h-[300px] rounded-full opacity-10 blur-3xl pointer-events-none"
-          style={{ backgroundColor: "oklch(0.65 0.2 15 / 0.5)" }}
+          style={{ backgroundColor: "rgba(225, 29, 72, 0.18)" }}
         />
         {/* Subtle dot pattern */}
         <div
@@ -69,10 +69,7 @@ export function LandingView() {
             transition={{ duration: 0.5 }}
             className="pt-6 md:pt-10 flex items-center gap-2.5"
           >
-            <span className="grid place-items-center w-9 h-9 rounded-xl bg-primary/15">
-              <LogoMark className="w-6 h-6" />
-            </span>
-            <span className="text-lg font-extrabold tracking-tight text-foreground/90">همتیم</span>
+            <LogoFull h={34} />
           </motion.div>
 
           {/* Center — big dramatic headline */}
@@ -297,11 +294,11 @@ export function LandingView() {
         >
           <div
             className="absolute -top-20 -right-20 w-64 h-64 rounded-full opacity-25 blur-3xl pointer-events-none"
-            style={{ backgroundColor: "oklch(0.6 0.15 160 / 0.6)" }}
+            style={{ backgroundColor: "rgba(61, 124, 190, 0.5)" }}
           />
           <div
             className="absolute -bottom-20 -left-20 w-56 h-56 rounded-full opacity-20 blur-3xl pointer-events-none"
-            style={{ backgroundColor: "oklch(0.75 0.15 80 / 0.5)" }}
+            style={{ backgroundColor: "rgba(164, 232, 109, 0.35)" }}
           />
           <div className="relative space-y-4">
             <div className="flex justify-center">
@@ -466,7 +463,7 @@ function TopTalentSection() {
             <Icon name="arrowLeft" size={17} strokeWidth={2.6} className="text-white" />
           </motion.button>
           <p className="text-[11px] text-amber-100/45 font-bold">
-            بررسی رسمی توسط تیم همتیم · اعلام نتیجه از طریق اعلان‌ها
+            بررسی رسمی توسط تیم فرصتینو · اعلام نتیجه از طریق اعلان‌ها
           </p>
         </div>
       </div>

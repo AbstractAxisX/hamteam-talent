@@ -45,7 +45,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
       isAdmin: r.isAdmin,
       createdAt: r.createdAt.toISOString(),
       user: r.isAdmin
-        ? { id: "support", name: "پشتیبانی همتیم", avatarUrl: null }
+        ? { id: "support", name: "پشتیبانی فرصتینو", avatarUrl: null }
         : {
             id: ticket.user.id,
             name: ticket.user.name,

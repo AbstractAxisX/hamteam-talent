@@ -91,7 +91,7 @@ export function AboutTab({
           </div>
           <div className="space-y-3">
             {cats.map((c, i) => {
-              const color = catColorMap.get(c.id) || "oklch(0.6 0.15 160)";
+              const color = catColorMap.get(c.id) || "#3d7cbe";
               return (
                 <motion.div
                   key={c.id}

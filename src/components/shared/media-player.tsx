@@ -70,7 +70,7 @@ function AudioPlayer({ url, fileName }: { url: string; fileName?: string | null 
   return (
     <div
       className="w-full h-full flex items-center gap-3 p-4"
-      style={{ background: "linear-gradient(135deg,#065f46 0%,#0f766e 60%,#14b8a6 100%)" }}
+      style={{ background: "linear-gradient(135deg,#0f569e 0%,#1268bb 60%,#3d7cbe 100%)" }}
     >
       <button
         onClick={() => ref.current?.paused ? ref.current.play() : ref.current?.pause()}
@@ -82,7 +82,7 @@ function AudioPlayer({ url, fileName }: { url: string; fileName?: string | null 
       </button>
       <div className="flex-1 min-w-0 text-white">
         <p className="text-[12.5px] font-black truncate">{fmtName(fileName)}</p>
-        <p className="text-[10.5px] text-emerald-100/80 font-bold mt-0.5">فایل صوتی</p>
+        <p className="text-[10.5px] text-lime-100/85 font-bold mt-0.5">فایل صوتی</p>
       </div>
       <audio ref={ref} src={url} preload="metadata" className="hidden" />
     </div>
@@ -111,7 +111,7 @@ function DocPlayer({ url, fileName }: { url: string; fileName?: string | null })
   }
 
   return (
-    <div className="w-full h-full grid place-items-center p-4 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40">
+    <div className="w-full h-full grid place-items-center p-4 bg-gradient-to-br from-sky-50 to-blue-50 dark:from-slate-900/40 dark:to-blue-950/40">
       <div className="flex flex-col items-center text-center gap-2">
         <div className="grid place-items-center size-14 rounded-[20px] grad-brand shadow-grad">
           <Icon name="file" size={26} className="text-white" />

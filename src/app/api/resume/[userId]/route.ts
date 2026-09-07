@@ -116,7 +116,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ userId: 
       ${eduHtml}
     </section>
 
-    <footer>رزومه‌ی Generated توسط همتیم · ${new Date().toLocaleDateString("fa-IR")}</footer>
+    <footer>رزومه‌ی Generated توسط فرصتینو · ${new Date().toLocaleDateString("fa-IR")}</footer>
   </div>
   <script>
     window.onload = function() { setTimeout(function() { window.print(); }, 400); };

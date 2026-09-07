@@ -5,7 +5,7 @@ import { categoryColorMap, resolveUserColor } from "@/lib/cat-color";
 import type { PostWithRelations, TalentListItem } from "@/lib/types";
 
 /* GET /api/feed/home — صفحهٔ خانهٔ شخصی (سبک لینکدین)
-   1. پست‌های خودم + پست‌های همتیمی‌های متصل (ارتباط دوطرفهٔ تأییدشده)
+   1. پست‌های خودم + پست‌های ارتباط‌های متصل (ارتباط دوطرفهٔ تأییدشده)
    2. پیشنهاد افراد (شاید بشناسید) — هم‌مهارت‌ها و تازه‌واردها
    3. آمار شخصی برای نوار خلاصه */
 export async function GET() {
@@ -26,7 +26,7 @@ export async function GET() {
     new Set(conns.flatMap((c) => [c.requesterId, c.receiverId]).filter((id) => id !== me.id))
   );
 
-  // ── ۱. پست‌های من + همتیمی‌ها ──
+  // ── ۱. پست‌های من + ارتباط‌ها ──
   const feedUserIds = [me.id, ...connectionIds];
   const posts = await db.post.findMany({
     where: { userId: { in: feedUserIds }, user: { isBanned: false } },

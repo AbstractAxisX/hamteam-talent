@@ -62,7 +62,7 @@ export async function GET() {
       data: {
         username: adminUsername,
         password: hashPassword(adminPassword),
-        name: "مدیر همتیم",
+        name: "مدیر فرصتینو",
       },
     });
     log.push(`اکانت ادمین ایجاد شد (نام کاربری: ${adminUsername} / رمز: ${adminPassword})`);

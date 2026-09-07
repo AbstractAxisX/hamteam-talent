@@ -53,7 +53,7 @@ const REASON_LABELS: Record<string, string> = {
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   open: { label: "باز", cls: "bg-amber-100 text-amber-700" },
-  resolved: { label: "رسیدگی‌شده", cls: "bg-emerald-100 text-emerald-700" },
+  resolved: { label: "رسیدگی‌شده", cls: "bg-sky-100 text-sky-700" },
   dismissed: { label: "رد شده", cls: "bg-gray-100 text-gray-500" },
 };
 
@@ -130,7 +130,7 @@ export function ReportsTab() {
               className={cn(
                 "h-9 px-3.5 rounded-xl text-xs font-bold transition-colors",
                 filter === t.key
-                  ? "bg-emerald-600 text-white shadow-sm"
+                  ? "bg-sky-600 text-white shadow-sm"
                   : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
               )}
             >
@@ -152,7 +152,7 @@ export function ReportsTab() {
         </div>
       ) : reports.length === 0 ? (
         <Card className="p-10 text-center border-gray-200 bg-white">
-          <Shield className="w-10 h-10 mx-auto text-emerald-500 mb-3" />
+          <Shield className="w-10 h-10 mx-auto text-sky-500 mb-3" />
           <p className="font-black text-gray-800">گزارشی در این وضعیت نیست 🎉</p>
           <p className="text-xs text-gray-500 mt-1">محتوای پاک — همینه که می‌خواستیم</p>
         </Card>
@@ -241,7 +241,7 @@ export function ReportsTab() {
                         size="sm"
                         disabled={busyId === r.id}
                         onClick={() => act(r.id, "resolve")}
-                        className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                        className="gap-1.5 bg-sky-600 hover:bg-sky-700"
                       >
                         <Check className="w-3.5 h-3.5" />
                         رسیدگی

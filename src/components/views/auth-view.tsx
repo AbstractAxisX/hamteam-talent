@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "@/hooks/use-toast";
-import { LogoMark } from "@/components/shared/illustrations";
+import { LogoFull } from "@/components/shared/illustrations";
 import { Icon } from "@/components/shared/icon";
 
 export function AuthView() {
@@ -60,15 +60,15 @@ export function AuthView() {
       {/* ═══ Ambient background — solid colored blobs (NO gradient fills) ═══ */}
       <div
         className="absolute -top-32 -right-24 w-[440px] h-[440px] rounded-full opacity-35 blur-3xl pointer-events-none"
-        style={{ backgroundColor: "oklch(0.6 0.15 160 / 0.55)" }}
+        style={{ backgroundColor: "rgba(61, 124, 190, 0.45)" }}
       />
       <div
         className="absolute top-1/4 -left-32 w-[360px] h-[360px] rounded-full opacity-25 blur-3xl pointer-events-none"
-        style={{ backgroundColor: "oklch(0.75 0.15 80 / 0.45)" }}
+        style={{ backgroundColor: "rgba(164, 232, 109, 0.32)" }}
       />
       <div
         className="absolute -bottom-24 right-1/3 w-[300px] h-[300px] rounded-full opacity-12 blur-3xl pointer-events-none"
-        style={{ backgroundColor: "oklch(0.65 0.2 15 / 0.45)" }}
+        style={{ backgroundColor: "rgba(225, 29, 72, 0.16)" }}
       />
       <div
         className="absolute inset-0 opacity-[0.04] pointer-events-none"
@@ -88,12 +88,9 @@ export function AuthView() {
         <button
           onClick={() => navigate({ view: "feed" })}
           className="flex items-center gap-2.5"
-          aria-label="همتیم"
+          aria-label="فرصتینو"
         >
-          <span className="grid place-items-center w-9 h-9 rounded-xl bg-primary/15">
-            <LogoMark className="w-6 h-6" />
-          </span>
-          <span className="text-lg font-extrabold tracking-tight text-foreground">همتیم</span>
+          <LogoFull h={30} />
         </button>
         <button
           onClick={() => navigate({ view: "feed" })}
@@ -136,7 +133,7 @@ export function AuthView() {
                 </div>
 
                 <h1 className="text-3xl md:text-4xl font-black tracking-tight leading-[1.15] mb-2">
-                  به <span className="text-primary">همتیم</span> خوش اومدی
+                  به <span className="text-primary">فرصتینو</span> خوش اومدی
                 </h1>
                 <p className="text-sm text-muted-foreground leading-6 mb-6">
                   نام و شماره موبایلت رو وارد کن. اگه حساب نداری خودکار ثبت‌نام می‌شی.
@@ -214,7 +211,7 @@ export function AuthView() {
                 <Button
                   onClick={onVerify}
                   className="w-full h-14 rounded-2xl text-base font-bold py-3.5 bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
-                  style={{ boxShadow: "0 8px 30px oklch(0.6 0.15 160 / 0.35)" }}
+                  style={{ boxShadow: "0 8px 30px rgba(61, 124, 190, 0.3)" }}
                   disabled={submitting || otp.length < 4}
                 >
                   {submitting ? (
@@ -222,7 +219,7 @@ export function AuthView() {
                   ) : (
                     <Icon name="arrowLeft" size={20} strokeWidth={2.6} className="text-primary-foreground" />
                   )}
-                  ورود به همتیم
+                  ورود به فرصتینو
                 </Button>
 
                 <button
@@ -243,7 +240,7 @@ export function AuthView() {
             transition={{ delay: 0.5 }}
             className="text-center text-xs text-muted-foreground/80 font-medium mt-6"
           >
-            همتیم — کاملاً رایگان
+            فرصتینو — کاملاً رایگان
           </motion.p>
         </div>
       </div>
@@ -299,7 +296,7 @@ function InfoForm({ submitting, onSubmit }: { submitting: boolean; onSubmit: (da
       <Button
         type="submit"
         className="w-full h-13 rounded-2xl text-base font-bold py-3.5 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-        style={{ boxShadow: "0 8px 30px oklch(0.6 0.15 160 / 0.35)" }}
+        style={{ boxShadow: "0 8px 30px rgba(61, 124, 190, 0.3)" }}
         disabled={submitting}
       >
         {submitting ? (

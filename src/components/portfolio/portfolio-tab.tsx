@@ -176,7 +176,7 @@ export function PortfolioTab({ userId, isSelf }: { userId: string; isSelf: boole
                 ) : (
                   <div
                     className="w-full h-full grid place-items-center"
-                    style={{ background: `linear-gradient(150deg, ${item.categoryColor || "#065f46"}33, ${item.categoryColor || "#065f46"}66)` }}
+                    style={{ background: `linear-gradient(150deg, ${item.categoryColor || "#0f569e"}33, ${item.categoryColor || "#0f569e"}66)` }}
                   >
                     <div className="grid place-items-center size-9 rounded-2xl grad-brand shadow-grad">
                       <Icon name={TYPE_ICON[cover?.type || "doc"] || "file"} size={18} className="text-white" />

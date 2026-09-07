@@ -249,7 +249,7 @@ export function TopTalentBanner({ className }: { className?: string }) {
       <div className="relative z-10 text-center leading-tight">
         <p className="text-gold-grad text-[15px] font-black">استعداد برتر</p>
         <p className="text-[9.5px] font-bold text-amber-200/60 mt-0.5">
-          منتخب رسمی جامعهٔ همتیم
+          منتخب رسمی جامعهٔ فرصتینو
         </p>
       </div>
       <Laurel size={34} flip />

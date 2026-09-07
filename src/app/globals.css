@@ -4,9 +4,9 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ═══════════════════════════════════════════════════════════════
-   همتیم Design System v3 — «جنگل زمردی» (Emerald Forest)
-   هویت اصلی برند: سبز زمردی عمیق + تیل + طلایی
-   امضای برند: گرادیان ۱۳۵° زمردی → تیل
+   فرصتینو Design System v4 — «آبی نیرو و لیمو» (Navy & Lime)
+   پالت رسمی طراح: Deep Navy #162a4b · Azure #0f569e · Midnight #101835
+   Lime #a4e86d · Neon #39ff14 · Neutral #f4f9f4 — امضای گرادیان ۱۳۵° آسمانی → سرمه‌ای
    ═══════════════════════════════════════════════════════════════ */
 
 @theme inline {
@@ -57,171 +57,170 @@
 :root {
   --radius: 1.25rem;
 
-  /* ─── امضای برند: زمردی → تیل ─── */
-  --prime: #047857;
-  --prime2: #0d9488;
+  /* ─── امضای برند: آسمانی → سرمه‌ای (گرادیان 02 رسمی) ─── */
+  --prime: #0f569e;
+  --prime2: #162a4b;
   --pink: #e11d48;
-  --grad: linear-gradient(135deg, #047857 0%, #0d9488 55%, #10b981 100%);
+  --grad: linear-gradient(135deg, #1268bb 0%, #0f569e 45%, #1a3a6b 100%);
+  --grad-text: linear-gradient(135deg, #1268bb 0%, #0f569e 45%, #162a4b 100%);
   --grad-gold: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
 
-  /* ─── سطوح و متن (Light — کرمِ نعنایی) ─── */
-  --background: #eef5f0;
-  --foreground: #0a1f16;
+  /* ─── سطوح و متن (Light — نعنای خنثی رسمی پالت) ─── */
+  --background: #f4f9f4;
+  --foreground: #101835;
   --card: #ffffff;
-  --card-foreground: #0a1f16;
+  --card-foreground: #101835;
   --popover: #ffffff;
-  --popover-foreground: #0a1f16;
-  --secondary: #e9f2ec;
-  --secondary-foreground: #0a1f16;
-  --muted: #edf3ef;
-  --muted-foreground: #58705f;
-  --accent: #dcf0e5;
-  --accent-foreground: #047857;
+  --popover-foreground: #101835;
+  --secondary: #a4e86d;
+  --secondary-foreground: #162a4b;
+  --muted: #e7eef2;
+  --muted-foreground: #4a6586;
+  --accent: #dce8f0;
+  --accent-foreground: #0f569e;
 
   /* ─── معنایی ─── */
-  --primary: #067647;
+  --primary: #0f569e;
   --primary-foreground: #ffffff;
   --gold: #b45309;
   --warning: #b45309;
-  --success: #059669;
+  --success: #2e9e5b;
   --rose: #e11d48;
   --destructive: #dc2626;
-  --border: #d8e6dc;
-  --input: #cfe0d4;
-  --ring: #0d9488;
+  --border: #d9e4dd;
+  --input: #cfdcd4;
+  --ring: #0f569e;
 
-  --chart-1: #059669;
-  --chart-2: #14b8a6;
-  --chart-3: #f59e0b;
-  --chart-4: #e11d48;
-  --chart-5: #64748b;
+  --chart-1: #0f569e;
+  --chart-2: #3d7cbe;
+  --chart-3: #a4e86d;
+  --chart-4: #f59e0b;
+  --chart-5: #4a6586;
 
   --sidebar: #ffffff;
-  --sidebar-foreground: #0a1f16;
-  --sidebar-primary: #067647;
+  --sidebar-foreground: #101835;
+  --sidebar-primary: #0f569e;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #dcf0e5;
-  --sidebar-accent-foreground: #047857;
-  --sidebar-border: #d8e6dc;
-  --sidebar-ring: #0d9488;
+  --sidebar-accent: #dce8f0;
+  --sidebar-accent-foreground: #0f569e;
+  --sidebar-border: #d9e4dd;
+  --sidebar-ring: #0f569e;
 }
 
 .dark {
-  /* ─── سطوح و متن (Dark — شبِ جنگل) ─── */
-  --background: #06110c;
-  --foreground: #e6f2ea;
-  --card: #0c1d15;
-  --card-foreground: #e6f2ea;
-  --popover: #0c1d15;
-  --popover-foreground: #e6f2ea;
-  --secondary: #122a1e;
-  --secondary-foreground: #e6f2ea;
-  --muted: #102318;
-  --muted-foreground: #8cae9c;
-  --accent: #113322;
-  --accent-foreground: #6ee7b7;
+  /* ─── امضای برند در دارک: لیمو → نئون برای متن گرادیانی ─── */
+  --grad-text: linear-gradient(135deg, #a4e86d 0%, #39ff14 100%);
 
-  --primary: #2fbf85;
-  --primary-foreground: #04170e;
+  /* ─── سطوح و متن (Dark — شبِ سرمه‌ای رسمی پالت) ─── */
+  --background: #101835;
+  --foreground: #ecf2f4;
+  --card: #182741;
+  --card-foreground: #ecf2f4;
+  --popover: #182741;
+  --popover-foreground: #ecf2f4;
+  --secondary: #22385a;
+  --secondary-foreground: #ecf2f4;
+  --muted: #16243c;
+  --muted-foreground: #93a7c4;
+  --accent: #1e3355;
+  --accent-foreground: #a4e86d;
+
+  --primary: #a4e86d;
+  --primary-foreground: #12203a;
   --gold: #f59e0b;
   --warning: #f59e0b;
-  --success: #34d399;
+  --success: #4ade80;
   --rose: #fb7185;
   --destructive: #f87171;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.1);
-  --ring: #2fbf85;
+  --border: rgba(255, 255, 255, 0.09);
+  --input: rgba(255, 255, 255, 0.11);
+  --ring: #a4e86d;
 
-  --chart-1: #34d399;
-  --chart-2: #2dd4bf;
+  --chart-1: #a4e86d;
+  --chart-2: #3d7cbe;
   --chart-3: #fbbf24;
   --chart-4: #fb7185;
-  --chart-5: #94a3b8;
+  --chart-5: #93a7c4;
 
-  --sidebar: #0c1d15;
-  --sidebar-foreground: #e6f2ea;
-  --sidebar-primary: #2fbf85;
-  --sidebar-primary-foreground: #04170e;
-  --sidebar-accent: #113322;
-  --sidebar-accent-foreground: #6ee7b7;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #2fbf85;
+  --sidebar: #182741;
+  --sidebar-foreground: #ecf2f4;
+  --sidebar-primary: #a4e86d;
+  --sidebar-primary-foreground: #12203a;
+  --sidebar-accent: #1e3355;
+  --sidebar-accent-foreground: #a4e86d;
+  --sidebar-border: rgba(255, 255, 255, 0.09);
+  --sidebar-ring: #a4e86d;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   پنل ادمین — ایزوله با پالت سبز قبلی (قید پروژه: ادمین دست‌نخورده)
-   تمام توکن‌های معنایی داخل این wrapper به هویت قبلی برمی‌گردند
-   ═══════════════════════════════════════════════════════════════ */
 .admin-legacy {
-  --background: oklch(0.98 0.003 120);
-  --foreground: oklch(0.16 0.01 160);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0.01 160);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0.01 160);
-  --secondary: oklch(0.95 0.006 140);
-  --secondary-foreground: oklch(0.3 0.02 160);
-  --muted: oklch(0.96 0.004 120);
-  --muted-foreground: oklch(0.5 0.01 150);
-  --accent: oklch(0.93 0.015 160);
-  --accent-foreground: oklch(0.3 0.03 160);
-  --primary: oklch(0.38 0.09 160);
-  --primary-foreground: oklch(0.98 0.003 120);
-  --gold: oklch(0.72 0.16 80);
-  --warning: oklch(0.72 0.16 80);
-  --success: oklch(0.6 0.13 155);
-  --rose: oklch(0.62 0.2 15);
-  --destructive: oklch(0.56 0.22 25);
-  --border: oklch(0.9 0.004 140);
-  --input: oklch(0.92 0.003 120);
-  --ring: oklch(0.38 0.09 160);
-  --chart-1: oklch(0.38 0.09 160);
-  --chart-2: oklch(0.72 0.16 80);
-  --chart-3: oklch(0.6 0.13 155);
-  --chart-4: oklch(0.62 0.2 15);
-  --chart-5: oklch(0.5 0.1 280);
-  --sidebar: oklch(0.98 0.003 120);
-  --sidebar-foreground: oklch(0.16 0.01 160);
-  --sidebar-primary: oklch(0.38 0.09 160);
-  --sidebar-primary-foreground: oklch(0.98 0.003 120);
-  --sidebar-accent: oklch(0.95 0.006 140);
-  --sidebar-accent-foreground: oklch(0.3 0.02 160);
-  --sidebar-border: oklch(0.9 0.004 140);
-  --sidebar-ring: oklch(0.38 0.09 160);
+  --background: #f4f7f9;
+  --foreground: #16203a;
+  --card: #ffffff;
+  --card-foreground: #16203a;
+  --popover: #ffffff;
+  --popover-foreground: #16203a;
+  --secondary: #e7eef2;
+  --secondary-foreground: #162a4b;
+  --muted: #eef3f6;
+  --muted-foreground: #4a6586;
+  --accent: #dce8f0;
+  --accent-foreground: #0f569e;
+  --primary: #0f569e;
+  --primary-foreground: #ffffff;
+  --gold: #b45309;
+  --warning: #b45309;
+  --success: #2e9e5b;
+  --rose: #e11d48;
+  --destructive: #dc2626;
+  --border: #d9e2e8;
+  --input: #cfdade;
+  --ring: #0f569e;
+  --chart-1: #0f569e;
+  --chart-2: #3d7cbe;
+  --chart-3: #a4e86d;
+  --chart-4: #f59e0b;
+  --chart-5: #4a6586;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #16203a;
+  --sidebar-primary: #0f569e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #dce8f0;
+  --sidebar-accent-foreground: #0f569e;
+  --sidebar-border: #d9e2e8;
+  --sidebar-ring: #0f569e;
 }
 .dark .admin-legacy {
-  --background: oklch(0.13 0.008 160);
-  --foreground: oklch(0.95 0.005 120);
-  --card: oklch(0.18 0.01 160);
-  --card-foreground: oklch(0.95 0.005 120);
-  --popover: oklch(0.18 0.01 160);
-  --popover-foreground: oklch(0.95 0.005 120);
-  --secondary: oklch(0.24 0.008 160);
-  --secondary-foreground: oklch(0.95 0.005 120);
-  --muted: oklch(0.22 0.006 160);
-  --muted-foreground: oklch(0.65 0.01 140);
-  --accent: oklch(0.26 0.01 160);
-  --accent-foreground: oklch(0.88 0.06 155);
-  --primary: oklch(0.58 0.12 160);
-  --primary-foreground: oklch(0.1 0.01 160);
-  --gold: oklch(0.76 0.16 80);
-  --warning: oklch(0.76 0.16 80);
-  --success: oklch(0.68 0.15 155);
-  --rose: oklch(0.68 0.2 15);
-  --destructive: oklch(0.7 0.19 25);
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.58 0.12 160);
-  --sidebar: oklch(0.15 0.008 160);
-  --sidebar-foreground: oklch(0.95 0.005 120);
-  --sidebar-primary: oklch(0.58 0.12 160);
-  --sidebar-primary-foreground: oklch(0.1 0.01 160);
-  --sidebar-accent: oklch(0.22 0.006 160);
-  --sidebar-accent-foreground: oklch(0.95 0.005 120);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.58 0.12 160);
+  --background: #101835;
+  --foreground: #ecf2f4;
+  --card: #182741;
+  --card-foreground: #ecf2f4;
+  --popover: #182741;
+  --popover-foreground: #ecf2f4;
+  --secondary: #22385a;
+  --secondary-foreground: #ecf2f4;
+  --muted: #16243c;
+  --muted-foreground: #93a7c4;
+  --accent: #1e3355;
+  --accent-foreground: #a4e86d;
+  --primary: #3d7cbe;
+  --primary-foreground: #ffffff;
+  --gold: #f59e0b;
+  --warning: #f59e0b;
+  --success: #4ade80;
+  --rose: #fb7185;
+  --destructive: #f87171;
+  --border: rgba(255, 255, 255, 0.09);
+  --input: rgba(255, 255, 255, 0.11);
+  --ring: #3d7cbe;
+  --sidebar: #182741;
+  --sidebar-foreground: #ecf2f4;
+  --sidebar-primary: #3d7cbe;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e3355;
+  --sidebar-accent-foreground: #a4e86d;
+  --sidebar-border: rgba(255, 255, 255, 0.09);
+  --sidebar-ring: #3d7cbe;
 }
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -240,7 +239,7 @@
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
   ::selection {
-    background: rgba(16, 185, 129, 0.28);
+    background: rgba(15, 86, 158, 0.25);
   }
 }
 
@@ -252,7 +251,7 @@
     -webkit-backdrop-filter: blur(20px) saturate(170%);
   }
   .dark .glass {
-    background-color: rgba(10, 28, 19, 0.85);
+    background-color: rgba(16, 24, 53, 0.82);
   }
   .glass-strong {
     background-color: rgba(255, 255, 255, 0.92);
@@ -260,7 +259,7 @@
     -webkit-backdrop-filter: blur(24px) saturate(180%);
   }
   .dark .glass-strong {
-    background-color: rgba(12, 29, 21, 0.92);
+    background-color: rgba(24, 39, 65, 0.92);
   }
   /* ─── شیشه‌ی مایع (Liquid Glass) — داکِ پایین و سطوح شناور اصلی ───
      شفافیت واقعی + بلورِ اشباع + لبه‌ی نورِ داخلی = حس مایع */
@@ -278,14 +277,14 @@
     box-shadow:
       inset 0 1px 1px rgba(255, 255, 255, 0.65),
       inset 0 -1px 1px rgba(255, 255, 255, 0.18),
-      0 14px 38px rgba(6, 60, 38, 0.2);
+      0 14px 38px rgba(22, 42, 75, 0.2);
   }
   .dark .glass-liquid {
     background: linear-gradient(
       135deg,
-      rgba(22, 48, 35, 0.6) 0%,
-      rgba(10, 28, 19, 0.44) 42%,
-      rgba(18, 42, 30, 0.55) 100%
+      rgba(34, 56, 90, 0.6) 0%,
+      rgba(22, 36, 60, 0.44) 42%,
+      rgba(30, 51, 85, 0.55) 100%
     );
     border-color: rgba(255, 255, 255, 0.14);
     box-shadow:
@@ -294,7 +293,7 @@
       0 14px 38px rgba(0, 0, 0, 0.5);
   }
   .glass-dark-chip {
-    background-color: rgba(4, 18, 12, 0.55);
+    background-color: rgba(16, 24, 53, 0.55);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
   }
@@ -307,7 +306,7 @@
     background-image: var(--grad-gold);
   }
   .grad-text {
-    background-image: var(--grad);
+    background-image: var(--grad-text, var(--grad));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -340,7 +339,7 @@
     height: 480px;
     top: -160px;
     right: -120px;
-    background: radial-gradient(circle, #34d399 0%, transparent 70%);
+    background: radial-gradient(circle, #3d7cbe 0%, transparent 70%);
     animation: aurora-drift-1 26s ease-in-out infinite alternate;
   }
   .aurora-2 {
@@ -348,7 +347,7 @@
     height: 420px;
     top: 30%;
     left: -160px;
-    background: radial-gradient(circle, #2dd4bf 0%, transparent 70%);
+    background: radial-gradient(circle, #a4e86d 0%, transparent 70%);
     animation: aurora-drift-2 32s ease-in-out infinite alternate;
   }
   .aurora-3 {
@@ -356,7 +355,7 @@
     height: 360px;
     bottom: -140px;
     right: 20%;
-    background: radial-gradient(circle, #fbbf24 0%, transparent 70%);
+    background: radial-gradient(circle, #0f569e 0%, transparent 70%);
     opacity: 0.24;
     animation: aurora-drift-3 38s ease-in-out infinite alternate;
   }
@@ -365,12 +364,12 @@
   }
 
   /* ─── سایه‌ها (سه‌سطحی + گلوی برند، ته‌رنگ سبز) ─── */
-  .shadow-soft { box-shadow: 0 1px 2px rgba(6, 50, 35, 0.06); }
-  .shadow-card { box-shadow: 0 1px 2px rgba(6, 50, 35, 0.06), 0 8px 24px rgba(6, 50, 35, 0.08); }
-  .shadow-lift { box-shadow: 0 2px 4px rgba(6, 50, 35, 0.06), 0 12px 32px rgba(6, 50, 35, 0.12); }
-  .shadow-float { box-shadow: 0 4px 8px rgba(6, 50, 35, 0.08), 0 16px 48px rgba(6, 50, 35, 0.16); }
-  .shadow-glow { box-shadow: 0 8px 28px rgba(16, 185, 129, 0.4); }
-  .shadow-grad { box-shadow: 0 4px 14px rgba(13, 148, 136, 0.4); }
+  .shadow-soft { box-shadow: 0 1px 2px rgba(16, 24, 53, 0.06); }
+  .shadow-card { box-shadow: 0 1px 2px rgba(16, 24, 53, 0.06), 0 8px 24px rgba(16, 24, 53, 0.08); }
+  .shadow-lift { box-shadow: 0 2px 4px rgba(16, 24, 53, 0.06), 0 12px 32px rgba(16, 24, 53, 0.12); }
+  .shadow-float { box-shadow: 0 4px 8px rgba(16, 24, 53, 0.08), 0 16px 48px rgba(16, 24, 53, 0.16); }
+  .shadow-glow { box-shadow: 0 8px 28px rgba(15, 86, 158, 0.38); }
+  .shadow-grad { box-shadow: 0 4px 14px rgba(15, 86, 158, 0.38); }
   .shadow-glow-rose { box-shadow: 0 8px 28px rgba(225, 29, 72, 0.35); }
   .shadow-glow-gold { box-shadow: 0 6px 20px rgba(217, 119, 6, 0.35); }
 
@@ -399,11 +398,11 @@
   .slim-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
   .slim-scroll::-webkit-scrollbar-track { background: transparent; }
   .slim-scroll::-webkit-scrollbar-thumb {
-    background: #bdd4c6;
+    background: #b9c9d4;
     border-radius: 9999px;
   }
   .dark .slim-scroll::-webkit-scrollbar-thumb {
-    background: #274234;
+    background: #2c3f5e;
   }
 
   /* ─── اعداد و پرفورمنس ─── */
@@ -415,12 +414,12 @@
 
   /* ─── اسکلتون شیمر ─── */
   .shimmer {
-    background: linear-gradient(100deg, #e2eee6 40%, #f0f7f2 50%, #e2eee6 60%);
+    background: linear-gradient(100deg, #e3ecf2 40%, #f0f6f4 50%, #e3ecf2 60%);
     background-size: 200% 100%;
     animation: shimmer 1.2s linear infinite;
   }
   .dark .shimmer {
-    background: linear-gradient(100deg, #10231a 40%, #16301f 50%, #10231a 60%);
+    background: linear-gradient(100deg, #17263e 40%, #1f3151 50%, #17263e 60%);
     background-size: 200% 100%;
   }
 

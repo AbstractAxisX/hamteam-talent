@@ -364,7 +364,7 @@ function PersonRow({
               avatarUrl={item.otherUser.avatarUrl}
               verified={item.otherUser.isVerifiedBadge}
               size="lg"
-              ringColor="oklch(0.6 0.15 160 / 0.3)"
+              ringColor="rgba(61, 124, 190, 0.3)"
             />
           </button>
           <div className="flex-1 min-w-0">

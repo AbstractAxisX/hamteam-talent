@@ -21,7 +21,7 @@ import type { TopTalentMyStatus } from "@/lib/types";
 
 const CONDITIONS = [
   { icon: "clock", title: "فعالیت حداقل ۶ ماه", desc: "فعالیت مستمر در حوزهٔ تخصصی خود" },
-  { icon: "image", title: "حداقل ۱۰ پست باکیفیت", desc: "نمایش واقعی کار و مهارت در همتیم" },
+  { icon: "image", title: "حداقل ۱۰ پست باکیفیت", desc: "نمایش واقعی کار و مهارت در فرصتینو" },
   { icon: "users", title: "دنبال‌کنندهٔ فعال", desc: "تعامل واقعی با مخاطبان" },
   { icon: "shield", title: "اثبات هویت", desc: "ارسال تصویر کارت ملی برای تأیید" },
 ];
@@ -112,7 +112,7 @@ export function TopTalentView() {
             درخواست استعداد برتر
           </h1>
           <p className="text-[12.5px] text-amber-100/70 mt-1.5 leading-6 max-w-sm">
-            مسیر رسمی دریافت نشان نخبگی همتیم — بررسی توسط تیم، اعلام نتیجه از طریق اعلان‌ها
+            مسیر رسمی دریافت نشان نخبگی فرصتینو — بررسی توسط تیم، اعلام نتیجه از طریق اعلان‌ها
           </p>
         </div>
       </div>
@@ -270,7 +270,7 @@ function StatusPanel({ status }: { status: TopTalentMyStatus }) {
       <div className="space-y-1.5">
         <h3 className="text-lg font-extrabold">درخواست شما در حال بررسی است</h3>
         <p className="text-sm text-muted-foreground leading-6 max-w-sm mx-auto">
-          تیم همتیم مدارک شما را بررسی می‌کند. نتیجه از طریق اعلان‌ها و همین صفحه اعلام می‌شود.
+          تیم فرصتینو مدارک شما را بررسی می‌کند. نتیجه از طریق اعلان‌ها و همین صفحه اعلام می‌شود.
         </p>
       </div>
       <button onClick={() => navigate({ view: "feed" })} className="text-sm font-bold text-primary underline underline-offset-4">

@@ -372,7 +372,7 @@ function AdminLogin({ onLogin }: { onLogin: (a: AdminInfo) => void }) {
               <Shield className="w-8 h-8" />
             </div>
             <h1 className="text-xl font-extrabold text-gray-900">ورود به پنل مدیریت</h1>
-            <p className="text-xs text-gray-500 mt-1.5">پلتفرم استعدادیابی همتیم</p>
+            <p className="text-xs text-gray-500 mt-1.5">پلتفرم استعدادیابی فرصتینو</p>
           </div>
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-1.5">
@@ -581,7 +581,7 @@ function AdminDashboard({
                     {currentPage.label}
                   </h1>
                   <p className="text-[10px] text-gray-500 hidden sm:block">
-                    پنل مدیریت همتیم
+                    پنل مدیریت فرصتینو
                   </p>
                 </div>
               </div>
@@ -680,7 +680,7 @@ function SidebarContent({
           {!collapsed && (
             <div className="min-w-0">
               <p className="font-extrabold text-sm text-gray-900 leading-tight">
-                همتیم
+                فرصتینو
               </p>
               <p className="text-[10px] text-gray-500 leading-tight">پنل مدیریت</p>
             </div>
@@ -1074,7 +1074,7 @@ function StatusBadge({
         مسدود
       </Badge>
     ) : (
-      <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 text-[10px] h-5 rounded">
+      <Badge className="bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-50 text-[10px] h-5 rounded">
         فعال
       </Badge>
     );
@@ -1092,7 +1092,7 @@ function StatusBadge({
   }
   // job
   return status === "open" ? (
-    <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 text-[10px] h-5 rounded">
+    <Badge className="bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-50 text-[10px] h-5 rounded">
       باز
     </Badge>
   ) : (
@@ -1109,7 +1109,7 @@ function TopTalentStatusBadge({
 }) {
   if (status === "approved") {
     return (
-      <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 text-[10px] h-5 rounded gap-1">
+      <Badge className="bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-50 text-[10px] h-5 rounded gap-1">
         <CheckCircle2 className="w-3 h-3" /> تایید شده
       </Badge>
     );
@@ -1209,8 +1209,8 @@ function DashboardTab() {
       label: "پست‌ها",
       value: stats.posts,
       icon: FileText,
-      tint: "bg-emerald-50",
-      text: "text-emerald-700",
+      tint: "bg-sky-50",
+      text: "text-sky-700",
     },
     {
       label: "دسته‌بندی‌ها",
@@ -1246,7 +1246,7 @@ function DashboardTab() {
     <div className="space-y-5">
       <PageHeader
         title="داشبورد مدیریت"
-        description="نمای کلی از وضعیت پلتفرم همتیم"
+        description="نمای کلی از وضعیت پلتفرم فرصتینو"
       />
 
       {/* Stat cards */}
@@ -1823,7 +1823,7 @@ function UsersTab() {
                             >
                               {u.isBanned ? (
                                 <>
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                  <CheckCircle2 className="w-4 h-4 text-sky-600" />
                                   رفع مسدودیت
                                 </>
                               ) : (
@@ -3368,8 +3368,8 @@ function TopTalentTab() {
           label="تایید شده"
           value={statusCounts.approved}
           icon={CheckCircle2}
-          tint="bg-emerald-50"
-          text="text-emerald-700"
+          tint="bg-sky-50"
+          text="text-sky-700"
         />
         <SummaryCard
           label="رد شده"
@@ -3847,7 +3847,7 @@ function TopTalentTab() {
                       <PrimaryButton
                         onClick={doApprove}
                         disabled={actionLoading}
-                        className="rounded-lg h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                        className="rounded-lg h-9 gap-1.5 bg-sky-600 hover:bg-sky-700"
                         style={{
                           backgroundColor: "oklch(0.6 0.13 160)",
                           color: ADMIN_FG,
@@ -4152,7 +4152,7 @@ function SettingsTab({
           اطلاعات سیستم
         </h3>
         <div className="space-y-2 text-xs">
-          <InfoRow label="پلتفرم" value="همتیم (HamTeam)" />
+          <InfoRow label="پلتفرم" value="فرصتینو (HamTeam)" />
           <InfoRow label="نسخه" value="2.0.0" />
           <InfoRow label="محیط" value="توسعه (Development)" />
           <InfoRow label="پایگاه داده" value="SQLite" />

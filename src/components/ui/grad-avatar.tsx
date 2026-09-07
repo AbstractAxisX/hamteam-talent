@@ -12,16 +12,16 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { EliteAvatar, GoldCheckMark } from "@/components/ui/elite";
 
-/* پالت گرادیان‌های رفرنس */
+/* پالت گرادیان‌های رفرنس — خانوادهٔ آسمانی/سرمه‌ای/لیموی برند فرصتینو */
 const GRADS = [
-  "linear-gradient(135deg,#059669,#0d9488)",
-  "linear-gradient(135deg,#0d9488,#14b8a6)",
+  "linear-gradient(135deg,#0f569e,#162a4b)",
+  "linear-gradient(135deg,#1268bb,#0f569e)",
   "linear-gradient(135deg,#f59e0b,#d97706)",
-  "linear-gradient(135deg,#065f46,#059669)",
+  "linear-gradient(135deg,#162a4b,#101835)",
   "linear-gradient(135deg,#e11d48,#f97316)",
-  "linear-gradient(135deg,#65a30d,#059669)",
-  "linear-gradient(135deg,#0f766e,#065f46)",
-  "linear-gradient(135deg,#14b8a6,#f59e0b)",
+  "linear-gradient(135deg,#a4e86d,#63c94f)",
+  "linear-gradient(135deg,#3d7cbe,#162a4b)",
+  "linear-gradient(135deg,#14b8a6,#0f569e)",
 ];
 
 export function gradFor(name: string): string {
@@ -51,7 +51,7 @@ export function initialOf(name: string): string {
 export function VerifiedMark({ size = 15 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-label="حساب تأییدشده" role="img" className="shrink-0">
-      <circle cx="12" cy="12" r="11" fill="#059669" />
+      <circle cx="12" cy="12" r="11" fill="#0f569e" />
       <path d="M8 12.5l2.6 2.6L16.5 9" stroke="#fff" strokeWidth="2.4" fill="none" strokeLinecap="round" />
     </svg>
   );

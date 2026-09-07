@@ -38,7 +38,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
         content: r.content,
         isAdmin: r.isAdmin,
         createdAt: r.createdAt.toISOString(),
-        authorName: r.isAdmin ? "پشتیبانی همتیم" : ticket.user.name,
+        authorName: r.isAdmin ? "پشتیبانی فرصتینو" : ticket.user.name,
       })),
     },
   });

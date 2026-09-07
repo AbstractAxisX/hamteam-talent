@@ -15,7 +15,7 @@ async function ensureDefaultAdmin() {
       data: {
         username: DEFAULT_ADMIN_USERNAME,
         password: hashPassword(DEFAULT_ADMIN_PASSWORD),
-        name: "مدیر همتیم",
+        name: "مدیر فرصتینو",
       },
     });
   }

@@ -63,7 +63,7 @@ export function DashboardView() {
     { label: "تنظیمات", icon: "settings" as const, route: { view: "settings" as const }, tone: "default" as const },
   ];
 
-  // Activity timeline: posts from my connections (فقط همتیمی‌ها — پست‌های خودم نیست)
+  // Activity timeline: posts from my connections (فقط ارتباط‌ها — پست‌های خودم نیست)
   const timelineItems = (data?.posts || []).filter((p) => p.user.id !== user?.id).slice(0, 5);
 
   return (
@@ -79,11 +79,11 @@ export function DashboardView() {
         {/* Ambient blobs */}
         <div
           className="absolute -top-16 -left-12 w-64 h-64 rounded-full opacity-30 blur-3xl pointer-events-none"
-          style={{ backgroundColor: "oklch(0.6 0.15 160 / 0.5)" }}
+          style={{ backgroundColor: "rgba(61, 124, 190, 0.42)" }}
         />
         <div
           className="absolute -bottom-20 -right-12 w-56 h-56 rounded-full opacity-20 blur-3xl pointer-events-none"
-          style={{ backgroundColor: "oklch(0.75 0.15 80 / 0.5)" }}
+          style={{ backgroundColor: "rgba(164, 232, 109, 0.35)" }}
         />
         <div className="relative flex items-center gap-4 md:gap-5">
           <button
@@ -113,22 +113,17 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* Stats row inside hero */}
-        <div className="relative mt-6 md:mt-7 grid grid-cols-3 gap-2 md:gap-3">
+        {/* Stats row inside hero — ارتباط = دنبال‌کننده (یک عدد) */}
+        <div className="relative mt-6 md:mt-7 grid grid-cols-2 gap-2 md:gap-3">
           <HeroStat
             value={data ? formatCount(data.stats.connectionsCount) : "۰"}
-            label="ارتباطات"
+            label="ارتباط"
             icon="users"
           />
           <HeroStat
             value={data ? formatCount(data.stats.postsCount) : "۰"}
             label="پست‌های من"
             icon="image"
-          />
-          <HeroStat
-            value={data ? formatCount(data.stats.followersCount) : "۰"}
-            label="دنبال‌کننده"
-            icon="userCheck"
           />
         </div>
       </motion.section>
@@ -167,7 +162,7 @@ export function DashboardView() {
         <div className="flex items-end justify-between mb-4">
           <div>
             <p className="text-xs font-bold text-primary tracking-widest mb-1">خط زمانی فعالیت</p>
-            <h2 className="text-xl md:text-2xl font-black tracking-tight">از همتیمی‌های متصل</h2>
+            <h2 className="text-xl md:text-2xl font-black tracking-tight">از ارتباط‌های متصل</h2>
           </div>
           <button
             onClick={() => navigate({ view: "feed" })}

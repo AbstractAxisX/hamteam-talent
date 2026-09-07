@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { api, apiPost, apiPut, apiDelete } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
+import { useNav } from "@/lib/nav";
 import { BackButton } from "@/components/shared/back-button";
 import type { ProfileDetail, CategoryWithSkills, ProfileMeta } from "@/lib/types";
 import { Card } from "@/components/ui/card";
@@ -74,13 +75,15 @@ const SECTIONS = [
 
 export function EditProfileView() {
   const { user, loading: userLoading } = useUser();
+  const route = useNav((s) => s.route);
   const [profile, setProfile] = useState<ProfileDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [allCats, setAllCats] = useState<CategoryWithSkills[]>([]);
   const [meta, setMeta] = useState<ProfileMeta | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    // silent: رفرش بدون اسکلتون — صفحه جای‌گذری نمی‌شود و اسکرول حفظ می‌شود
+    if (!silent) setLoading(true);
     try {
       const [p, c] = await Promise.all([
         api<ProfileDetail>("/api/profile/me"),
@@ -94,7 +97,7 @@ export function EditProfileView() {
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -106,6 +109,16 @@ export function EditProfileView() {
     }
     load();
   }, [user, userLoading, load]);
+
+  // پرش به سکشن درخواستی (شورتکات‌های تکمیل پروفایل از خانه)
+  const wantedSection = route.params?.section;
+  useEffect(() => {
+    if (!wantedSection || userLoading || loading) return;
+    const t = setTimeout(() => {
+      document.getElementById(`section-${wantedSection}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [wantedSection, userLoading, loading]);
 
   if (userLoading || loading) return <EditSkeleton />;
 
@@ -140,7 +153,7 @@ export function EditProfileView() {
           description="لطفاً دوباره تلاش کنید."
           action={
             <Button
-              onClick={load}
+              onClick={() => load()}
               className="rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
             >
               تلاش مجدد
@@ -198,19 +211,19 @@ export function EditProfileView() {
       </div>
 
       <SectionWrapper id="section-username" delay={0.05}>
-        <UsernameSection profile={profile} onUpdated={load} />
+        <UsernameSection profile={profile} onUpdated={() => load(true)} />
       </SectionWrapper>
       <SectionWrapper id="section-photos" delay={0.08}>
-        <PhotosBioSection profile={profile} onUpdated={load} />
+        <PhotosBioSection profile={profile} onUpdated={() => load(true)} />
       </SectionWrapper>
       <SectionWrapper id="section-gender" delay={0.1}>
-        <GenderSection profile={profile} onUpdated={load} />
+        <GenderSection profile={profile} onUpdated={() => load(true)} />
       </SectionWrapper>
       <SectionWrapper id="section-location" delay={0.12}>
-        <LocationSection profile={profile} onUpdated={load} />
+        <LocationSection profile={profile} onUpdated={() => load(true)} />
       </SectionWrapper>
       <SectionWrapper id="section-categories" delay={0.15}>
-        <CategoriesSection profile={profile} allCats={allCats} onUpdated={load} />
+        <CategoriesSection profile={profile} allCats={allCats} onUpdated={() => load(true)} />
       </SectionWrapper>
       {profile.categories.length > 1 && (
         <SectionWrapper id="section-main-category" delay={0.18}>
@@ -218,15 +231,15 @@ export function EditProfileView() {
             profile={profile}
             allCats={allCats}
             meta={meta}
-            onUpdated={load}
+            onUpdated={() => load(true)}
           />
         </SectionWrapper>
       )}
       <SectionWrapper id="section-experience" delay={0.2}>
-        <ExperienceSection profile={profile} allCats={allCats} onUpdated={load} />
+        <ExperienceSection profile={profile} allCats={allCats} onUpdated={() => load(true)} />
       </SectionWrapper>
       <SectionWrapper id="section-education" delay={0.25}>
-        <EducationSection profile={profile} onUpdated={load} />
+        <EducationSection profile={profile} onUpdated={() => load(true)} />
       </SectionWrapper>
     </div>
   );
@@ -384,6 +397,8 @@ function PhotosBioSection({
         throw new Error(data.error || "آپلود ناموفق بود");
       }
       setAvatarUrl(data.url);
+      // ذخیرهٔ فوری روی پروفایل — بدون نیاز به دکمهٔ ذخیره
+      await apiPut("/api/profile/me", { avatarUrl: data.url });
       toast({ title: "عکس پروفایل به‌روزرسانی شد ✅" });
       onUpdated();
     } catch (e) {
@@ -405,6 +420,8 @@ function PhotosBioSection({
         throw new Error(data.error || "آپلود ناموفق بود");
       }
       setBannerUrl(data.url);
+      // ذخیرهٔ فوری روی پروفایل — بدون نیاز به دکمهٔ ذخیره
+      await apiPut("/api/profile/me", { bannerUrl: data.url });
       toast({ title: "بنر به‌روزرسانی شد ✅" });
       onUpdated();
     } catch (e) {
@@ -1391,7 +1408,7 @@ function ExperienceSection({
             <div className="space-y-2">
               <Label>نام سازمان *</Label>
               <Input
-                placeholder="مثلاً: استودیو همتیم"
+                placeholder="مثلاً: استودیو فرصتینو"
                 value={organization}
                 onChange={(e) => setOrganization(e.target.value)}
                 className="rounded-2xl"

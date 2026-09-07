@@ -2,29 +2,28 @@
 
 import { cn } from "@/lib/utils";
 
-/* ── Brand Logo Mark ── */
+/* ── Brand Logo Mark — فرصتینو (آیکون رسمی برند از پک لوگو) ── */
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 48 48" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="logo-grad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="oklch(0.5 0.09 200)" />
-          <stop offset="100%" stopColor="oklch(0.35 0.07 230)" />
-        </linearGradient>
-        <linearGradient id="logo-gold" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="oklch(0.8 0.16 80)" />
-          <stop offset="100%" stopColor="oklch(0.65 0.17 55)" />
-        </linearGradient>
-      </defs>
-      {/* Shield base */}
-      <path d="M24 3L6 11v14c0 11 7.5 18.5 18 21 10.5-2.5 18-10 18-21V11L24 3z" fill="url(#logo-grad)" />
-      {/* Inner highlight */}
-      <path d="M24 3L6 11v14c0 11 7.5 18.5 18 21 10.5-2.5 18-10 18-21V11L24 3z" fill="white" fillOpacity="0.06" />
-      {/* Two connected nodes = team/connection */}
-      <circle cx="17" cy="20" r="5" fill="white" fillOpacity="0.95" />
-      <circle cx="31" cy="28" r="5" fill="url(#logo-gold)" />
-      <path d="M20.5 23.5L27.5 26.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeOpacity="0.7" />
-    </svg>
+    <img
+      src="/logo-icon.png"
+      alt="لوگوی فرصتینو"
+      className={cn("object-contain select-none", className)}
+      draggable={false}
+    />
+  );
+}
+
+/* ── Brand Logo Full — آیکون + واژه‌نگار فرصتینو ── */
+export function LogoFull({ className, h }: { className?: string; h?: number }) {
+  return (
+    <img
+      src="/logo.png"
+      alt="فرصتینو — Forsatinoo"
+      style={h ? { height: `${h}px`, width: "auto" } : undefined}
+      className={cn("object-contain select-none", className)}
+      draggable={false}
+    />
   );
 }
 
@@ -34,8 +33,8 @@ export function AuthIllustration({ className }: { className?: string }) {
     <svg viewBox="0 0 400 500" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="auth-bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="oklch(0.45 0.08 210)" />
-          <stop offset="100%" stopColor="oklch(0.3 0.06 240)" />
+          <stop offset="0%" stopColor="#3d7cbe" />
+          <stop offset="100%" stopColor="#162a4b" />
         </linearGradient>
         <linearGradient id="auth-gold" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="oklch(0.82 0.16 80)" />
@@ -52,7 +51,7 @@ export function AuthIllustration({ className }: { className?: string }) {
 
       {/* Floating background blobs */}
       <circle cx="80" cy="100" r="60" fill="white" fillOpacity="0.04" className="animate-float" />
-      <circle cx="340" cy="400" r="80" fill="oklch(0.72 0.16 75)" fillOpacity="0.12" />
+      <circle cx="340" cy="400" r="80" fill="#a4e86d" fillOpacity="0.12" />
 
       {/* Main profile card (3D) */}
       <g filter="url(#auth-shadow)" transform="translate(70, 120)">
@@ -111,7 +110,7 @@ export type EmptyKind = "posts" | "jobs" | "people" | "chat" | "notif" | "connec
 export function EmptyIllustration({ kind, className }: { kind: EmptyKind; className?: string }) {
   const gradients: Record<EmptyKind, [string, string]> = {
     posts: ["oklch(0.6 0.09 200)", "oklch(0.5 0.08 220)"],
-    jobs: ["oklch(0.72 0.16 75)", "oklch(0.62 0.17 55)"],
+    jobs: ["#a4e86d", "#7ec94f"],
     people: ["oklch(0.6 0.13 158)", "oklch(0.5 0.12 175)"],
     chat: ["oklch(0.55 0.1 280)", "oklch(0.45 0.1 300)"],
     notif: ["oklch(0.62 0.2 15)", "oklch(0.52 0.2 30)"],

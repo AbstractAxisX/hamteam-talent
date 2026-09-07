@@ -28,7 +28,7 @@ const markazi = Markazi_Text({
 });
 
 export const metadata: Metadata = {
-  title: "همتیم — شبکه تخصصی مشاغل و تیم‌سازی",
+  title: "فرصتینو — شبکه‌ی کشف استعداد و تیم‌سازی",
   description: "پلتفرم شبکه‌سازی حرفه‌ای فارسی — پروفایل، رزومه، تیم‌سازی و کشف مهارت.",
 };
 

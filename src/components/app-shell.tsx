@@ -6,7 +6,7 @@ import { useNav, navigate, type Route } from "@/lib/nav";
 import { useUser } from "@/lib/use-user";
 import { cn } from "@/lib/utils";
 import { Icon } from "@/components/shared/icon";
-import { LogoMark } from "@/components/shared/illustrations";
+import { LogoFull } from "@/components/shared/illustrations";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { BackButton } from "@/components/shared/back-button";
 import { AuthView } from "@/components/views/auth-view";
@@ -241,7 +241,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
 
       {/* ═══ Main content ═══ */}
       <main ref={mainRef} className="relative flex-1 w-full">
-        <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-[4.5rem] md:pt-24 pb-28 md:pb-12">
+        <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-1 md:pt-[4.75rem] pb-28 md:pb-12">
           <AnimatePresence mode="wait">
             <motion.div
               key={routeKey}
@@ -310,12 +310,9 @@ function MobileHeader({
           <button
             onClick={() => navigate({ view: "feed" })}
             className="flex items-center gap-2 shrink-0 min-w-0"
-            aria-label="همتیم"
+            aria-label="فرصتینو"
           >
-            <span className="grid place-items-center w-9 h-9 rounded-xl grad-brand shadow-glow">
-              <LogoMark className="w-6 h-6" />
-            </span>
-            <span className="text-lg font-extrabold tracking-tight text-foreground">همتیم</span>
+            <LogoFull h={30} className="drop-shadow-sm" />
           </button>
         </div>
 
@@ -387,12 +384,9 @@ function DesktopTopBar({
         <button
           onClick={() => navigate({ view: "feed" })}
           className="flex items-center gap-2.5 shrink-0"
-          aria-label="همتیم"
+          aria-label="فرصتینو"
         >
-          <span className="grid place-items-center w-10 h-10 rounded-2xl grad-brand shadow-glow">
-            <LogoMark className="w-7 h-7" />
-          </span>
-          <span className="text-xl font-extrabold tracking-tight text-foreground">همتیم</span>
+          <LogoFull h={34} className="drop-shadow-sm" />
         </button>
 
         {/* ── Center: nav links ── */}

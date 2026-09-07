@@ -1,7 +1,7 @@
 "use client";
 
 /* ═══════════════════════════════════════════════════════════
-   همتیم — کامپوزر ساخت پست (فاز ۵)
+   فرصتینو — کامپوزر ساخت پست (فاز ۵)
    · ComposerTrigger — کارت شیشه‌ای بالای فید (رفرنس)
    · ComposerSheet — شیت تمام‌صفحه: متن + دسته/مهارت + رسانه
    · آپلود با پیشرفت واقعی (XHR) · فقط transform/opacity (۶۰fps)
@@ -364,7 +364,7 @@ export function ComposerSheet({
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-[15px] font-black text-foreground leading-tight">ثبت استعداد تازه</h2>
-                <p className="text-[11.5px] text-muted-foreground mt-0.5">کارِ خودت را با جامعه همتیم به اشتراک بگذار</p>
+                <p className="text-[11.5px] text-muted-foreground mt-0.5">کارِ خودت را با جامعه فرصتینو به اشتراک بگذار</p>
               </div>
               <IconBtn label="بستن" variant="soft" size={40} onClick={() => !busy && onClose()} disabled={busy}>
                 <Icon name="x" size={18} />
@@ -415,7 +415,7 @@ export function ComposerSheet({
                         {user.isVerifiedBadge && <VerifiedMark size={15} />}
                         {user.isTopTalent && <GoldCheckMark size={15} />}
                       </div>
-                      <span className="text-[11.5px] text-muted-foreground">انتشار عمومی در همتیم</span>
+                      <span className="text-[11.5px] text-muted-foreground">انتشار عمومی در فرصتینو</span>
                     </div>
                   </div>
 
@@ -620,7 +620,7 @@ function LoginGate() {
       </div>
       <h3 className="mt-4 text-[15px] font-black text-foreground">برای اشتراک‌گذاری استعداد وارد شو</h3>
       <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-6">
-        با ورود، می‌توانی کارهای خودت را با جامعه همتیم به اشتراک بگذاری.
+        با ورود، می‌توانی کارهای خودت را با جامعه فرصتینو به اشتراک بگذاری.
       </p>
       <Btn variant="grad" size="lg" className="mt-5" onClick={() => navigate({ view: "auth" })}>
         ورود / ثبت‌نام
@@ -644,5 +644,310 @@ function NoSkillsGate() {
         افزودن مهارت به پروفایل
       </Btn>
     </div>
+  );
+}
+
+/* ═══════════════ ComposerInline — فرم معمولی پست (روی صفحه، بدون شیت) ═══════════════ */
+
+export function ComposerInline({
+  onPosted,
+}: {
+  onPosted?: () => void;
+}) {
+  const { user, loading: userLoading } = useUser();
+
+  const [myCats, setMyCats] = React.useState<MyCategory[]>([]);
+  const [catsLoading, setCatsLoading] = React.useState(true);
+
+  const [content, setContent] = React.useState("");
+  const [categoryId, setCategoryId] = React.useState("");
+  const [skillId, setSkillId] = React.useState("");
+  const [items, setItems] = React.useState<MediaItem[]>([]);
+  const [publishing, setPublishing] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(false);
+
+  const taRef = React.useRef<HTMLTextAreaElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const currentCat = myCats.find((c) => c.id === categoryId);
+  const skills = currentCat?.skills || [];
+
+  /* ── بارگذاری مهارت‌های کاربر ── */
+  React.useEffect(() => {
+    if (!user) return;
+    let cancel = false;
+    setCatsLoading(true);
+    api<{ categories: MyCategory[] }>("/api/me/skills")
+      .then((d) => !cancel && setMyCats(d.categories || []))
+      .catch(() => {})
+      .finally(() => !cancel && setCatsLoading(false));
+    return () => { cancel = true; };
+  }, [user]);
+
+  /* ── رشد خودکار متن ── */
+  React.useEffect(() => {
+    const ta = taRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = Math.min(280, Math.max(64, ta.scrollHeight)) + "px";
+  }, [content, expanded]);
+
+  /* ── افزودن رسانه ── */
+  function addFiles(files: FileList | null) {
+    if (!files || publishing) return;
+    const incoming = Array.from(files);
+    const next: MediaItem[] = [];
+    for (const f of incoming) {
+      if (items.length + next.length >= MAX_FILES) {
+        toast({ title: "حداکثر ۶ فایل", description: "برای هر پست حداکثر ۶ رسانه می‌توانید بفرستید.", variant: "destructive" });
+        break;
+      }
+      const res = validateAndWrap(f);
+      if (res.error) {
+        toast({ title: "فایل نامعتبر", description: res.error, variant: "destructive" });
+        continue;
+      }
+      next.push(res.item!);
+    }
+    if (next.length) setItems((prev) => [...prev, ...next]);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function removeItem(key: string) {
+    setItems((prev) => {
+      const it = prev.find((m) => m.key === key);
+      if (it?.previewUrl) URL.revokeObjectURL(it.previewUrl);
+      return prev.filter((m) => m.key !== key);
+    });
+  }
+
+  /* ── انتشار ── */
+  async function publish() {
+    if (publishing) return;
+    const text = content.trim();
+    if (!text) {
+      toast({ title: "متن خالی است", description: "یه توضیح درباره استعدادت بنویس.", variant: "destructive" });
+      taRef.current?.focus();
+      return;
+    }
+    if (!categoryId || !skillId) {
+      toast({ title: "دسته‌بندی و مهارت", description: "برای پست، دسته‌بندی و مهارت مرتبط را انتخاب کن.", variant: "destructive" });
+      return;
+    }
+
+    setPublishing(true);
+    try {
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ content: text, categoryId, skillId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "ثبت پست ناموفق بود");
+      const postId: string = data.id;
+
+      let failed = 0;
+      for (let i = 0; i < items.length; i++) {
+        const m = items[i];
+        setItems((prev) => prev.map((x) => (x.key === m.key ? { ...x, status: "uploading", progress: 0 } : x)));
+        const fd = new FormData();
+        fd.append("file", m.file);
+        fd.append("postId", postId);
+        fd.append("type", m.kind);
+        const up = await uploadWithProgress("/api/posts/upload-media", fd, (pct) => {
+          setItems((prev) => prev.map((x) => (x.key === m.key ? { ...x, progress: pct } : x)));
+        });
+        setItems((prev) =>
+          prev.map((x) => (x.key === m.key ? { ...x, status: up.ok ? "done" : "error", progress: up.ok ? 100 : x.progress } : x))
+        );
+        if (!up.ok) failed++;
+      }
+      if (failed > 0 && failed === items.length) throw new Error("آپلود همه رسانه‌ها ناموفق بود");
+
+      toast({ title: "استعدادت منتشر شد! ✅", description: failed ? `${toFa(failed)} فایل آپلود نشد؛ پست منتشر شد.` : undefined });
+      // ریست فرم
+      setContent("");
+      setItems((prev) => {
+        prev.forEach((m) => m.previewUrl && URL.revokeObjectURL(m.previewUrl));
+        return [];
+      });
+      setExpanded(false);
+      onPosted?.();
+    } catch (e) {
+      toast({ title: "خطا در انتشار", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  if (userLoading || !user) return null;
+
+  const remaining = MAX_LEN - content.length;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.04 }}
+      className="glass rounded-[24px] p-3.5 md:p-4 shadow-card relative overflow-hidden"
+    >
+      {/* رگه برند */}
+      <span className="absolute inset-y-0 right-0 w-[3px] grad-brand rounded-full" aria-hidden />
+
+      {/* ردیف کاربر + متن */}
+      <div className="flex items-start gap-3">
+        <GradAvatar
+          name={user.name}
+          src={user.profile?.avatarUrl ?? null}
+          size="lg"
+          verified={user.isVerifiedBadge}
+          topTalent={user.isTopTalent}
+        />
+        <div className="flex-1 min-w-0 space-y-2">
+          <textarea
+            ref={taRef}
+            value={content}
+            onFocus={() => setExpanded(true)}
+            onChange={(e) => setContent(e.target.value.slice(0, MAX_LEN))}
+            maxLength={MAX_LEN}
+            placeholder="چه استعدادی داری؟ از آخرین کارت بگو…"
+            className="w-full min-h-[64px] rounded-[18px] bg-muted/60 border-[1.5px] border-border/70 p-3.5
+                       text-[13.5px] leading-7 font-medium text-foreground placeholder:text-muted-foreground/70
+                       outline-none transition-colors focus:border-primary/60 focus:bg-card resize-none"
+          />
+        </div>
+      </div>
+
+      {catsLoading ? (
+        <div className="pt-3">
+          <Sk className="h-9 w-2/3" />
+        </div>
+      ) : myCats.length === 0 ? (
+        /* دروازهٔ مهارت — بدون دسته‌بندی نمی‌شود پست گذاشت */
+        <div className="mt-3 pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[12px] text-muted-foreground font-medium">
+            برای انتشار پست، اول یک دسته‌بندی و مهارت به پروفایلت اضافه کن.
+          </p>
+          <Btn
+            variant="grad"
+            size="sm"
+            onClick={() => navigate({ view: "edit-profile", params: { section: "categories" } })}
+          >
+            <Icon name="plus" size={15} />
+            افزودن مهارت
+          </Btn>
+        </div>
+      ) : (
+        expanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            className="space-y-3 pt-3 mt-2 border-t border-border/60 overflow-hidden">
+            {/* دسته‌بندی */}
+            <div>
+              <SectionTitle icon="grid" label="دسته‌بندی" required />
+              <div className="flex gap-2 overflow-x-auto hide-scrollbar -mx-1 px-1 py-0.5">
+                {myCats.map((c) => (
+                  <Chip
+                    key={c.id}
+                    active={categoryId === c.id}
+                    onClick={() => {
+                      setCategoryId(c.id);
+                      if (skillId && !c.skills.some((s) => s.id === skillId)) setSkillId("");
+                    }}
+                  >
+                    <span className="ml-1">{c.iconUrl || "✨"}</span>
+                    {c.name}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+
+            {/* مهارت */}
+            {categoryId && (
+              <div>
+                <SectionTitle icon="spark" label="مهارت" required />
+                {skills.length === 0 ? (
+                  <p className="text-[12px] text-muted-foreground py-1">در این دسته مهارتی ثبت نکرده‌ای.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 py-0.5">
+                    {skills.map((s) => (
+                      <Chip key={s.id} active={skillId === s.id} onClick={() => setSkillId(s.id)}>
+                        {s.name}
+                      </Chip>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* رسانه */}
+            <div>
+              <SectionTitle icon="image" label="رسانه‌ها" hint={`تا ${toFa(MAX_FILES)} فایل`} />
+              <div className="flex gap-2 overflow-x-auto hide-scrollbar -mx-1 px-1 py-0.5">
+                <motion.button
+                  whileTap={{ scale: 0.92 }}
+                  transition={SPRING.tap}
+                  onClick={() => inputRef.current?.click()}
+                  className="shrink-0 h-11 px-4 rounded-2xl border-[1.5px] border-dashed border-primary/45
+                             text-primary text-[12.5px] font-extrabold inline-flex items-center gap-1.5
+                             hover:bg-primary/5 transition-colors outline-none"
+                >
+                  <Icon name="plus" size={16} />
+                  افزودن فایل
+                </motion.button>
+              </div>
+              <input
+                ref={inputRef}
+                type="file"
+                multiple
+                accept={Object.values(KIND_LIMITS).map((k) => k.accept).join(",")}
+                className="hidden"
+                onChange={(e) => addFiles(e.target.files)}
+              />
+              {items.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                  {items.map((m) => (
+                    <MediaTile key={m.key} item={m} onRemove={() => removeItem(m.key)} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* فوتر: شمارنده + انتشار */}
+            <div className="flex items-center gap-3">
+              <span
+                className={cn(
+                  "text-[11px] font-extrabold nums-fa shrink-0",
+                  remaining <= 50 ? "text-destructive" : remaining <= 200 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+                )}
+              >
+                {toFa(remaining)}
+              </span>
+              <span className="flex-1" />
+              <Btn
+                variant="soft"
+                size="sm"
+                onClick={() => setExpanded(false)}
+                disabled={publishing}
+              >
+                بستن
+              </Btn>
+              <Btn
+                variant="grad"
+                size="md"
+                loading={publishing}
+                onClick={publish}
+                disabled={publishing}
+              >
+                <Icon name="send" size={16} />
+                انتشار پست
+              </Btn>
+            </div>
+          </motion.div>
+        )
+      )}
+    </motion.div>
   );
 }

@@ -109,7 +109,7 @@ export function BannerSlider({ className }: { className?: string }) {
               {/* متن */}
               <span className="absolute inset-y-0 right-0 flex flex-col justify-center gap-1.5 pr-5 md:pr-7 max-w-[75%] text-right">
                 {b.subtitle && (
-                  <span className="text-[10.5px] md:text-[11px] font-bold text-emerald-300/90 tracking-wide">
+                  <span className="text-[10.5px] md:text-[11px] font-bold text-lime-300/95 tracking-wide">
                     {b.subtitle}
                   </span>
                 )}

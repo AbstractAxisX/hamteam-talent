@@ -64,7 +64,7 @@ export function SettingsView() {
           <div className="flex-1 min-w-0">
             <p className="font-bold text-sm">رنگ پیش‌فرض قفل شده</p>
             <p className="text-xs text-muted-foreground mt-1 leading-5">
-              پوسته‌ی زمردی تیره (Dark Green) تنها رنگ رسمی همتیم است و قابل تغییر نیست.
+              پوسته‌ی آبی سرمه‌ای (Navy & Lime) تنها رنگ رسمی فرصتینو است و قابل تغییر نیست.
             </p>
           </div>
         </div>
@@ -86,7 +86,7 @@ export function SettingsView() {
                 className="text-lg font-bold"
                 style={{ fontFamily: f.stack }}
               >
-                همتیم — نمونه‌ی متن
+                فرصتینو — نمونه‌ی متن
               </span>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">{f.name}</span>
@@ -102,10 +102,10 @@ export function SettingsView() {
       </Section>
 
       {/* ═══ About ═══ */}
-      <Section title="درباره‌ی همتیم" iconName="info" delay={0.2}>
+      <Section title="درباره‌ی فرصتینو" iconName="info" delay={0.2}>
         <div className="space-y-3">
           <div className="p-4 rounded-2xl bg-muted/40 text-sm leading-7 text-muted-foreground">
-            همتیم شبکه‌ی تخصصی مشاغل و تیم‌سازی فارسی است — پروفایل حرفه‌ای، کشف مهارت، ثبت نیازمندی و چت مستقیم. کاملاً رایگان.
+            فرصتینو شبکه‌ی تخصصی مشاغل و تیم‌سازی فارسی است — پروفایل حرفه‌ای، کشف مهارت، ثبت نیازمندی و چت مستقیم. کاملاً رایگان.
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Card className="glass p-3 rounded-2xl border-border/50 text-center">
@@ -114,7 +114,7 @@ export function SettingsView() {
             </Card>
             <Card className="glass p-3 rounded-2xl border-border/50 text-center">
               <p className="text-[11px] text-muted-foreground mb-0.5">ساخته‌شده با</p>
-              <p className="font-bold text-sm">❤ همتیم</p>
+              <p className="font-bold text-sm">❤ فرصتینو</p>
             </Card>
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 /* ═══════════════════════════════════════════════════════════
-   همتیم — موتور آپلود مشترک (کامپوزر پست + فرم نمونه کار)
+   فرصتینو — موتور آپلود مشترک (کامپوزر پست + فرم نمونه کار)
    · آپلود با پیشرفت واقعی (XHR)
    · انواع رسانه + محدودیت‌ها (هماهنگ با API)
    · MediaTile — کاشی پیش‌نمایش با حلقه پیشرفت/تلاش مجدد
@@ -151,7 +151,7 @@ export function MediaTile({
             <svg viewBox="0 0 44 44" className="w-11 h-11 -rotate-90">
               <circle cx="22" cy="22" r="18" stroke="rgba(255,255,255,.25)" strokeWidth="4" fill="none" />
               <circle
-                cx="22" cy="22" r="18" stroke="#34d399" strokeWidth="4" fill="none" strokeLinecap="round"
+                cx="22" cy="22" r="18" stroke="#3d7cbe" strokeWidth="4" fill="none" strokeLinecap="round"
                 strokeDasharray={2 * Math.PI * 18}
                 strokeDashoffset={2 * Math.PI * 18 * (1 - item.progress / 100)}
                 style={{ transition: "stroke-dashoffset .25s linear" }}
@@ -168,7 +168,7 @@ export function MediaTile({
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={SPRING.bounce}
-          className="absolute top-1.5 right-1.5 size-6 rounded-full bg-emerald-600 grid place-items-center shadow-glow"
+          className="absolute top-1.5 right-1.5 size-6 rounded-full bg-primary grid place-items-center shadow-glow"
         >
           <Icon name="check" size={13} className="text-white" />
         </motion.div>

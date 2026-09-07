@@ -546,7 +546,7 @@ export function ProfileView({ id }: { id: string }) {
                   <EmptyState
                     kind="posts"
                     title={isSelf ? "پستی ندارید، پست جدید ارسال کنید" : "این کاربر هنوز پستی ندارد"}
-                    description={isSelf ? "استعدادت را با جامعه همتیم به اشتراک بگذار — همین حالا شروع کن!" : ""}
+                    description={isSelf ? "استعدادت را با جامعه فرصتینو به اشتراک بگذار — همین حالا شروع کن!" : ""}
                     action={
                       isSelf ? (
                         <button

@@ -182,7 +182,7 @@ export function TicketsTab() {
               <Card
                 className={cn(
                   "p-4 border bg-white shadow-sm hover:shadow-md transition-shadow",
-                  openId === t.id ? "border-emerald-400" : "border-gray-200"
+                  openId === t.id ? "border-sky-400" : "border-gray-200"
                 )}
               >
                 <div className="flex items-center gap-3">
@@ -283,14 +283,14 @@ export function TicketsTab() {
                       className={cn(
                         "rounded-2xl p-3.5 border",
                         r.isAdmin
-                          ? "bg-emerald-50/70 border-emerald-200 ms-8"
+                          ? "bg-sky-50/70 border-sky-200 ms-8"
                           : "bg-white border-gray-200 me-8"
                       )}
                     >
                       <p className="text-[10px] font-bold mb-1 flex items-center gap-1.5">
-                        <span className={r.isAdmin ? "text-emerald-600" : "text-gray-600"}>{r.authorName}</span>
+                        <span className={r.isAdmin ? "text-sky-700" : "text-gray-600"}>{r.authorName}</span>
                         {r.isAdmin && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[8px] font-black">
+                          <span className="px-1.5 py-0.5 rounded-full bg-sky-600 text-white text-[8px] font-black">
                             پشتیبانی
                           </span>
                         )}
@@ -315,12 +315,12 @@ export function TicketsTab() {
                     placeholder="پاسخ پشتیبانی…"
                     rows={2}
                     className="flex-1 resize-none rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm
-                               placeholder:text-gray-300 outline-none focus:ring-2 focus:ring-emerald-400/40"
+                               placeholder:text-gray-300 outline-none focus:ring-2 focus:ring-sky-400/40"
                   />
                   <Button
                     onClick={sendReply}
                     disabled={sending || !reply.trim()}
-                    className="h-11 w-11 p-0 shrink-0 rounded-full bg-emerald-600 hover:bg-emerald-700"
+                    className="h-11 w-11 p-0 shrink-0 rounded-full bg-sky-600 hover:bg-sky-700"
                   >
                     {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 -scale-x-100" />}
                   </Button>

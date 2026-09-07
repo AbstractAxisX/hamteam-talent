@@ -155,7 +155,7 @@ export function OnboardingView() {
                     <Icon name="user" className="text-primary-foreground" size={36} />
                   </div>
                   <h1 className="text-2xl font-extrabold">نام کاربری خود را بسازید</h1>
-                  <p className="text-sm text-muted-foreground mt-2">این نام منحصربه‌فرد شما در همتیم خواهد بود</p>
+                  <p className="text-sm text-muted-foreground mt-2">این نام منحصربه‌فرد شما در فرصتینو خواهد بود</p>
                 </div>
 
                 <div className="space-y-2">
@@ -286,7 +286,7 @@ export function OnboardingView() {
                   </div>
                 </div>
                 <Button onClick={finish} className="w-full h-13 mt-8 rounded-2xl text-base font-bold">
-                  ورود به همتیم
+                  ورود به فرصتینو
                 </Button>
               </motion.div>
             )}

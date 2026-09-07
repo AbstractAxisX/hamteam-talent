@@ -53,7 +53,7 @@ export async function POST(req: Request, ctx: RouteCtx) {
       content: reply.content,
       isAdmin: true,
       createdAt: reply.createdAt.toISOString(),
-      authorName: "پشتیبانی همتیم",
+      authorName: "پشتیبانی فرصتینو",
     },
   });
 }
