@@ -145,7 +145,11 @@ interface PendingAuth {
   otp: string;
   expires: number;
 }
-const pending = new Map<string, PendingAuth>();
+// ذخیره‌سازی روی globalThis — تا در dev (HMR / بارگذاری مجدد ماژول‌ها) و production
+// همیشه فقط یک نمونه Map بین همه routeها مشترک بماند (الگوی استاندارد Next.js).
+const g = globalThis as unknown as { __hamteamPendingAuth?: Map<string, PendingAuth> };
+const pending: Map<string, PendingAuth> =
+  g.__hamteamPendingAuth ?? (g.__hamteamPendingAuth = new Map());
 
 export function stageAuth(data: PendingAuth): string {
   pending.set(data.phone, data);
