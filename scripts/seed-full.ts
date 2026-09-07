@@ -1,4 +1,4 @@
-// Seed کامل دموی همتیم — دسته‌بندی‌ها، کاربران، پست‌های برتر با رسانه، لایک و کامنت
+// Seed کامل دموی فرصتینو — دسته‌بندی‌ها، کاربران، پست‌های برتر با رسانه، لایک و کامنت
 // اجرا: bun scripts/seed-full.ts
 import { db } from "../src/lib/db";
 import { hashPassword } from "../src/lib/auth";
@@ -166,7 +166,7 @@ async function seedBanners() {
   }
   const BANNERS = [
     {
-      title: "مسابقه استعدادیابی همتیم",
+      title: "مسابقه استعدادیابی فرصتینو",
       subtitle: "فصل اول · ثبت‌نام باز است",
       imageUrl: "/seed/seed-music.png",
       linkUrl: "#/top-talent",
@@ -174,7 +174,7 @@ async function seedBanners() {
     },
     {
       title: "استعدادهای برتر را کشف کن",
-      subtitle: "برگزیده‌های جامعه همتیم",
+      subtitle: "برگزیده‌های جامعه فرصتینو",
       imageUrl: "/seed/seed-art.png",
       linkUrl: "#/explore",
       order: 1,
@@ -316,7 +316,7 @@ async function run() {
   const adminCount = await db.adminUser.count();
   if (adminCount === 0) {
     await db.adminUser.create({
-      data: { username: "admin", password: hashPassword("admin123"), name: "مدیر همتیم" },
+      data: { username: "admin", password: hashPassword("admin123"), name: "مدیر فرصتینو" },
     });
     console.log("✓ Admin: admin / admin123");
   }
@@ -398,7 +398,7 @@ const NEEDS: {
     cat: "موسیقی", skills: ["خوانندگی"], province: "tehran", city: "تهران", minutesAgo: 90,
   },
   {
-    phone: "09121110002", title: "کمک برای توسعه اپلیکیشن همتیم (پارت‌تایم)",
+    phone: "09121110002", title: "کمک برای توسعه اپلیکیشن فرصتینو (پارت‌تایم)",
     description: "دنبال یه فرانت‌اند کار مسلط به React و Tailwind هستم که ۲۰ ساعت در هفته با تیم ما کار کنه. پروژه اوپن‌سورس و ریموت کامله، آشنایی با TypeScript الزامیه.",
     cat: "برنامه‌نویسی و توسعه", skills: ["فرانت‌اند"], province: "tehran", city: "تهران", minutesAgo: 260,
   },
