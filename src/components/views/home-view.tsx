@@ -12,25 +12,36 @@ import { Icon } from "@/components/shared/icon";
 import { PostCard } from "@/components/shared/post-card";
 import { ComposerInline } from "@/components/composer";
 import { BannerSlider } from "@/components/shared/banner-slider";
-import { GoldCheckMark, GoldSparkle } from "@/components/ui/elite";
+import { GoldCheckMark, GoldSparkle, RoseGoldCheckMark } from "@/components/ui/elite";
 import { toFa, formatCount, formatFaDate } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { PostWithRelations, TalentListItem, CategoryWithSkills, ProfileDetail, ProfileMeta } from "@/lib/types";
+import type { FrameLevel } from "@/lib/stars";
 
 /* ═══════════════════════════════════════════════════════════
    HomeView — صفحهٔ خانهٔ فرصتینو (ترکیب کامل)
    · بنرها و تبلیغات + خوش‌آمد + آمار (ارتباط / پست)
    · چک‌لیست قدم‌به‌قدم تکمیل پروفایل (شورتکات مستقیم)
    · فرم معمولی پست (روی صفحه — بدون شیت)
-   · CTA استعداد برتر (ثبت‌نام)
+   · پنل پیشرفت ستاره «چهره برتر شو» (۵۰۰۰ طلایی / ۱۰۰۰۰ رزگلد)
    · شاید بشناسید + دسته‌بندی‌ها + فید ارتباط‌ها
    ═══════════════════════════════════════════════════════════ */
+
+const GOLD_THRESHOLD = 5000;
+const ROSE_GOLD_THRESHOLD = 10000;
 
 type HomeData = {
   posts: PostWithRelations[];
   suggestions: TalentListItem[];
-  stats: { connectionsCount: number; postsCount: number; followersCount: number };
+  stats: {
+    connectionsCount: number;
+    postsCount: number;
+    followersCount: number;
+    totalStars: number;
+    frame: FrameLevel;
+    nextAt: number | null;
+  };
 };
 
 /* گام‌های تکمیل پروفایل — کلید = آی‌دی سکشن در ادیت پروفایل */
@@ -88,7 +99,6 @@ export function HomeView() {
       { key: "avatar", label: "عکس پروفایل", hint: "با عکس، ۵ برابر بیشتر دیده می‌شی", done: !!profile.avatarUrl, section: "photos" },
       { key: "banner", label: "بنر پروفایل", hint: "کانال اختصاصی خودت را بساز", done: !!profile.bannerUrl, section: "photos" },
       { key: "bio", label: "بیو کوتاه", hint: "در یک خط بگو چه‌کاره‌ای", done: (profile.bioShort || "").trim().length >= 10, section: "photos" },
-      { key: "username", label: "نام کاربری", hint: "آدرس اختصاصی پروفایل @", done: !!profile.username, section: "username" },
       { key: "cats", label: "دسته‌بندی", hint: "حوزهٔ استعدادت را انتخاب کن", done: profile.categories.length > 0, section: "categories" },
       { key: "skills", label: "مهارت‌ها", hint: "حداقل یک مهارت ثبت کن", done: hasSkills, section: "categories" },
       { key: "main", label: "دستهٔ اصلی", hint: "رنگ و حلقهٔ پروفایلت", done: !!meta?.mainCategoryId, section: "main-category" },
@@ -100,6 +110,13 @@ export function HomeView() {
   const doneSteps = steps.filter((s) => s.done).length;
   const profilePct = steps.length ? Math.round((doneSteps / steps.length) * 100) : 100;
   const incomplete = steps.filter((s) => !s.done);
+
+  /* ── پیشرفت ستارهٔ من — سطح فعلی/بعدی برای پنل «چهره برتر شو» ── */
+  const myStars = data?.stats.totalStars ?? 0;
+  const myFrame = data?.stats.frame ?? null;
+  const target = myFrame === "rosegold" ? null : data?.stats.nextAt ?? (myFrame === "gold" ? ROSE_GOLD_THRESHOLD : GOLD_THRESHOLD);
+  const starPct = target ? Math.min(100, Math.round((myStars / target) * 100)) : 100;
+  const remaining = target ? Math.max(0, target - myStars) : 0;
 
   async function handleConnect(talent: TalentListItem) {
     setConnectingIds((s) => new Set(s).add(talent.id));
@@ -149,6 +166,7 @@ export function HomeView() {
               name={user.name}
               avatarUrl={user.profile?.avatarUrl || null}
               verified={user.isVerifiedBadge}
+              frame={user.frame ?? undefined}
               topTalent={user.isTopTalent}
               gender={user.profile?.gender}
               size="xl"
@@ -159,9 +177,6 @@ export function HomeView() {
               {greeting} ✦ {formatFaDate(new Date())}
             </p>
             <h1 className="text-xl md:text-2xl font-black truncate leading-tight mt-0.5">{user.name}</h1>
-            {user.username && (
-              <p className="text-[11px] font-bold text-primary mt-0.5" dir="ltr">@{user.username}</p>
-            )}
           </div>
           {/* آمار — ارتباط = دنبال‌کننده (یک عدد) */}
           <div className="shrink-0 grid grid-cols-2 gap-2 md:gap-3">
@@ -248,7 +263,7 @@ export function HomeView() {
       {/* ═══ فرم معمولی پست — روی صفحه، بدون شیت ═══ */}
       <ComposerInline onPosted={() => load()} />
 
-      {/* ═══ CTA استعداد برتر — ثبت‌نام ═══ */}
+      {/* ═══ پنل پیشرفت ستاره — «چهره برتر شو» (۵۰۰۰ طلایی / ۱۰۰۰۰ رزگلد) ═══ */}
       <motion.section
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -262,31 +277,75 @@ export function HomeView() {
         <GoldSparkle size={11} delay={0.2} style={{ top: "14%", left: "12%" }} />
         <GoldSparkle size={9} delay={1.1} style={{ top: "58%", left: "6%" }} />
         <GoldSparkle size={12} delay={0.6} style={{ top: "12%", right: "20%" }} />
-        <div className="relative z-10 flex items-center gap-4">
-          <span
-            className="shrink-0 grid place-items-center size-14 rounded-full"
-            style={{
-              background: "linear-gradient(135deg,#fef3c7,#f5c84c 45%,#b45309)",
-              boxShadow: "0 8px 24px rgba(217,119,6,.4), inset 0 2px 8px rgba(255,255,255,.5)",
-            }}
-          >
-            <GoldCheckMark size={26} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base md:text-lg font-black tracking-tight text-gold-grad leading-snug">
-              استعداد برتر شو — ثبت‌نام کنید
-            </h2>
-            <p className="text-[11.5px] text-amber-100/70 font-medium leading-5 mt-1">
-              قاب طلایی سلطنتی، تیک طلایی و جایگاه ویژه در برترین‌ها.
+        <div className="relative z-10">
+          <div className="flex items-center gap-4">
+            <span
+              className="shrink-0 grid place-items-center size-14 rounded-full"
+              style={{
+                background:
+                  myFrame === "rosegold"
+                    ? "linear-gradient(135deg,#ffe4e6,#fb7185 45%,#be123c)"
+                    : "linear-gradient(135deg,#fef3c7,#f5c84c 45%,#b45309)",
+                boxShadow:
+                  myFrame === "rosegold"
+                    ? "0 8px 24px rgba(225,29,72,.4), inset 0 2px 8px rgba(255,255,255,.5)"
+                    : "0 8px 24px rgba(217,119,6,.4), inset 0 2px 8px rgba(255,255,255,.5)",
+              }}
+            >
+              {myFrame === "rosegold" ? <RoseGoldCheckMark size={26} /> : <GoldCheckMark size={26} />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base md:text-lg font-black tracking-tight text-gold-grad leading-snug">
+                چهره برتر شو
+              </h2>
+              <p className="text-[11.5px] text-amber-100/70 font-medium leading-5 mt-1">
+                ۵۰۰۰ ستاره → قاب طلایی و ارسال پست به چهره برتر · ۱۰۰۰۰ ستاره → قاب رزگلد
+              </p>
+            </div>
+          </div>
+
+          {/* نوار پیشرفت ستارهٔ من */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-[11px] font-bold mb-1.5">
+              <span className="text-amber-100/90 nums-fa inline-flex items-center gap-1">
+                <Icon name="star" size={13} className="text-amber-300" />
+                {formatCount(myStars)} ستارهٔ دریافتی
+              </span>
+              {myFrame === "rosegold" ? (
+                <span className="text-rose-200/90 font-black">بالاترین سطح — رزگلد ✓</span>
+              ) : target ? (
+                <span className="text-amber-100/60 nums-fa">هدف: {formatCount(target)}</span>
+              ) : null}
+            </div>
+            <div className="h-2.5 rounded-full overflow-hidden bg-black/40 border border-amber-500/20">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${starPct}%` }}
+                transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                className="h-full rounded-full"
+                style={
+                  myFrame === "rosegold"
+                    ? { background: "linear-gradient(90deg,#be123c,#fb7185,#fecdd3)" }
+                    : { background: "linear-gradient(90deg,#b45309,#f5c84c,#fef3c7)" }
+                }
+              />
+            </div>
+            <p className="text-[10.5px] text-amber-100/50 font-medium mt-1.5 leading-4">
+              {myFrame === "rosegold"
+                ? "در بالاترین سطح چهره برتری — قاب رزگلد را داری."
+                : myFrame === "gold"
+                ? `تا قاب رزگلد ${formatCount(remaining)} ستاره مانده — هر پست می‌تواند ستاره بیاورد.`
+                : `تا قاب طلایی و ارسال پست به چهره برتر ${formatCount(remaining)} ستاره مانده.`}
             </p>
           </div>
+
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={() => navigate({ view: "top-talent" })}
-            className="shrink-0 h-11 px-5 rounded-2xl text-white font-extrabold text-[13px] shadow-glow-gold"
+            onClick={() => navigate({ view: "explore" })}
+            className="mt-4 w-full h-11 rounded-2xl text-white font-extrabold text-[13px] shadow-glow-gold"
             style={{ background: "linear-gradient(135deg,#f59e0b,#d97706 60%,#b45309)" }}
           >
-            ثبت‌نام
+            مشاهده چهره برتر
           </motion.button>
         </div>
       </motion.section>
@@ -453,6 +512,7 @@ function SuggestionCard({
           verified={talent.isVerifiedBadge}
           gender={talent.gender}
           size="xl"
+          frame={talent.frame ?? undefined}
           topTalent={talent.isTopTalent}
           ringColor={talent.isTopTalent ? null : talent.mainCategoryColor || "var(--primary)"}
         />

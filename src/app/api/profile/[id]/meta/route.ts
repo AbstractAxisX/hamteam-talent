@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import type { ProfileMeta } from "@/lib/types";
 
 // GET /api/profile/[id]/meta — supplementary profile data
-// (mainCategoryId + isTopTalent). Public, read-only.
+// (mainCategoryId + وضعیت چهره برتر بر پایه ستاره). Public, read-only.
 // We expose these via a separate endpoint to avoid modifying the existing
 // GET /api/profile/[id] route contract.
 export async function GET(
@@ -32,27 +32,22 @@ export async function GET(
 
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: {
-      isTopTalent: true,
-      profile: { select: { mainCategoryId: true } },
-      topTalentRequests: {
-        where: { status: "approved" },
-        select: { id: true },
-        take: 1,
-      },
-    },
+    select: { profile: { select: { mainCategoryId: true } } },
   });
 
   if (!user) {
     return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
   }
 
-  // isTopTalent: explicit flag OR an approved request
-  const isTopTalent = user.isTopTalent || user.topTalentRequests.length > 0;
+  // چهره برتر = مشتق از ستاره‌ها (≥5000 طلایی / ≥10000 رزگلد)
+  const { userStarInfo } = await import("@/lib/stars");
+  const si = await userStarInfo(userId);
 
   const meta: ProfileMeta = {
     mainCategoryId: user.profile?.mainCategoryId ?? null,
-    isTopTalent,
+    isTopTalent: si.isTopTalent,
+    frame: si.frame,
+    totalStars: si.totalStars,
   };
 
   return NextResponse.json(meta);

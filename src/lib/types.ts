@@ -1,15 +1,17 @@
 // Shared types for talent discovery platform
 import type { Category, Skill } from "@prisma/client";
+import type { FrameLevel, UserStarInfo } from "./stars";
 
 export type SafeUser = {
   id: string;
   phone: string;
-  username: string | null;
   name: string;
   role: string;
   isVerifiedBadge: boolean;
   isBanned: boolean;
   isTopTalent: boolean;
+  frame: FrameLevel;
+  totalStars: number;
   createdAt: string;
   profile: {
     id: string;
@@ -33,8 +35,11 @@ export type PostWithRelations = {
   categoryId: string | null;
   skillId: string | null;
   categoryName: string | null;
+  categoryIcon?: string | null;
   categoryColor?: string | null; // رنگ دستهٔ پست
   skillName: string | null;
+  isFeatured?: boolean; // در ویترین «چهره برتر»
+  canFeature?: boolean; // کاربر فعلی مجاز به ویترین این پست است
   user: {
     id: string;
     name: string;
@@ -42,19 +47,27 @@ export type PostWithRelations = {
     avatarUrl: string | null;
     gender?: string | null;
     isTopTalent?: boolean;
+    frame?: FrameLevel;
+    totalStars?: number;
     mainCategoryColor?: string | null; // رنگ دستهٔ اصلی کاربر — رینگ آواتار
   };
-  likeCount: number;
-  likedByMe: boolean;
+  commentCount: number;
+  ratingAvg: number; // 0..10
+  ratingCount: number;
+  myRating: number | null;
   media: { id: string; url: string; type: string; fileName?: string | null; fileSize?: number }[];
 };
+
+/** چکیده ستاره‌ای کاربر در سریالایزرها */
+export type StarInfoDTO = Pick<UserStarInfo, "totalStars" | "frame" | "isTopTalent">;
 
 export type TalentListItem = {
   id: string;
   name: string;
-  username?: string | null;
   isVerifiedBadge: boolean;
   isTopTalent?: boolean;
+  frame?: FrameLevel;
+  totalStars?: number;
   bioShort: string;
   avatarUrl: string | null;
   gender: string | null;
@@ -137,10 +150,12 @@ export type NotificationCounts = {
 export type ProfileDetail = {
   id: string;
   userId: string;
-  username: string | null;
   name: string;
   isVerifiedBadge: boolean;
-  isTopTalent?: boolean; // true if user has an approved TopTalentRequest (may not be returned by older API)
+  isTopTalent?: boolean;
+  frame?: FrameLevel;
+  totalStars?: number;
+  nextAt?: number | null;
   mainCategoryId?: string | null; // user's chosen main category id (for avatar color ring)
   bioShort: string;
   bioLong: string;
@@ -181,13 +196,8 @@ export type ProfileDetail = {
 export type ProfileMeta = {
   mainCategoryId: string | null;
   isTopTalent: boolean;
-};
-
-// Top Talent request status for the current user (auth required)
-export type TopTalentMyStatus = {
-  hasRequest: boolean;
-  status: "none" | "pending" | "approved" | "rejected";
-  rejectReason?: string | null;
+  frame: FrameLevel;
+  totalStars: number;
 };
 
 /* ─── بنرها و تبلیغات ─── */

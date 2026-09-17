@@ -9,7 +9,6 @@ async function main() {
   await db.connection.deleteMany();
   await db.commentLike.deleteMany();
   await db.comment.deleteMany();
-  await db.postLike.deleteMany();
   await db.postRating.deleteMany();
   await db.postReport.deleteMany();
   await db.postMedia.deleteMany();
@@ -21,7 +20,6 @@ async function main() {
   await db.jobPostAttachment.deleteMany();
   await db.jobPostSkill.deleteMany();
   await db.jobPost.deleteMany();
-  await db.topTalentRequest.deleteMany();
   await db.banner.deleteMany();
   await db.ticketReply.deleteMany();
   await db.ticket.deleteMany();

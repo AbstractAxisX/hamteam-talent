@@ -2,7 +2,7 @@
 import { db } from "../src/lib/db";
 
 async function byPhone(phone: string) {
-  return (await db.user.findUnique({ where: { phone }, select: { id: true, username: true } }))!;
+  return (await db.user.findUnique({ where: { phone }, select: { id: true } }))!;
 }
 
 async function ensureConnection(a: string, b: string, status: "accepted" | "pending") {

@@ -263,13 +263,28 @@ export function TalentCardLarge({
           verified={talent.isVerifiedBadge}
           gender={talent.gender}
           size="lg"
+          frame={talent.frame ?? undefined}
           topTalent={talent.isTopTalent}
           ringColor={talent.isTopTalent ? null : talent.mainCategoryColor || "var(--primary)"}
         />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-wrap">
             <h3 className="font-bold text-base truncate">{talent.name}</h3>
             {talent.isVerifiedBadge && <Icon name="badgeCheck" className="w-4 h-4 text-gold shrink-0" />}
+            {!!talent.isTopTalent && (talent.totalStars ?? 0) > 0 && (
+              <span
+                className="inline-flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-black nums-fa shrink-0"
+                style={
+                  talent.frame === "rosegold"
+                    ? { background: "linear-gradient(135deg,#ffe4e6,#fb7185 45%,#be123c)", color: "#4c0519" }
+                    : { background: "linear-gradient(135deg,#fef3c7,#f5c84c 45%,#e08a00)", color: "#3a2405" }
+                }
+                title={talent.frame === "rosegold" ? "چهره برتر رزگلد" : "چهره برتر طلایی"}
+              >
+                <Icon name="star" className="w-3 h-3" />
+                {formatCount(talent.totalStars ?? 0)}
+              </span>
+            )}
           </div>
           {talent.city && (
             <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground">

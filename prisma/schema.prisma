@@ -15,17 +15,14 @@ datasource db {
 model User {
   id              String    @id @default(cuid())
   phone           String    @unique
-  username        String?   @unique
   name            String
   isVerifiedBadge Boolean   @default(false)
   isBanned        Boolean   @default(false)
-  isTopTalent     Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   profile         Profile?
   posts           Post[]
-  likes           PostLike[]
   comments        Comment[]
   commentLikes    CommentLike[]
   reports         PostReport[]
@@ -40,7 +37,6 @@ model User {
   userSkills      UserSkill[]
   jobPosts        JobPost[]
   jobApplications JobApplication[]
-  topTalentRequests TopTalentRequest[]
   ratings         PostRating[]
   portfolioItems  PortfolioItem[]
   portfolioLikes  PortfolioLike[]
@@ -174,11 +170,10 @@ model Post {
   category   Category? @relation(fields: [categoryId], references: [id])
   skillId    String?
   skill      Skill?    @relation(fields: [skillId], references: [id])
-  isFeatured Boolean  @default(false) // featured in Top Talents explore
+  isFeatured Boolean  @default(false) // ویترین «چهره برتر» — توسط کاربرِ دارای قاب یا ادمین
   createdAt  DateTime @default(now())
 
   media      PostMedia[]
-  likes      PostLike[]
   comments   Comment[]
   ratings    PostRating[]
   reports    PostReport[]
@@ -277,17 +272,6 @@ model PortfolioLike {
 
   @@unique([itemId, userId])
   @@index([itemId])
-}
-
-model PostLike {
-  id        String   @id @default(cuid())
-  postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@unique([postId, userId])
 }
 
 // ─── Connections (follow/request) ──────────────────────────────
@@ -460,24 +444,6 @@ model CommentLike {
   createdAt DateTime @default(now())
 
   @@unique([commentId, userId])
-}
-
-// ─── Top Talent Requests ───────────────────────────────────────
-model TopTalentRequest {
-  id              String   @id @default(cuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  nationalIdPhotoUrl String  // uploaded photo of national ID
-  phoneNumber     String   // main phone number
-  socialMediaId   String   // social media handle (free text)
-  description     String   @default("") // optional description
-  status          String   @default("pending") // "pending" | "approved" | "rejected"
-  rejectReason    String?  // admin's rejection reason
-  reviewedAt      DateTime?
-  createdAt       DateTime @default(now())
-
-  @@index([userId])
-  @@index([status])
 }
 
 /* ─── بنرها و تبلیغات (اسلایدر صفحه اصلی — مدیریت ادمین) ─── */

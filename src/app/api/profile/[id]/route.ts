@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { userStarInfo } from "@/lib/stars";
 import type { ProfileDetail } from "@/lib/types";
 
 // GET /api/profile/[id] — public profile detail. Use "me" for current user.
@@ -152,12 +153,17 @@ export async function GET(
   const phone =
     user.profile?.phoneVisible || isSelf ? user.phone : null;
 
+  const si = await userStarInfo(user.id);
+
   const detail: ProfileDetail = {
     id: user.profile?.id ?? "",
     userId: user.id,
-    username: user.username,
     name: user.name,
     isVerifiedBadge: user.isVerifiedBadge,
+    isTopTalent: si.isTopTalent,
+    frame: si.frame,
+    totalStars: si.totalStars,
+    nextAt: si.nextAt,
     bioShort: user.profile?.bioShort ?? "",
     bioLong: user.profile?.bioLong ?? "",
     avatarUrl: user.profile?.avatarUrl ?? null,

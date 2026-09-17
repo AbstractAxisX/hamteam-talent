@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { userStarInfo } from "@/lib/stars";
 import { getCurrentUser } from "@/lib/auth";
 import type { ProfileDetail } from "@/lib/types";
 import { PROVINCES } from "@/lib/geo";
@@ -86,12 +87,17 @@ export async function GET() {
     description: e.description,
   }));
 
+  const si = await userStarInfo(user.id);
+
   const detail: ProfileDetail = {
     id: user.profile?.id ?? "",
     userId: user.id,
-    username: user.username,
     name: user.name,
     isVerifiedBadge: user.isVerifiedBadge,
+    isTopTalent: si.isTopTalent,
+    frame: si.frame,
+    totalStars: si.totalStars,
+    nextAt: si.nextAt,
     bioShort: user.profile?.bioShort ?? "",
     bioLong: user.profile?.bioLong ?? "",
     avatarUrl: user.profile?.avatarUrl ?? null,

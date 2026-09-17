@@ -21,7 +21,6 @@ import { cn } from "@/lib/utils";
 type OtherUser = {
   id: string;
   name: string;
-  username?: string | null;
   isVerifiedBadge: boolean;
   isTopTalent?: boolean;
   avatarUrl: string | null;
@@ -1121,9 +1120,6 @@ function ChatThread({
               <span className="font-extrabold text-[15px] text-foreground truncate">{other.name}</span>
               {other.isTopTalent && <span className="text-[10px] font-black px-2 py-0.5 rounded-full grad-gold text-white">نخبه</span>}
             </div>
-            {other.username && (
-              <p className="text-[11px] font-bold text-primary mt-0.5" dir="ltr">@{other.username}</p>
-            )}
             {other.bioShort && (
               <p className="text-[11.5px] text-muted-foreground mt-1 line-clamp-2 leading-5">{other.bioShort}</p>
             )}

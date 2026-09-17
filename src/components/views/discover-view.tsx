@@ -1,9 +1,9 @@
 "use client";
 
 /* ═══════════════════════════════════════════════════════════
-   DiscoverView v2 — تجربه کشف بازطراحی‌شده
+   DiscoverView (چهره‌یاب) — تجربه کشف بازطراحی‌شده
    · فرم فیلتر بزرگ حذف شد → دکمه شناور + پنل انیمیشنی (filter-fab)
-   · تب‌ها بدون عدد · جستجوی @آیدی در تب کاربران
+   · تب‌ها بدون عدد · جستجوی نام/مهارت در تب کاربران
    · state فیلتر در هش URL (قابل اشتراک/ریلود)
    ═══════════════════════════════════════════════════════════ */
 
@@ -71,8 +71,6 @@ export function DiscoverView() {
   const [filters, setFilters] = useState<DiscoverFilters>(initial.filters);
 
   const [q, setQ] = useState("");
-  // مود جستجوی @آیدی — با تایپ @ فعال می‌شود
-  const idMode = tab === "users" && q.trimStart().startsWith("@");
 
   /* همگام‌سازی با تغییر پارامترهای URL (مثلاً پس از ثبت فیلتر) */
   const paramKey = routeParams ? JSON.stringify(routeParams) : "";
@@ -100,7 +98,7 @@ export function DiscoverView() {
         let filtered = data.posts;
         if (filters.categoryId) filtered = filtered.filter((p) => p.categoryId === filters.categoryId);
         if (filters.skillId) filtered = filtered.filter((p) => p.skillId === filters.skillId);
-        if (q.trim() && !q.trim().startsWith("@")) {
+        if (q.trim()) {
           const needle = q.trim();
           filtered = filtered.filter((p) => p.content.includes(needle) || p.user.name.includes(needle));
         }
@@ -156,15 +154,15 @@ export function DiscoverView() {
             <Icon name="compass" size={26} />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight leading-none">کشف</h1>
+            <h1 className="text-2xl font-black tracking-tight leading-none">چهره‌یاب</h1>
             <p className="text-[13px] text-muted-foreground mt-1.5 leading-6">
-              استعدادها و پست‌ها را کشف کن
+              چهره‌ها و پست‌ها را جست‌وجو و کشف کن
             </p>
           </div>
         </div>
       </motion.div>
 
-      {/* ═══ جستجو — در تب کاربران، @ مود آیدی را فعال می‌کند ═══ */}
+      {/* ═══ جستجو ═══ */}
       <div className="relative">
         <Icon name="search" className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
         <input
@@ -174,23 +172,13 @@ export function DiscoverView() {
           placeholder={
             tab === "posts"
               ? "جستجوی پست یا نویسنده…"
-              : idMode
-                ? "جستجوی آیدی — مثلاً sara_dev"
-                : "جستجوی نام یا مهارت… (با @ آیدی جستجو کن)"
+              : "جستجوی نام یا مهارت…"
           }
           className={cn(
             "w-full h-14 pr-12 pl-4 rounded-2xl glass border text-[14.5px] focus:outline-none focus:ring-2 transition-all shadow-soft",
-            idMode
-              ? "border-primary/60 ring-primary/40 focus:ring-primary/60"
-              : "border-border/50 focus:ring-primary/60 focus:border-primary/50"
+            "border-border/50 focus:ring-primary/60 focus:border-primary/50"
           )}
         />
-        {idMode && (
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 h-7 px-2.5 rounded-full bg-primary/10 text-primary text-[10.5px] font-black">
-            <Icon name="userIdentifier" size={13} />
-            مود آیدی
-          </span>
-        )}
       </div>
 
       {/* ═══ تب‌ها — بدون عدد ═══ */}
@@ -263,8 +251,8 @@ export function DiscoverView() {
       ) : talents.length === 0 ? (
         <EmptyState
           kind="people"
-          title={idMode ? "کاربری با این آیدی پیدا نشد" : "استعدادی یافت نشد"}
-          description={idMode ? "آیدی را کامل‌تر بنویس یا بدون @ جستجوی نام را امتحان کن." : "فیلترها را تغییر بده یا عبارت دیگری جستجو کن."}
+          title="چهره‌ای یافت نشد"
+          description="فیلترها را تغییر بده یا عبارت دیگری جستجو کن."
           action={activeFiltersCount > 0 || q ? (
             <button onClick={clearAll} className="h-11 px-5 rounded-2xl grad-brand text-white font-extrabold text-sm shadow-grad outline-none">
               پاک کردن فیلترها
@@ -343,19 +331,15 @@ function TalentMiniCard({ talent, index = 0 }: { talent: TalentListItem; index?:
         verified={talent.isVerifiedBadge}
         gender={talent.gender}
         size="lg"
+        frame={talent.frame ?? undefined}
         topTalent={talent.isTopTalent}
-        ringColor={talent.mainCategoryColor || "var(--primary)"}
+        ringColor={talent.isTopTalent ? null : talent.mainCategoryColor || "var(--primary)"}
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1">
           <h3 className="font-bold text-sm truncate">{talent.name}</h3>
           {talent.isVerifiedBadge && <Icon name="badgeCheck" className="w-4 h-4 text-gold shrink-0" />}
         </div>
-        {talent.username && (
-          <p className="text-[11px] text-primary font-bold mt-0.5 truncate" dir="ltr">
-            @{talent.username}
-          </p>
-        )}
         {talent.bioShort && (
           <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-5">
             {talent.bioShort}

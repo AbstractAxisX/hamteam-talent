@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { usersStarInfo } from "@/lib/stars";
 import { getCurrentUser } from "@/lib/auth";
 
 // GET comments for a post (with replies, likes)
@@ -27,6 +28,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     },
   });
 
+  const commentUserIds = new Set<string>();
+  const collectIds = (c: any) => {
+    commentUserIds.add(c.user.id);
+    (c.replies || []).forEach(collectIds);
+  };
+  comments.forEach(collectIds);
+  const cStars = await usersStarInfo([...commentUserIds]);
+
   const format = (c: any) => ({
     id: c.id,
     content: c.content,
@@ -36,7 +45,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       name: c.user.name,
       avatarUrl: c.user.profile?.avatarUrl ?? null,
       gender: c.user.profile?.gender ?? null,
-      isTopTalent: c.user.isTopTalent,
+      isTopTalent: cStars.get(c.user.id)?.isTopTalent ?? false,
     },
     likeCount: c._count?.likes || 0,
     myReaction: c.likes?.length > 0 ? c.likes[0].type : null,

@@ -2,8 +2,8 @@
 
 /* ═══════════════════════════════════════════════════════════
    FilterFab — دکمه شناور فیلتر مشترک (کشف / استعدادها / نیازمندی‌ها)
-   · دکمه دایره‌ای فقط-آیکون هم‌سبک دکمه چت + نشان تعداد فیلتر فعال
-   · مودال وسط‌چین صفحه با انیمیشن فنری scale (فقط transform/opacity)
+   · دکمه دایره‌ای سفید ۴۴px (size-11) با آیکون آبی — هم‌سبک دکمه چت
+   · نشان تعداد فیلتر فعال (bg-blue-600) + مودال وسط‌چین صفحه
    · ثبت → مقدار فیلتر + مرتب‌سازی به ویو برگردانده می‌شود
    ═══════════════════════════════════════════════════════════ */
 
@@ -85,7 +85,7 @@ export function FilterFab({
 
   return (
     <>
-      {/* ═══ دکمه شناور — هم‌طراز دکمه چت، آیکون دقیقاً وسط (بدون padding اضافه) ═══ */}
+      {/* ═══ دکمه شناور — سفید/آبی هم‌سبک دکمه چت، آیکون دقیقاً وسط ═══ */}
       <motion.button
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -94,16 +94,17 @@ export function FilterFab({
         onClick={() => setOpen(true)}
         aria-label={title}
         className={cn(
-          "fixed left-4 z-40 grid place-items-center size-14 rounded-full grad-brand text-white shadow-glow",
+          "fixed left-4 z-40 grid place-items-center size-11 rounded-full bg-card dark:bg-card",
+          "border border-border/60 shadow-md",
           user
             ? "bottom-[calc(env(safe-area-inset-bottom,0px)+148px)]"
             : "bottom-[calc(env(safe-area-inset-bottom,0px)+80px)]",
           "md:bottom-24"
         )}
       >
-        <Icon name="filter" size={22} strokeWidth={2.2} className="text-white" />
+        <Icon name="filter" size={19} strokeWidth={2.2} className="text-blue-600 dark:text-blue-400" />
         {active > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1 grid place-items-center rounded-full bg-gold text-background text-[11px] font-extrabold nums-fa ring-2 ring-background">
+          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 grid place-items-center rounded-full bg-blue-600 text-white text-[10.5px] font-extrabold nums-fa ring-2 ring-card">
             {toFa(active)}
           </span>
         )}

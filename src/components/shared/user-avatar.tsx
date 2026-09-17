@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EliteAvatar } from "@/components/ui/elite";
+import type { FrameLevel } from "@/lib/stars";
 
 // Default avatar SVGs — male (teal) and female (coral), solid colors
 function DefaultAvatarSVG({ gender }: { gender?: string | null; name: string }) {
@@ -30,6 +31,7 @@ export function UserAvatar({
   ringColor,
   size = "md",
   topTalent,
+  frame,
   className,
 }: {
   name: string;
@@ -39,8 +41,10 @@ export function UserAvatar({
   /** Category color for the ring around the avatar (hex or css color) */
   ringColor?: string | null;
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
-  /** استعداد برتر → بورت طلایی چندلایه + تیک طلایی */
+  /** چهره برتر → قاب طلایی/رزگلد چندلایه + تیک متال (سازگاری با کدهای قدیمی) */
   topTalent?: boolean;
+  /** قاب واقعی از سرور — رزگلد بر طلایی اولویت دارد */
+  frame?: FrameLevel;
   className?: string;
 }) {
   const sizeClass = {
@@ -69,8 +73,9 @@ export function UserAvatar({
     "2xl": "p-2",
   }[size];
 
-  /* استعداد برتر → قاب طلایی چندلایه + تیک طلایی (جایگزین تاج) */
-  if (topTalent) {
+  /* چهره برتر → قاب متال چندلایه (رزگلد کمیاب‌تر از طلایی) */
+  const effectiveFrame: FrameLevel = frame ?? (topTalent ? "gold" : null);
+  if (effectiveFrame) {
     const box = {
       xs: 32,
       sm: 40,
@@ -79,7 +84,15 @@ export function UserAvatar({
       xl: 84,
       "2xl": 116,
     }[size];
-    return <EliteAvatar name={name} src={avatarUrl} box={box} className={className} />;
+    return (
+      <EliteAvatar
+        name={name}
+        src={avatarUrl}
+        box={box}
+        className={className}
+        variant={effectiveFrame === "rosegold" ? "rosegold" : "gold"}
+      />
+    );
   }
 
   return (

@@ -1,4 +1,4 @@
-// Seed کامل دموی فرصتینو — دسته‌بندی‌ها، کاربران، پست‌های برتر با رسانه، لایک و کامنت
+// Seed کامل دموی فرصتینو — دسته‌بندی‌ها، کاربران، پست‌ها با رسانه، امتیاز ستاره و کامنت
 // اجرا: bun scripts/seed-full.ts
 import { db } from "../src/lib/db";
 import { hashPassword } from "../src/lib/auth";
@@ -19,71 +19,71 @@ const CATS: { name: string; icon: string; color: string; skills: string[] }[] = 
 ];
 
 const USERS: {
-  phone: string; username: string; name: string; gender: "male" | "female";
+  phone: string; name: string; gender: "male" | "female";
   top?: boolean; verified?: boolean; province: string; city: string;
   bioShort: string; bioLong?: string; cat: string; skills: string[]; extraCats?: string[];
 }[] = [
   {
-    phone: "09121110001", username: "amilusi", name: "امیرحسین رستمی", gender: "male",
+    phone: "09121110001", name: "امیرحسین رستمی", gender: "male",
     top: true, verified: true, province: "تهران", city: "تهران",
     bioShort: "خواننده و آهنگساز — ترکیب موسیقی سنتی با پاپ مدرن 🎵",
     bioLong: "از بچگی با تار شروع کردم و حالا سه ساله که پروژه‌های شخصی‌ام رو منتشر می‌کنم. هدفم ساختن آلبومی هست که هویت موسیقی ایرانی رو با صدای امروز قاطی کنه.",
     cat: "موسیقی", skills: ["خوانندگی", "آهنگسازی", "میکس و مستر"],
   },
   {
-    phone: "09121110002", username: "sara_dev", name: "سارا محمدی", gender: "female",
+    phone: "09121110002", name: "سارا محمدی", gender: "female",
     top: true, verified: true, province: "تهران", city: "تهران",
     bioShort: "توسعه‌دهنده فول‌استک — عاشق اپن‌سورس و کد تمیز 💻",
     bioLong: "پنج ساله که با جاوااسکریپت و تایپ‌اسکریپت کار می‌کنم. چند تا کتابخانه اوپن‌سورس دارم و تو وقت آزادم مدرس برنامه‌نویسی هم هستم.",
     cat: "برنامه‌نویسی و توسعه", skills: ["فرانت‌اند", "بک‌اند"],
   },
   {
-    phone: "09121110003", username: "mahdi_cake", name: "مهدی کریمی", gender: "male",
+    phone: "09121110003", name: "مهدی کریمی", gender: "male",
     top: true, province: "اصفهان", city: "اصفهان",
     bioShort: "شیرینی‌پز حرفه‌ای — کیک و شیرینی‌های ترتیف، سفارش آنلاین 🍰",
     bioLong: "با یه کوره خانگی شروع کردم و الان ورک‌شاپ خودمو دارم. تخصصم کیک‌های مناسبت و شیرینی‌های سنتی با پکیج مدرنه.",
     cat: "آشپزی و شیرینی‌پزی", skills: ["شیرینی‌پزی", "کیک‌دکور", "فوداستایل"],
   },
   {
-    phone: "09121110004", username: "negin_art", name: "نگین احمدی", gender: "female",
+    phone: "09121110004", name: "نگین احمدی", gender: "female",
     top: true, verified: true, province: "تهران", city: "کرج",
     bioShort: "تصویرگر دیجیتال — دنیای فانتزی رو با تبلت می‌سازم 🎨",
     bioLong: "تصویرسازی کتاب کودک کار می‌کنم و پروژه‌های شخصی‌ام بیشتر تو ژانر فانتزی و سای‌فایه. نقاشی دیجیتال رو خودم یاد گرفتم.",
     cat: "هنرهای تجسمی", skills: ["نقاشی دیجیتال", "طراحی گرافیک"],
   },
   {
-    phone: "09121110005", username: "reza_fit", name: "رضا نوری", gender: "male",
+    phone: "09121110005", name: "رضا نوری", gender: "male",
     province: "تهران", city: "تهران",
     bioShort: "مربی کراس‌فیت و ایروبیک — برنامه آنلاین و حضوری 💪",
     cat: "ورزش و تناسب", skills: ["مربیگری", "کراس‌فیت"],
   },
   {
-    phone: "09121110006", username: "parham_game", name: "پرهام صادقی", gender: "male",
+    phone: "09121110006", name: "پرهام صادقی", gender: "male",
     top: true, province: "گیلان", city: "رشت",
     bioShort: "بازی‌ساز ایندی — دارم یه پازل-اکشن موبایلی می‌سازم 🎮",
     bioLong: "با یونیتی کار می‌کنم و هنوز تو مرحله آلفای بازی اولم هستم. همه‌چیزش رو خودم می‌سازم از کد تا آرت.",
     cat: "بازی‌سازی", skills: ["بازی‌سازی یونیتی", "طراحی گیم‌پلی", "پیکسل‌آرت"],
   },
   {
-    phone: "09121110007", username: "mahtab_voice", name: "مهتاب رضایی", gender: "female",
+    phone: "09121110007", name: "مهتاب رضایی", gender: "female",
     verified: true, province: "تهران", city: "تهران",
     bioShort: "گوینده و دوبلور — صدای گرم برای برند شما 🎙️",
     cat: "سخنوری و رسانه", skills: ["دوبله", "اجرای زنده"],
   },
   {
-    phone: "09121110008", username: "ali_pen", name: "علی شریفی", gender: "male",
+    phone: "09121110008", name: "علی شریفی", gender: "male",
     province: "خراسان رضوی", city: "مشهد",
     bioShort: "نویسنده و کپی‌رایتر — قصه‌های کوتاه و محتوای برند ✍️",
     cat: "نویسندگی و محتوا", skills: ["داستان‌نویسی", "کپیرایتینگ"],
   },
   {
-    phone: "09121110009", username: "roya_lens", name: "رویا عباسی", gender: "female",
+    phone: "09121110009", name: "رویا عباسی", gender: "female",
     top: true, province: "تهران", city: "تهران",
     bioShort: "عکاس پرتره و ادیتور — نور، احساس، قاب 📸",
     cat: "عکاسی و فیلم", skills: ["عکاسی پرتره", "ادیت ویدیو"],
   },
   {
-    phone: "09121110010", username: "kian_teacher", name: "کیان زارع", gender: "male",
+    phone: "09121110010", name: "کیان زارع", gender: "male",
     province: "فارس", city: "شیراز",
     bioShort: "مدرس ریاضی — کنکور رو آسون می‌کنیم 📚",
     cat: "آموزش و تدریس", skills: ["تدریس خصوصی", "ساخت دوره"],
@@ -169,7 +169,7 @@ async function seedBanners() {
       title: "مسابقه استعدادیابی فرصتینو",
       subtitle: "فصل اول · ثبت‌نام باز است",
       imageUrl: "/seed/seed-music.png",
-      linkUrl: "#/top-talent",
+      linkUrl: "#/explore",
       order: 0,
     },
     {
@@ -209,7 +209,7 @@ async function run() {
     if (!existingUser) continue;
     await db.user.update({
       where: { phone: u.phone },
-      data: { username: u.username, name: u.name, isVerifiedBadge: !!u.verified, isTopTalent: !!u.top },
+      data: { name: u.name, isVerifiedBadge: !!u.verified },
     }).catch(() => {});
     // ترمیم پروفایل خالی (bio/موقعیت/دستهٔ اصلی) — upsert بی‌خطر
     const mainCatId = demoCatIds.get(u.cat) ?? null;
@@ -263,16 +263,12 @@ async function run() {
       where: { phone: u.phone },
       create: {
         phone: u.phone,
-        username: u.username,
         name: u.name,
         isVerifiedBadge: !!u.verified,
-        isTopTalent: !!u.top,
       },
       update: {
-        username: u.username,
         name: u.name,
         isVerifiedBadge: !!u.verified,
-        isTopTalent: !!u.top,
       },
     });
     await db.profile.upsert({
@@ -312,7 +308,7 @@ async function run() {
       }
     }
     userMap.set(u.phone, user.id);
-    console.log(`✓ User: ${u.name} (${u.username}${u.top ? " ★top" : ""})`);
+    console.log(`✓ User: ${u.name}${u.verified ? " ✓" : ""}`);
   }
 
   // 3) Admin
@@ -331,19 +327,13 @@ async function run() {
     const cat = catMap.get(p.cat)!;
     const skillId = cat.skillIds.get(p.skill)!;
     const existing = await db.post.findFirst({ where: { content: p.content } });
-    if (existing) {
-      if (!existing.isFeatured) {
-        await db.post.update({ where: { id: existing.id }, data: { isFeatured: true } });
-      }
-      continue;
-    }
+    if (existing) continue;
     const post = await db.post.create({
       data: {
         userId: uid,
         content: p.content,
         categoryId: cat.id,
         skillId,
-        isFeatured: true,
         createdAt: new Date(Date.now() - p.minutesAgo * 60 * 1000),
       },
     });
@@ -354,12 +344,13 @@ async function run() {
       });
     }
 
-    // Likes (3-8)
-    const numLikes = 3 + Math.floor(Math.random() * 6);
-    const shuffled = [...allUserIds].sort(() => Math.random() - 0.5).slice(0, numLikes);
-    for (const liker of shuffled) {
-      if (liker !== uid) {
-        try { await db.postLike.create({ data: { postId: post.id, userId: liker } }); } catch { }
+    // امتیاز ستاره طبیعی (۳-۸ رأی‌دهنده، ۶..۱۰ ستاره)
+    const numRatings = 3 + Math.floor(Math.random() * 6);
+    const shuffled = [...allUserIds].sort(() => Math.random() - 0.5).slice(0, numRatings);
+    for (const rater of shuffled) {
+      if (rater !== uid) {
+        const score = 6 + Math.floor(Math.random() * 5); // 6..10
+        try { await db.postRating.create({ data: { postId: post.id, userId: rater, score } }); } catch { }
       }
     }
 
@@ -381,10 +372,10 @@ async function run() {
     console.log(`✓ Post: ${p.content.slice(0, 42)}…`);
   }
 
-  const finalPosts = await db.post.count({ where: { isFeatured: true } });
-  const finalLikes = await db.postLike.count();
+  const finalPosts = await db.post.count();
+  const finalRatings = await db.postRating.count();
   const finalComments = await db.comment.count();
-  console.log(`\nDone: ${finalPosts} featured posts · ${finalLikes} likes · ${finalComments} comments`);
+  console.log(`\nDone: ${finalPosts} posts · ${finalRatings} star ratings · ${finalComments} comments`);
   await seedNeeds();
   await seedBanners();
   await db.$disconnect();

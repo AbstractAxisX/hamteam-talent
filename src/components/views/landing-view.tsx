@@ -127,15 +127,15 @@ export function LandingView() {
                 <Icon name="compass" size={18} strokeWidth={2.4} className="text-primary" />
                 کشف استعدادها
               </motion.button>
-              {/* CTA طلایی — صفحهٔ مستقل درخواست استعداد برتر */}
+              {/* CTA طلایی — سیستم ستارهٔ چهره برتر */}
               <motion.button
                 whileTap={{ scale: 0.96 }}
-                onClick={() => navigate({ view: "top-talent" })}
+                onClick={() => navigate({ view: "explore" })}
                 className="inline-flex items-center gap-2 h-12 md:h-14 px-6 md:px-7 rounded-2xl text-white font-extrabold text-base shadow-glow-gold hover:opacity-95 transition-opacity"
                 style={{ background: "linear-gradient(135deg,#f59e0b,#d97706 60%,#b45309)" }}
               >
                 <GoldCheckMark size={20} />
-                درخواست استعداد برتر
+                چهره‌های برتر
               </motion.button>
             </motion.div>
           </div>
@@ -281,8 +281,8 @@ export function LandingView() {
         </div>
       </section>
 
-      {/* ══════ TOP TALENT ══════ */}
-      <TopTalentSection />
+      {/* ══════ TOP TALENT — سیستم ستارهٔ چهره برتر ══════ */}
+      <StarSystemSection />
 
       {/* ══════ Final CTA — minimal ══════ */}
       <section className="py-10 md:py-16">
@@ -400,9 +400,9 @@ function FeatureBlock({
   );
 }
 
-// ─── Top Talent Section: redesigned banner + conditions + form ─────────
-/* ─── Top Talent CTA — مسیریابی به صفحهٔ مستقل درخواست (#/top-talent) ───────── */
-function TopTalentSection() {
+// ─── Star System Section — چهره برتر (۵۰۰۰ طلایی / ۱۰۰۰۰ رزگلد) ─────────
+/* ─── پنل طلایی سیستم ستاره — CTA به صفحهٔ چهره برتر (#/explore) ───────── */
+function StarSystemSection() {
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
@@ -410,7 +410,7 @@ function TopTalentSection() {
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
       className="py-8 md:py-12"
-      id="top-talent"
+      id="chehre-bartar"
     >
       <div
         className="relative overflow-hidden rounded-3xl p-7 md:p-10"
@@ -444,26 +444,48 @@ function TopTalentSection() {
             <GoldCheckMark size={30} />
           </span>
           <h2 className="text-2xl md:text-4xl font-black tracking-tight leading-[1.15] text-gold-grad">
-            دنبال‌کنندگان بیشتر،
+            ستاره بگیر،
             <br />
-            نشان تأیید طلایی بگیر.
+            چهره برتر شو.
           </h2>
           <p className="text-sm md:text-base text-amber-100/70 leading-7 max-w-xl mx-auto">
-            کاربران منتخب با نشان استعداد برتر نمایش داده می‌شوند — قاب طلایی سلطنتی، تیک طلایی و
-            جایگاه ویژه در صفحهٔ برترین‌ها. شرایط داری؟ درخواستت را ثبت کن.
+            هر پست توسط کاربران ۱ تا ۱۰ ستاره می‌گیرد. با ۵۰۰۰ ستاره قاب طلایی می‌گیری و می‌توانی پست دلخواهت را
+            به صفحهٔ چهره برتر بفرستی؛ با ۱۰۰۰۰ ستاره قاب کمیاب رزگلد از آنِ تو می‌شود.
           </p>
+
+          {/* دو سطح قاب */}
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <span
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-[12px] font-black"
+              style={{ background: "linear-gradient(135deg,#fef3c7,#f5c84c 45%,#e08a00)", color: "#3a2405" }}
+            >
+              <GoldCheckMark size={15} />
+              ۵۰۰۰ ستاره → قاب طلایی
+            </span>
+            <span
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-[12px] font-black shadow-[0_6px_18px_rgba(225,29,72,.25)]"
+              style={{ background: "linear-gradient(135deg,#ffe4e6,#fb7185 45%,#be123c)", color: "#4c0519" }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M7.6 12.4l2.9 2.9 5.9-6.4" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="12" r="11" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="1.5" />
+              </svg>
+              ۱۰۰۰۰ ستاره → قاب رزگلد
+            </span>
+          </div>
+
           <motion.button
             whileTap={{ scale: 0.96 }}
-            onClick={() => navigate({ view: "top-talent" })}
+            onClick={() => navigate({ view: "explore" })}
             className="inline-flex items-center gap-2.5 h-12 md:h-13 px-8 rounded-2xl text-white font-extrabold text-base shadow-glow-gold hover:opacity-95 transition-opacity"
             style={{ background: "linear-gradient(135deg,#f59e0b,#d97706 60%,#b45309)" }}
           >
             <GoldCheckMark size={22} />
-            ثبت درخواست استعداد برتر
+            مشاهده چهره برتر
             <Icon name="arrowLeft" size={17} strokeWidth={2.6} className="text-white" />
           </motion.button>
           <p className="text-[11px] text-amber-100/45 font-bold">
-            بررسی رسمی توسط تیم فرصتینو · اعلام نتیجه از طریق اعلان‌ها
+            رأی مستقیم کاربران · بدون درخواست و منتظر ماندن
           </p>
         </div>
       </div>

@@ -1,19 +1,22 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { userStarInfo } from "@/lib/stars";
 import type { SafeUser } from "@/lib/types";
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ user: null });
+  const si = await userStarInfo(user.id);
   const safe: SafeUser = {
     id: user.id,
     phone: user.phone,
-    username: user.username,
     name: user.name,
     role: "user",
     isVerifiedBadge: user.isVerifiedBadge,
     isBanned: user.isBanned,
-    isTopTalent: user.isTopTalent,
+    isTopTalent: si.isTopTalent,
+    frame: si.frame,
+    totalStars: si.totalStars,
     createdAt: user.createdAt.toISOString(),
     profile: user.profile
       ? {

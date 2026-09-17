@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { usersStarInfo } from "@/lib/stars";
 import { getCurrentAdmin } from "@/lib/auth";
 
 export async function GET(req: Request) {
@@ -24,16 +25,23 @@ export async function GET(req: Request) {
     include: { profile: true },
   });
 
+  const starInfo = await usersStarInfo(users.map((u) => u.id));
+
   return NextResponse.json({
-    users: users.map((u) => ({
-      id: u.id,
-      name: u.name,
-      phone: u.phone,
-      isVerifiedBadge: u.isVerifiedBadge,
-      isBanned: u.isBanned,
-      isTopTalent: u.isTopTalent,
-      avatarUrl: u.profile?.avatarUrl ?? null,
-      createdAt: u.createdAt.toISOString(),
-    })),
+    users: users.map((u) => {
+      const si = starInfo.get(u.id)!;
+      return {
+        id: u.id,
+        name: u.name,
+        phone: u.phone,
+        isVerifiedBadge: u.isVerifiedBadge,
+        isBanned: u.isBanned,
+        isTopTalent: si.isTopTalent,
+        frame: si.frame,
+        totalStars: si.totalStars,
+        avatarUrl: u.profile?.avatarUrl ?? null,
+        createdAt: u.createdAt.toISOString(),
+      };
+    }),
   });
 }

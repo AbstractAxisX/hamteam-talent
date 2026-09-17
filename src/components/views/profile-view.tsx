@@ -161,6 +161,9 @@ export function ProfileView({ id }: { id: string }) {
   const province = getProvinceName(profile.province);
   const conn = profile.connectionStatus;
   const heroTint = ringColor || "#10b981";
+  /* مجموع ستاره‌ها — از سریالایزر پروفایل (fallback به متا) */
+  const totalStars = profile.totalStars ?? meta?.totalStars ?? 0;
+  const showBanner = !!profile.bannerUrl && !profile.bannerUrl.startsWith("default");
 
   /* ── کاور: ابیسیدین‌طلا برای استعداد برتر / زمردی برای بقیه ── */
   const coverStyle = isTopTalent
@@ -276,9 +279,20 @@ export function ProfileView({ id }: { id: string }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
-          className="relative h-48 sm:h-56 overflow-hidden rounded-b-[36px] md:rounded-[36px]"
+          className="relative aspect-[3/1] max-h-56 overflow-hidden rounded-b-[36px] md:rounded-[36px]"
           style={coverStyle}
         >
+          {/* بنر پروفایل — روی گرادیانت (گرادیانت فقط پشتیبانِ بدون‌بنر) */}
+          {showBanner && (
+            <motion.img
+              initial={{ opacity: 0, scale: 1.04 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              src={profile.bannerUrl ?? undefined}
+              alt="بنر پروفایل"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          )}
           {/* بافت نقطه‌ای */}
           <div
             className="absolute inset-0 opacity-[0.13] pointer-events-none"
@@ -287,19 +301,23 @@ export function ProfileView({ id }: { id: string }) {
               backgroundSize: "18px 18px",
             }}
           />
-          {/* هاله‌های نور */}
-          <motion.div
-            animate={{ scale: [1, 1.15, 1], opacity: [0.25, 0.4, 0.25] }}
-            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -top-14 -left-10 w-52 h-52 rounded-full blur-3xl pointer-events-none"
-            style={{ background: isTopTalent ? "#f5c84c" : heroTint }}
-          />
-          <motion.div
-            animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.3, 0.15] }}
-            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-            className="absolute -bottom-16 -right-10 w-48 h-48 rounded-full blur-3xl pointer-events-none"
-            style={{ background: "#fbbf24" }}
-          />
+          {/* هاله‌های نور — فقط حالت گرادیانت (روی بنرِ عکس، کاور تمیز می‌ماند) */}
+          {!showBanner && (
+            <>
+              <motion.div
+                animate={{ scale: [1, 1.15, 1], opacity: [0.25, 0.4, 0.25] }}
+                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute -top-14 -left-10 w-52 h-52 rounded-full blur-3xl pointer-events-none"
+                style={{ background: isTopTalent ? "#f5c84c" : heroTint }}
+              />
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.3, 0.15] }}
+                transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+                className="absolute -bottom-16 -right-10 w-48 h-48 rounded-full blur-3xl pointer-events-none"
+                style={{ background: "#fbbf24" }}
+              />
+            </>
+          )}
           {/* ستاره‌های طلایی — فقط استعداد برتر */}
           {isTopTalent && (
             <>
@@ -399,17 +417,6 @@ export function ProfileView({ id }: { id: string }) {
                   </motion.span>
                 )}
               </div>
-              {profile.username && (
-                <p
-                  className={cn(
-                    "text-[12.5px] font-bold mt-0.5",
-                    isTopTalent ? "text-amber-600 dark:text-amber-400" : "text-primary"
-                  )}
-                  dir="ltr"
-                >
-                  @{profile.username}
-                </p>
-              )}
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap text-muted-foreground">
                 {province && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold">
@@ -455,7 +462,7 @@ export function ProfileView({ id }: { id: string }) {
         {/* نوار آمار شیشه‌ای تک‌تکه — الگوی مدرن (طلایی برای نخبه) */}
         <div
           className={cn(
-            "mt-4 glass rounded-[22px] shadow-card grid grid-cols-3 divide-x divide-border/70 rtl:divide-x-reverse",
+            "mt-4 glass rounded-[22px] shadow-card grid grid-cols-4 divide-x divide-border/70 rtl:divide-x-reverse",
             isTopTalent &&
               "!bg-gradient-to-br !from-amber-500/12 !to-amber-600/5 border border-amber-400/25"
           )}
@@ -463,6 +470,12 @@ export function ProfileView({ id }: { id: string }) {
           <StatSeg value={formatCount(connCount)} label="ارتباطات" icon="users" gold={isTopTalent} />
           <StatSeg value={toFa(profile.postCount)} label="پست‌ها" icon="image" gold={isTopTalent} />
           <StatSeg value={toFa(profile.categories?.length || 0)} label="تخصص‌ها" icon="award" gold={isTopTalent} />
+          <StatSeg
+            value={toFa(totalStars.toLocaleString("fa-IR"))}
+            label="ستاره‌ها"
+            icon="star"
+            gold={isTopTalent}
+          />
         </div>
 
         {/* اکشن اصلی + درخواست پیام + PDF */}
@@ -619,7 +632,7 @@ function StatSeg({ value, label, icon, gold }: { value: string; label: string; i
 function ProfileSkeleton() {
   return (
     <div className="max-w-2xl mx-auto">
-      <Skeleton className="h-48 sm:h-56 rounded-b-[36px] rounded-t-none" />
+      <Skeleton className="aspect-[3/1] max-h-56 rounded-b-[36px] rounded-t-none" />
       <div className="px-4 -mt-10 relative z-10">
         <div className="flex items-end gap-3.5">
           <Skeleton className="size-24 rounded-full shrink-0" />

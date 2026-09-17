@@ -37,6 +37,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { CategoryIcon } from "@/components/shared/illustrations";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Icon } from "@/components/shared/icon";
+import { CropDialog } from "@/components/shared/crop-dialog";
 import { toast } from "@/hooks/use-toast";
 import { PROVINCES } from "@/lib/geo";
 import { toFa } from "@/lib/format";
@@ -63,7 +64,6 @@ function Spinner({ className }: { className?: string }) {
 }
 
 const SECTIONS = [
-  { key: "username", label: "نام کاربری" },
   { key: "photos", label: "عکس‌ها و بیو" },
   { key: "gender", label: "جنسیت" },
   { key: "location", label: "موقعیت" },
@@ -210,23 +210,20 @@ export function EditProfileView() {
         ))}
       </div>
 
-      <SectionWrapper id="section-username" delay={0.05}>
-        <UsernameSection profile={profile} onUpdated={() => load(true)} />
-      </SectionWrapper>
-      <SectionWrapper id="section-photos" delay={0.08}>
+      <SectionWrapper id="section-photos" delay={0.05}>
         <PhotosBioSection profile={profile} onUpdated={() => load(true)} />
       </SectionWrapper>
-      <SectionWrapper id="section-gender" delay={0.1}>
+      <SectionWrapper id="section-gender" delay={0.08}>
         <GenderSection profile={profile} onUpdated={() => load(true)} />
       </SectionWrapper>
-      <SectionWrapper id="section-location" delay={0.12}>
+      <SectionWrapper id="section-location" delay={0.1}>
         <LocationSection profile={profile} onUpdated={() => load(true)} />
       </SectionWrapper>
-      <SectionWrapper id="section-categories" delay={0.15}>
+      <SectionWrapper id="section-categories" delay={0.13}>
         <CategoriesSection profile={profile} allCats={allCats} onUpdated={() => load(true)} />
       </SectionWrapper>
       {profile.categories.length > 1 && (
-        <SectionWrapper id="section-main-category" delay={0.18}>
+        <SectionWrapper id="section-main-category" delay={0.16}>
           <MainCategorySection
             profile={profile}
             allCats={allCats}
@@ -235,10 +232,10 @@ export function EditProfileView() {
           />
         </SectionWrapper>
       )}
-      <SectionWrapper id="section-experience" delay={0.2}>
+      <SectionWrapper id="section-experience" delay={0.18}>
         <ExperienceSection profile={profile} allCats={allCats} onUpdated={() => load(true)} />
       </SectionWrapper>
-      <SectionWrapper id="section-education" delay={0.25}>
+      <SectionWrapper id="section-education" delay={0.22}>
         <EducationSection profile={profile} onUpdated={() => load(true)} />
       </SectionWrapper>
     </div>
@@ -266,99 +263,6 @@ function SectionWrapper({
   );
 }
 
-/* ─── Section 0: Username ────────────────────────────────────────── */
-function UsernameSection({
-  profile,
-  onUpdated,
-}: {
-  profile: ProfileDetail;
-  onUpdated: () => void;
-}) {
-  const [username, setUsername] = useState(profile.username ?? "");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setUsername(profile.username ?? "");
-  }, [profile]);
-
-  const valid = /^[a-z0-9_]{3,20}$/.test(username);
-  const dirty = username !== (profile.username ?? "");
-
-  async function save() {
-    if (!valid || !dirty) return;
-    setSaving(true);
-    try {
-      await apiPost("/api/username/set", { username });
-      toast({ title: "نام کاربری ذخیره شد ✅" });
-      onUpdated();
-    } catch (e) {
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
-      <SectionTitle icon="userPlus" title="نام کاربری" />
-
-      <div className="flex items-center gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/10">
-        <div className="grid place-items-center w-11 h-11 rounded-full bg-primary/10 text-primary shrink-0 text-lg font-bold" dir="ltr">
-          @
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground">نام کاربری فعلی</p>
-          <p className="font-bold text-sm truncate" dir="ltr">
-            {profile.username ? `@${profile.username}` : "بدون نام کاربری"}
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="username-input">نام کاربری جدید</Label>
-        <div className="relative">
-          <span
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold"
-            dir="ltr"
-          >
-            @
-          </span>
-          <Input
-            id="username-input"
-            placeholder="your_name"
-            value={username}
-            onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-            dir="ltr"
-            maxLength={20}
-            className="rounded-2xl pr-8"
-          />
-        </div>
-        <p className="text-[11px] text-muted-foreground leading-5">
-          فقط حروف انگلیسی کوچک، اعداد و زیرخط (_). بین ۳ تا ۲۰ کاراکتر. نام کاربری در
-          پروفایل شما به‌صورت @username نمایش داده می‌شود.
-        </p>
-        {dirty && username.length > 0 && !valid && (
-          <p className="text-[11px] text-rose flex items-center gap-1">
-            <Icon name="alert" className="w-3 h-3" />
-            نام کاربری نامعتبر است.
-          </p>
-        )}
-      </div>
-
-      <div className="flex justify-end pt-1">
-        <Button
-          onClick={save}
-          disabled={saving || !valid || !dirty}
-          className="gap-1.5 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
-        >
-          {saving ? <Spinner className="w-4 h-4" /> : <Icon name="check" className="w-4 h-4" />}
-          ذخیره نام کاربری
-        </Button>
-      </div>
-    </Card>
-  );
-}
-
 /* ─── Section 1: Photos + Bio ───────────────────────────────────── */
 function PhotosBioSection({
   profile,
@@ -375,6 +279,10 @@ function PhotosBioSection({
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
 
+  /* ── کراپ حرفه‌ای قبل از آپلود (react-easy-crop) ── */
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cropMode, setCropMode] = useState<"avatar" | "banner">("avatar");
+
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const bannerInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -384,6 +292,25 @@ function PhotosBioSection({
     setBioShort(profile.bioShort);
     setBioLong(profile.bioLong);
   }, [profile]);
+
+  function openCropper(mode: "avatar" | "banner", file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "فایل انتخابی تصویر نیست", variant: "destructive" });
+      return;
+    }
+    setCropMode(mode);
+    setCropFile(file);
+  }
+
+  /* بلاب برش‌خورده → فایل JPEG → همان جریان آپلود + ذخیرهٔ فوری */
+  async function handleCropped(blob: Blob) {
+    const file = new File([blob], cropMode === "avatar" ? "avatar.jpg" : "banner.jpg", {
+      type: "image/jpeg",
+    });
+    setCropFile(null);
+    if (cropMode === "avatar") await handleAvatarUpload(file);
+    else await handleBannerUpload(file);
+  }
 
   async function handleAvatarUpload(file: File) {
     setUploadingAvatar(true);
@@ -450,13 +377,14 @@ function PhotosBioSection({
   }
 
   return (
+    <>
     <Card className="p-5 md:p-6 space-y-5 rounded-3xl shadow-card">
       <SectionTitle icon="image" title="عکس‌ها و بیو" />
 
       {/* Banner preview + upload */}
       <div className="space-y-2">
         <Label>بنر پروفایل</Label>
-        <div className="h-28 md:h-32 rounded-2xl overflow-hidden relative border border-border/60 bg-primary">
+        <div className="aspect-[3/1] rounded-2xl overflow-hidden relative border border-border/60 bg-primary">
           {bannerUrl && !bannerUrl.startsWith("default") ? (
             <img src={bannerUrl} alt="بنر" className="absolute inset-0 w-full h-full object-cover" />
           ) : (
@@ -479,7 +407,7 @@ function PhotosBioSection({
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) handleBannerUpload(f);
+            if (f) openCropper("banner", f);
             e.target.value = "";
           }}
         />
@@ -508,7 +436,7 @@ function PhotosBioSection({
           )}
         </div>
         <p className="text-[11px] text-muted-foreground leading-5">
-          عکس با ابعاد ۱۱۰۰×۴۰۰ پیکسل بهترین نتیجه را می‌دهد. حداکثر ۵ مگابایت.
+          تصویر با نسبت ۳:۱ — ابعاد پیشنهادی ۱۵۰۰×۵۰۰ پیکسل. حداکثر ۵ مگابایت.
         </p>
       </div>
 
@@ -533,7 +461,7 @@ function PhotosBioSection({
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) handleAvatarUpload(f);
+              if (f) openCropper("avatar", f);
               e.target.value = "";
             }}
           />
@@ -570,7 +498,7 @@ function PhotosBioSection({
             className="rounded-2xl"
           />
           <p className="text-[11px] text-muted-foreground leading-5">
-            برای بهترین نتیجه تصویر مربعی با ابعاد حداقل ۲۰۰×۲۰۰ پیکسل.
+            برای بهترین نتیجه تصویر مربعی انتخاب کنید؛ قبل از ذخیره می‌توانید آن را برش دهید.
           </p>
         </div>
       </div>
@@ -619,6 +547,18 @@ function PhotosBioSection({
         </Button>
       </div>
     </Card>
+
+    {/* دیالوگ برش — آواتار ۱:۱ دایره‌ای / بنر ۳:۱ */}
+    {cropFile && (
+      <CropDialog
+        open
+        imageFile={cropFile}
+        mode={cropMode}
+        onClose={() => setCropFile(null)}
+        onCropped={handleCropped}
+      />
+    )}
+    </>
   );
 }
 

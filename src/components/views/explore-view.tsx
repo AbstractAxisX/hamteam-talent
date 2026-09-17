@@ -1,11 +1,12 @@
 "use client";
 
 /* ════════════════════════════════════════════════════════════════════
-   ExploreView — "استعدادهای برتر" (Top Talents)
-   Vertical Facebook-style feed of featured posts from top-talent users.
+   ExploreView — «چهره برتر»
+   ویترین پست‌های منتخبِ کاربران دارای قاب (۵۰۰۰+ ستاره = طلایی،
+   ۱۰۰۰۰+ = رزگلد) + پست‌هایی که ادمین انتخاب کرده است.
    Supports image / video / audio / document media, swipeable carousels,
-   full-screen lightbox, double-tap-to-like heart burst, and nested
-   multi-level comments in a bottom sheet.
+   full-screen lightbox, star ratings 1..10, and nested multi-level
+   comments in a bottom sheet.
    ════════════════════════════════════════════════════════════════════ */
 
 import {
@@ -26,11 +27,13 @@ import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, timeAgoFa, formatFaDate } from "@/lib/format";
 import { RatingModal, RatingSummary } from "@/components/shared/rating-control";
-import { LikersSheet, commentLikersFetcher, postLikersFetcher } from "@/components/shared/likers-sheet";
-import { GoldCheckMark, GoldSparkle, Laurel } from "@/components/ui/elite";
+import { FeatureButton } from "@/components/shared/feature-button";
+import { LikersSheet, commentLikersFetcher } from "@/components/shared/likers-sheet";
+import { GoldCheckMark, GoldSparkle, Laurel, RoseGoldCheckMark } from "@/components/ui/elite";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { CategoryWithSkills } from "@/lib/types";
+import type { FrameLevel } from "@/lib/stars";
 
 /* ════════════════════════════════════════════════════════════════════
    Types
@@ -56,12 +59,14 @@ type ExplorePost = {
   categoryIcon: string | null;
   categoryColor: string | null;
   skillName: string | null;
-  likeCount: number;
+  /** در ویترین چهره برتر است */
+  isFeatured?: boolean;
+  /** کاربر فعلی مالک پست است و می‌تواند آن را به ویترین بفرستد */
+  canFeature?: boolean;
   commentCount: number;
-  likedByMe: boolean;
-  ratingAvg?: number;
-  ratingCount?: number;
-  myRating?: number | null;
+  ratingAvg: number;
+  ratingCount: number;
+  myRating: number | null;
   media: PostMedia[];
   user: {
     id: string;
@@ -69,6 +74,8 @@ type ExplorePost = {
     avatarUrl: string | null;
     gender: string | null;
     isTopTalent: boolean;
+    frame?: FrameLevel;
+    totalStars?: number;
     isVerifiedBadge: boolean;
     mainCategoryColor: string | null;
   };
@@ -266,16 +273,15 @@ export function ExploreView() {
     setSkillId("");
   }
 
-  const activeColor = currentCat?.color || "oklch(0.55 0.13 160)";
-
-  /* مجموع امتیازهای کاربران در فید — حس رقابت نخبگان */
+  /* آمار ویترین — تعداد پست‌های منتخب + نویسندگان دارای قاب (طلایی/رزگلد) */
   const eliteStats = useMemo(() => {
-    const topAuthors = new Set(posts.filter((p) => p.user.isTopTalent).map((p) => p.user.id));
-    const totalRatings = posts.reduce((s, p) => s + (p.ratingCount || 0), 0);
+    const framed = new Set(posts.filter((p) => p.user.frame).map((p) => p.user.id));
+    const rosegold = new Set(posts.filter((p) => p.user.frame === "rosegold").map((p) => p.user.id));
+    const totalStars = posts.reduce((s, p) => s + (p.user.totalStars || 0), 0);
     const avg = posts.length
       ? posts.reduce((s, p) => s + (p.ratingAvg || 0), 0) / posts.length
       : 0;
-    return { topAuthors: topAuthors.size, totalRatings, avg };
+    return { featured: posts.length, framed: framed.size, rosegold: rosegold.size, totalStars, avg };
   }, [posts]);
 
   return (
@@ -338,10 +344,10 @@ export function ExploreView() {
 
           <div className="text-center">
             <h1 className="text-[22px] sm:text-2xl font-black tracking-tight leading-tight text-gold-grad">
-              استعدادهای برتر
+              چهره برتر
             </h1>
-            <p className="text-[12.5px] text-amber-100/70 mt-1 leading-6">
-              منتخب رسمی مدیران · برترین کارهای جامعهٔ فرصتینو
+            <p className="text-[12.5px] text-amber-100/90 mt-1 leading-6">
+              چهره‌های برتر با ۵۰۰۰+ ستاره — پست‌های منتخبِ خودشان
             </p>
           </div>
 
@@ -349,9 +355,23 @@ export function ExploreView() {
           <div className="flex items-center gap-2 flex-wrap justify-center">
             <span className="h-7 px-3 rounded-full bg-amber-500/12 border border-amber-400/25 text-amber-200/90
                            text-[10.5px] font-bold inline-flex items-center gap-1.5">
-              <Icon name="users" size={12} />
-              {toFa(eliteStats.topAuthors)} استعداد برتر
+              <Icon name="sparkles" size={12} />
+              {toFa(eliteStats.featured)} پست منتخب
             </span>
+            <span className="h-7 px-3 rounded-full bg-amber-500/12 border border-amber-400/25 text-amber-200/90
+                           text-[10.5px] font-bold inline-flex items-center gap-1.5">
+              <Icon name="users" size={12} />
+              {toFa(eliteStats.framed)} چهره دارای قاب
+            </span>
+            {eliteStats.rosegold > 0 && (
+              <span
+                className="h-7 px-3 rounded-full border text-[10.5px] font-black inline-flex items-center gap-1.5"
+                style={{ background: "rgba(225,29,72,.14)", borderColor: "rgba(251,113,133,.3)", color: "#fda4af" }}
+              >
+                <RoseGoldCheckMark size={12} />
+                {toFa(eliteStats.rosegold)} رزگلد
+              </span>
+            )}
             <span className="h-7 px-3 rounded-full bg-amber-500/12 border border-amber-400/25 text-amber-200/90
                            text-[10.5px] font-bold inline-flex items-center gap-1.5">
               <Icon name="star" size={12} />
@@ -436,8 +456,8 @@ export function ExploreView() {
           title="پستی یافت نشد"
           description={
             (categoryId || skillId)
-              ? "با فیلترهای انتخاب‌شده پست برجسته‌ای موجود نیست."
-              : "هنوز پست برجسته‌ای برای نمایش وجود ندارد. پست‌ها پس از تأیید و انتخاب مدیر، در این صفحه نمایش داده می‌شوند."
+              ? "با فیلترهای انتخاب‌شده پست منتخبی موجود نیست."
+              : "هنوز پست منتخبی در چهره برتر نیست — چهره‌های دارای ۵۰۰۰+ ستاره پست‌هایشان را به این صفحه می‌فرستند."
           }
           action={
             (categoryId || skillId) ? (
@@ -458,6 +478,13 @@ export function ExploreView() {
               post={p}
               index={i}
               onOpenComments={(post) => setCommentsForPost(post)}
+              onFeaturedChange={(featured) =>
+                setPosts((prev) =>
+                  featured
+                    ? prev.map((pp) => (pp.id === p.id ? { ...pp, isFeatured: true } : pp))
+                    : prev.filter((pp) => pp.id !== p.id)
+                )
+              }
             />
           ))}
         </div>
@@ -520,17 +547,20 @@ function PostCard({
   post,
   index,
   onOpenComments,
+  onFeaturedChange,
 }: {
   post: ExplorePost;
   index: number;
   onOpenComments: (post: ExplorePost) => void;
+  onFeaturedChange?: (featured: boolean) => void;
 }) {
   const catColor = post.categoryColor || "oklch(0.55 0.13 160)";
   // رنگ فرد — دستهٔ اصلی کاربر؛ رینگ آواتار و نوار بالای کارت هم‌رنگ می‌شوند
   const ringColor = post.user.mainCategoryColor || catColor;
+  const roseFrame = post.user.frame === "rosegold";
 
   const [expanded, setExpanded] = useState(false);
-  // امتیازدهی (لایک در استعدادهای برتر حذف شد)
+  // امتیازدهی ۱..۱۰ (لایک حذف شد — سیستم ستاره)
   const [ratingOpen, setRatingOpen] = useState(false);
   const [avg, setAvg] = useState(post.ratingAvg ?? 0);
   const [ratingCount, setRatingCount] = useState(post.ratingCount ?? 0);
@@ -593,7 +623,9 @@ function PostCard({
       }}
       className={cn(
         "relative bg-card rounded-[24px] overflow-hidden shadow-card border",
-        post.user.isTopTalent
+        roseFrame
+          ? "border-rose-500/40 shadow-[0_10px_32px_rgba(225,29,72,.15)]"
+          : post.user.isTopTalent
           ? "border-amber-500/35 shadow-[0_10px_32px_rgba(217,119,6,.14)]"
           : "border-border/50"
       )}
@@ -602,24 +634,32 @@ function PostCard({
       <div
         className="absolute top-0 inset-x-0 h-[3px] z-10"
         style={{
-          background: post.user.isTopTalent
+          background: roseFrame
+            ? "linear-gradient(90deg, transparent, #be123c, #fb7185, #ffe4e6, #fb7185, #be123c, transparent)"
+            : post.user.isTopTalent
             ? "linear-gradient(90deg, transparent, #b45309, #f5c84c, #fef3c7, #f5c84c, #b45309, transparent)"
             : `linear-gradient(90deg, transparent, ${ringColor}, transparent)`,
           opacity: 0.75,
         }}
       />
 
-      {/* نشان «برتر» کارت — فقط نویسندهٔ استعداد برتر */}
+      {/* نشان «برتر» کارت — قاب طلایی/رزگلدِ نویسنده */}
       {post.user.isTopTalent && (
         <span
-          className="absolute z-20 top-3 left-3 h-6 px-2.5 rounded-full text-[10px] font-black text-[#3a2405]
-                     inline-flex items-center gap-1 shadow-[0_4px_12px_rgba(217,119,6,.4)]"
-          style={{ background: "linear-gradient(135deg, #fef3c7, #f5c84c 45%, #e08a00)" }}
+          className={cn(
+            "absolute z-20 top-3 left-3 h-6 px-2.5 rounded-full text-[10px] font-black",
+            roseFrame ? "text-[#4c0519]" : "text-[#3a2405]"
+          )}
+          style={
+            roseFrame
+              ? { background: "linear-gradient(135deg, #ffe4e6, #fb7185 45%, #be123c)" }
+              : { background: "linear-gradient(135deg, #fef3c7, #f5c84c 45%, #e08a00)" }
+          }
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="inline">
             <path d="M12 0c.9 6.2 4.9 10.2 12 12-7.1 1.8-11.1 5.8-12 12-.9-6.2-4.9-10.2-12-12C7.1 10.2 11.1 6.2 12 0z" />
           </svg>
-          برتر
+          {roseFrame ? "چهره برتر رزگلد" : "برتر"}
         </span>
       )}
 
@@ -636,6 +676,7 @@ function PostCard({
             verified={post.user.isVerifiedBadge}
             gender={post.user.gender}
             size="md"
+            frame={post.user.frame ?? undefined}
             topTalent={post.user.isTopTalent}
             ringColor={post.user.isTopTalent ? null : ringColor}
           />
@@ -655,9 +696,11 @@ function PostCard({
                 className="text-gold fill-gold/15 shrink-0"
               />
             )}
-            {post.user.isTopTalent && (
+            {roseFrame ? (
+              <RoseGoldCheckMark size={16} />
+            ) : post.user.isTopTalent ? (
               <GoldCheckMark size={16} />
-            )}
+            ) : null}
           </div>
           <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
             <span className="truncate">{timeAgoFa(post.createdAt)}</span>
@@ -765,6 +808,14 @@ function PostCard({
         </motion.button>
       </div>
 
+      {/* ═══ دکمهٔ ویترین — فقط برای پست خودِ کاربرِ دارای قاب ═══ */}
+      <FeatureButton
+        postId={post.id}
+        isFeatured={!!post.isFeatured}
+        canFeature={!!post.canFeature}
+        onChanged={onFeaturedChange}
+      />
+
       {/* ═══ مودال امتیاز ۱ تا ۱۰ ستاره ═══ */}
       <RatingModal
         open={ratingOpen}
@@ -791,6 +842,7 @@ function PostCard({
     </motion.article>
   );
 }
+
 
 /* ════════════════════════════════════════════════════════════════════
    MediaCarousel — swipeable horizontal slides with scroll-snap
@@ -2242,14 +2294,7 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // لایک (مخصوص دید از پروفایل)
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [liking, setLiking] = useState(false);
-  const [likeBounce, setLikeBounce] = useState(false);
-  const [likersOpen, setLikersOpen] = useState(false);
-
-  // امتیاز (مخصوص دید از استعدادهای برتر)
+  // امتیاز ۱..۱۰ (سیستم ستاره — جایگزین لایک)
   const [ratingOpen, setRatingOpen] = useState(false);
   const [avg, setAvg] = useState(0);
   const [ratingCount, setRatingCount] = useState(0);
@@ -2277,21 +2322,19 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
     setLoading(true);
     setNotFound(false);
     try {
-      // ۱) جستجو در پست‌های برتر (featured)
+      // ۱) جستجو در ویترین «چهره برتر» (featured)
       const data = await api<{ posts: ExplorePost[] }>("/api/explore/posts");
       const found = data.posts.find((p) => p.id === id);
       if (found) {
         setPost(found);
-        setLiked(found.likedByMe);
-        setLikeCount(found.likeCount);
         setAvg(found.ratingAvg ?? 0);
         setRatingCount(found.ratingCount ?? 0);
         setMyScore(found.myRating ?? null);
         return;
       }
-      // ۲) fallback: پست‌های عادی (مثل پست‌های پروفایل) + دسته‌بندی‌ها برای رنگ/آیکون
+      // ۲) fallback: همهٔ پست‌ها (مثل پست‌های پروفایل) + آیکون دسته از لیست دسته‌ها
       const [all, catsRes] = await Promise.all([
-        api<{ posts: any[] }>("/api/posts?sort=recent"),
+        api<{ posts: ExplorePost[] }>("/api/posts?sort=recent"),
         api<{ categories: CategoryWithSkills[] }>("/api/categories").catch(
           (): { categories: CategoryWithSkills[] } => ({ categories: [] })
         ),
@@ -2304,40 +2347,15 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
         setNotFound(true);
         return;
       }
-      const cat = p.categoryId ? catMap.get(p.categoryId) : undefined;
+      // سریالایزر /api/posts همین شکل را برمی‌گرداند — فقط آیکون دسته را از لیست می‌گیریم
       const mapped: ExplorePost = {
-        id: p.id,
-        content: p.content,
-        createdAt: p.createdAt,
-        categoryId: p.categoryId ?? null,
-        skillId: p.skillId ?? null,
-        categoryName: p.categoryName ?? cat?.name ?? null,
-        categoryIcon: cat?.iconUrl ?? null,
-        categoryColor: cat?.color ?? null,
-        skillName: p.skillName ?? null,
-        likeCount: p.likeCount ?? 0,
-        commentCount: 0,
-        likedByMe: p.likedByMe ?? false,
-        media: (p.media ?? []).map((m: any) => ({
-          id: m.id,
-          url: m.url,
-          type: m.type,
-          fileName: null,
-          fileSize: 0,
-        })),
-        user: {
-          id: p.user.id,
-          name: p.user.name,
-          avatarUrl: p.user.avatarUrl ?? null,
-          gender: null,
-          isTopTalent: false,
-          isVerifiedBadge: p.user.isVerifiedBadge ?? false,
-          mainCategoryColor: cat?.color ?? null,
-        },
+        ...p,
+        categoryIcon: (p.categoryId ? catMap.get(p.categoryId)?.iconUrl : undefined) ?? null,
       };
       setPost(mapped);
-      setLiked(mapped.likedByMe);
-      setLikeCount(mapped.likeCount);
+      setAvg(mapped.ratingAvg ?? 0);
+      setRatingCount(mapped.ratingCount ?? 0);
+      setMyScore(mapped.myRating ?? null);
     } catch {
       setNotFound(true);
     } finally {
@@ -2363,35 +2381,6 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
     void loadPost();
     void loadComments();
   }, [loadPost, loadComments]);
-
-  async function toggleLike() {
-    if (!me) {
-      toast({ title: "برای لایک کردن وارد شوید" });
-      navigate({ view: "auth" });
-      return;
-    }
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikeCount((c) => c + (wasLiked ? -1 : 1));
-    if (!wasLiked) {
-      setLikeBounce(true);
-      setTimeout(() => setLikeBounce(false), 600);
-    }
-    setLiking(true);
-    try {
-      await apiPost(`/api/posts/${id}/like`);
-    } catch (e) {
-      setLiked(wasLiked);
-      setLikeCount((c) => c + (wasLiked ? 1 : -1));
-      toast({
-        title: "خطا",
-        description: (e as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setLiking(false);
-    }
-  }
 
   async function sendComment() {
     const content = input.trim();
@@ -2479,13 +2468,13 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
         <EmptyState
           kind="generic"
           title="پست پیدا نشد"
-          description="ممکن است حذف شده باشد یا دیگر برجسته نباشد."
+          description="ممکن است حذف شده باشد یا دیگر در ویترین چهره برتر نباشد."
           action={
             <button
               onClick={() => navigate({ view: "explore" })}
               className="h-10 px-5 rounded-xl bg-primary text-primary-foreground font-bold text-sm"
             >
-              بازگشت به استعدادهای برتر
+              بازگشت به چهره برتر
             </button>
           }
         />
@@ -2504,7 +2493,7 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
         <button
           onClick={() => window.history.back()}
           className="grid place-items-center w-10 h-10 rounded-full glass text-foreground hover:bg-foreground/5 transition-colors"
-          aria-label="بازگشت"
+          aria-label={fromProfile ? "بازگشت به پروفایل" : "بازگشت"}
         >
           <Icon name="chevronRight" size={20} />
         </button>
@@ -2531,6 +2520,7 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
               verified={post.user.isVerifiedBadge}
               gender={post.user.gender}
               size="md"
+              frame={post.user.frame ?? undefined}
               topTalent={post.user.isTopTalent}
               ringColor={post.user.isTopTalent ? null : ringColor}
             />
@@ -2546,7 +2536,11 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
               {post.user.isVerifiedBadge && !post.user.isTopTalent && (
                 <Icon name="badgeCheck" size={15} className="text-gold fill-gold/15" />
               )}
-              {post.user.isTopTalent && <GoldCheckMark size={16} />}
+              {post.user.frame === "rosegold" ? (
+                <RoseGoldCheckMark size={16} />
+              ) : post.user.isTopTalent ? (
+                <GoldCheckMark size={16} />
+              ) : null}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
               <span>{timeAgoFa(post.createdAt)}</span>
@@ -2594,8 +2588,8 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
           </>
         )}
 
-        {/* خلاصهٔ امتیاز — فقط در حالت استعدادهای برتر */}
-        {!fromProfile && (ratingCount > 0 || avg > 0) && (
+        {/* خلاصهٔ امتیاز — میانگین + تعداد رأی */}
+        {(ratingCount > 0 || avg > 0) && (
           <div className="px-3.5 pb-1">
             <RatingSummary avg={avg} count={ratingCount} onClick={() => setRatingOpen(true)} />
           </div>
@@ -2610,58 +2604,22 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
           />
         )}
 
-        {/* Actions — مبدأ‌آگاه: از پروفایل = لایک، از استعدادهای برتر = امتیاز */}
+        {/* Actions — امتیاز ستاره + کامنت + اشتراک */}
         <div className="flex gap-2 p-2.5">
-          {fromProfile ? (
-            <div
-              className={cn(
-                "flex-1 h-11 rounded-xl flex items-center justify-center gap-1 transition-colors overflow-hidden",
-                liked ? "text-rose bg-rose/10" : "text-muted-foreground bg-muted"
-              )}
-            >
-              <motion.button
-                whileTap={{ scale: 0.85 }}
-                onClick={() => void toggleLike()}
-                disabled={liking}
-                className="h-full px-3 grid place-items-center shrink-0 outline-none"
-                aria-label="پسندیدن"
-              >
-                <motion.span
-                  animate={likeBounce ? { scale: [1, 1.5, 0.85, 1.2, 1] } : { scale: 1 }}
-                  transition={{ duration: 0.6 }}
-                >
-                  <Icon
-                    name="heart"
-                    size={20}
-                    className={liked ? "fill-rose text-rose" : ""}
-                    strokeWidth={2}
-                  />
-                </motion.span>
-              </motion.button>
-              <button
-                onClick={() => setLikersOpen(true)}
-                className="h-full flex-1 min-w-0 grid place-items-center text-[12.5px] font-extrabold tabular-nums hover:bg-black/5 dark:hover:bg-white/10 transition-colors outline-none rounded-l-xl"
-                aria-label="مشاهده لایک‌کنندگان"
-              >
-                {formatCount(likeCount)}
-              </button>
-            </div>
-          ) : (
-            <motion.button
-              whileTap={{ scale: 0.94 }}
-              onClick={() => setRatingOpen(true)}
-              className={cn(
-                "flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold transition-colors",
-                myScore
-                  ? "text-white grad-gold shadow-glow-gold"
-                  : "text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20"
-              )}
-              aria-label={myScore ? "ویرایش امتیاز" : "ثبت امتیاز"}
-            >
-              <Icon name="spark" size={20} strokeWidth={2} />
-              <span className="nums-fa">{myScore ? `ویرایش (${toFa(myScore)}/۱۰)` : "ثبت امتیاز"}</span>
-            </motion.button>
-          )}
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            onClick={() => setRatingOpen(true)}
+            className={cn(
+              "flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold transition-colors",
+              myScore
+                ? "text-white grad-gold shadow-glow-gold"
+                : "text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20"
+            )}
+            aria-label={myScore ? "ویرایش امتیاز" : "ثبت امتیاز"}
+          >
+            <Icon name="spark" size={20} strokeWidth={2} />
+            <span className="nums-fa">{myScore ? `ویرایش (${toFa(myScore)}/۱۰)` : "ثبت امتیاز"}</span>
+          </motion.button>
           <div className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-[12.5px] font-extrabold text-muted-foreground bg-muted">
             <Icon name="comment" size={20} strokeWidth={2} />
             <span className="tabular-nums">{formatCount(post.commentCount)}</span>
@@ -2677,32 +2635,26 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
           </motion.button>
         </div>
 
-        {/* مودال امتیاز (فقط حالت استعدادهای برتر) */}
-        {!fromProfile && (
-          <RatingModal
-            open={ratingOpen}
-            onClose={() => setRatingOpen(false)}
-            postId={id}
-            initialScore={myScore}
-            onSaved={({ avg: a, count: c, myScore: s }) => {
-              setAvg(a);
-              setRatingCount(c);
-              setMyScore(s);
-            }}
-          />
-        )}
+        {/* دکمهٔ ویترین «چهره برتر» — فقط پست خودِ کاربرِ دارای قاب */}
+        <FeatureButton
+          postId={post.id}
+          isFeatured={!!post.isFeatured}
+          canFeature={!!post.canFeature}
+          className="px-2.5"
+        />
 
-        {/* شیت لایک‌کنندگان (فقط حالت پروفایل) */}
-        {fromProfile && (
-          <LikersSheet
-            open={likersOpen}
-            onClose={() => setLikersOpen(false)}
-            title="لایک‌کنندگان پست"
-            fetcher={postLikersFetcher(id)}
-            emptyTitle="هنوز لایکی نیست"
-            emptyDesc="اولین لایک را تو بزن!"
-          />
-        )}
+        {/* مودال امتیاز ۱ تا ۱۰ ستاره */}
+        <RatingModal
+          open={ratingOpen}
+          onClose={() => setRatingOpen(false)}
+          postId={id}
+          initialScore={myScore}
+          onSaved={({ avg: a, count: c, myScore: s }) => {
+            setAvg(a);
+            setRatingCount(c);
+            setMyScore(s);
+          }}
+        />
       </motion.article>
 
       {/* Inline comments */}

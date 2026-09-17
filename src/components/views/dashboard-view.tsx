@@ -10,11 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Icon } from "@/components/shared/icon";
-import { LikersSheet, postLikersFetcher } from "@/components/shared/likers-sheet";
+import { RatingSummary, RatingModal } from "@/components/shared/rating-control";
 import { toFa, formatCount, formatFaDate, timeAgoFa } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { apiPost } from "@/lib/api-client";
-import { toast } from "@/hooks/use-toast";
 import type { PostWithRelations, TalentListItem } from "@/lib/types";
 
 type HomeData = {
@@ -250,26 +248,11 @@ function HeroStat({
 
 // ───────────────────────────── Timeline Post ─────────────────────────────
 function TimelinePost({ post, index }: { post: PostWithRelations; index: number }) {
-  const [liked, setLiked] = useState(post.likedByMe);
-  const [likeCount, setLikeCount] = useState(post.likeCount);
-  const [liking, setLiking] = useState(false);
-  const [likersOpen, setLikersOpen] = useState(false);
-
-  async function toggleLike() {
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikeCount((c) => c + (wasLiked ? -1 : 1));
-    setLiking(true);
-    try {
-      await apiPost(`/api/posts/${post.id}/like`);
-    } catch (e) {
-      setLiked(wasLiked);
-      setLikeCount((c) => c + (wasLiked ? 1 : -1));
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
-    } finally {
-      setLiking(false);
-    }
-  }
+  // امتیاز ستاره‌ای ۱..۱۰ — وضعیت محلی بعد از ثبت/ویرایش به‌روز می‌شود
+  const [avg, setAvg] = useState(post.ratingAvg);
+  const [ratingCount, setRatingCount] = useState(post.ratingCount);
+  const [myScore, setMyScore] = useState<number | null>(post.myRating);
+  const [ratingOpen, setRatingOpen] = useState(false);
 
   // First media preview (if any)
   const firstMedia = post.media?.[0];
@@ -330,42 +313,34 @@ function TimelinePost({ post, index }: { post: PostWithRelations; index: number 
           </div>
         )}
 
-        {/* Footer row — likes + comment */}
-        <div className="flex items-center gap-3">
+        {/* خلاصهٔ امتیاز — میانگین + تعداد رأی */}
+        {ratingCount > 0 && (
+          <div className="mb-2" onClick={(e) => e.stopPropagation()}>
+            <RatingSummary avg={avg} count={ratingCount} onClick={() => setRatingOpen(true)} />
+          </div>
+        )}
+
+        {/* Footer row — امتیاز + کامنت */}
+        <div className="flex items-center gap-2.5">
           <button
-            onClick={(e) => { e.stopPropagation(); toggleLike(); }}
-            disabled={liking}
-            className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-rose transition-colors"
-            aria-label="پسندیدن"
+            onClick={(e) => { e.stopPropagation(); setRatingOpen(true); }}
+            className={cn(
+              "inline-flex items-center justify-center gap-1.5 h-11 px-3.5 rounded-full text-xs font-extrabold border transition-colors",
+              myScore
+                ? "text-white grad-gold border-transparent shadow-glow-gold"
+                : "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20"
+            )}
+            aria-label={myScore ? `ویرایش امتیاز ${toFa(myScore)} از ۱۰` : "ثبت امتیاز"}
           >
-            <Icon
-              name="heart"
-              size={14}
-              strokeWidth={liked ? 2.6 : 2.2}
-              className={liked ? "text-rose fill-rose" : "text-muted-foreground"}
-            />
+            <Icon name="spark" size={14} strokeWidth={2} />
+            <span className="nums-fa">{myScore ? `ویرایش (${toFa(myScore)}/۱۰)` : "ثبت امتیاز"}</span>
           </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setLikersOpen(true); }}
-            className={cn("text-xs font-bold transition-colors", liked ? "text-rose" : "text-muted-foreground hover:text-foreground")}
-            aria-label="مشاهده لایک‌کنندگان"
-          >
-            {formatCount(likeCount)}
-          </button>
-          <LikersSheet
-            open={likersOpen}
-            onClose={() => setLikersOpen(false)}
-            title="لایک‌کنندگان پست"
-            fetcher={postLikersFetcher(post.id)}
-            emptyTitle="هنوز لایکی نیست"
-            emptyDesc="اولین لایک را تو بزن!"
-          />
           <button
             onClick={(e) => { e.stopPropagation(); navigate({ view: "post", id: post.id, params: { from: "profile" } }); }}
-            className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-primary transition-colors"
+            className="inline-flex items-center gap-1 h-11 px-1 text-xs font-bold text-muted-foreground hover:text-primary transition-colors"
           >
             <Icon name="comment" size={14} strokeWidth={2.2} />
-            <span>دیدن</span>
+            <span className="nums-fa">{formatCount(post.commentCount)}</span>
           </button>
           {post.categoryName && (
             <span className="ms-auto inline-flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -375,6 +350,19 @@ function TimelinePost({ post, index }: { post: PostWithRelations; index: number 
           )}
         </div>
       </motion.button>
+
+      {/* مودال امتیاز ۱ تا ۱۰ ستاره */}
+      <RatingModal
+        open={ratingOpen}
+        onClose={() => setRatingOpen(false)}
+        postId={post.id}
+        initialScore={myScore}
+        onSaved={({ avg: a, count: c, myScore: s }) => {
+          setAvg(a);
+          setRatingCount(c);
+          setMyScore(s);
+        }}
+      />
     </motion.div>
   );
 }

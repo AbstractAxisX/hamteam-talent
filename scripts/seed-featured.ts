@@ -1,48 +1,56 @@
-// Seed featured posts with media
+// Seed پست‌های متنوع فید (رسانه‌دار: ویدیو/صوت/PDF) + امتیاز ستاره و کامنت
+// اجرا: bun scripts/seed-featured.ts
 import { db } from "../src/lib/db";
 
 async function run() {
-  const topTalents = await db.user.findMany({
-    where: { isTopTalent: true },
-    include: { profile: true, userCategories: { include: { category: true } }, userSkills: { include: { skill: true } } },
-  });
-  console.log(`Found ${topTalents.length} top talents`);
+  // پست‌ها از کاربران متنوع دمو — بر اساس شماره تلفن (نه فلگ حذف‌شده isTopTalent)
+  const phones = [
+    "09121110001", // امیرحسین — موسیقی
+    "09121110002", // سارا — برنامه‌نویسی
+    "09121110006", // پرهام — بازی‌سازی
+  ];
+  const authors: string[] = [];
+  for (const ph of phones) {
+    const u = await db.user.findUnique({ where: { phone: ph }, select: { id: true } });
+    if (u) authors.push(u.id);
+  }
+  console.log(`Found ${authors.length} authors`);
 
   const categories = await db.category.findMany({ include: { skills: true } });
 
-  const postsData = [
+  const postsData: { userId?: string; content: string; catName: string; skillName: string }[] = [
     {
-      userId: topTalents[0]?.id,
+      userId: authors[0],
       content: "ویدیو اجرای زنده‌ی هفته‌ی گذشته در استودیو 🎵 این قطعه ترکیبی از موسیقی سنتی و پاپ بود. نظراتتون برام خیلی مهمه!",
       catName: "موسیقی",
       skillName: "خوانندگی",
     },
     {
-      userId: topTalents[0]?.id,
+      userId: authors[0],
       content: "آموزش نت‌خوانی برای مبتدی‌ها — قسمت اول 📚 تو این ویدیو پایه‌های نت‌خوانی رو توضیح میدم. سوالاتتون رو تو کامنت‌ها بپرسید.",
       catName: "موسیقی",
       skillName: "تدریس موسیقی",
     },
     {
-      userId: topTalents[1]?.id,
+      userId: authors[1],
       content: "پروژه‌ی اوپن‌سورس جدیدم رو منتشر کردم 🚀 یک کتابخانه‌ی ری‌اکت برای انیمیشن‌های نرم. لینک گیت‌هاب تو بیو هست. استار فراموش نشه!",
       catName: "برنامه‌نویسی و توسعه",
       skillName: "فرانت‌اند",
     },
     {
-      userId: topTalents[1]?.id,
+      userId: authors[1],
       content: "سند معماری پروژه‌ی جدید — اینجا ساختار دیتابیس و API رو طراحی کردم. PDF کامل رو دانلود کنید و نظر بدید.",
       catName: "برنامه‌نویسی و توسعه",
       skillName: "بک‌اند",
     },
     {
-      userId: topTalents[2]?.id,
+      userId: authors[2],
       content: "گیم‌پلی از بازی جدیدم که دارم روش کار می‌کنم 🎮 یک بازی موبایل با سبک پازل-اکشن. هنوز در مرحله‌ی آلفاست.",
       catName: "بازی‌سازی",
       skillName: "بازی‌سازی یونیتی",
     },
     {
-      userId: topTalents[2]?.id,
+      userId: authors[2],
       content: "فایل صوتی پادکستم — قسمت «چطور بازی‌سازی رو شروع کنیم؟» تو این قسمت تجربیاتم رو از روز اول تا الان تعریف می‌کنم.",
       catName: "سخنوری و رسانه",
       skillName: "پادکست",
@@ -55,36 +63,32 @@ async function run() {
     const skill = cat?.skills.find((s) => s.name === pd.skillName);
 
     const existing = await db.post.findFirst({ where: { content: pd.content } });
-    if (existing) {
-      if (!existing.isFeatured) {
-        await db.post.update({ where: { id: existing.id }, data: { isFeatured: true } });
-        console.log(`Re-featured: ${pd.content.slice(0, 40)}...`);
-      }
-      continue;
-    }
+    if (existing) continue;
 
-    const post = await db.post.create({
+    await db.post.create({
       data: {
         userId: pd.userId,
         content: pd.content,
         categoryId: cat?.id,
         skillId: skill?.id,
-        isFeatured: true,
       },
     });
-    console.log(`Created+featured: ${pd.content.slice(0, 40)}...`);
+    console.log(`Created: ${pd.content.slice(0, 40)}...`);
   }
 
-  // Add likes and comments
-  const featuredPosts = await db.post.findMany({ where: { isFeatured: true } });
+  // امتیاز ستاره + کامنت روی پست‌های جدیدِ این اسکریپت
   const allUsers = await db.user.findMany({ where: { isBanned: false }, select: { id: true } });
+  for (const pd of postsData) {
+    if (!pd.userId) continue;
+    const post = await db.post.findFirst({ where: { content: pd.content } });
+    if (!post) continue;
 
-  for (const post of featuredPosts) {
-    const numLikes = 3 + Math.floor(Math.random() * 6);
-    const shuffled = [...allUsers].sort(() => Math.random() - 0.5).slice(0, numLikes);
+    const numRatings = 3 + Math.floor(Math.random() * 6);
+    const shuffled = [...allUsers].sort(() => Math.random() - 0.5).slice(0, numRatings);
     for (const u of shuffled) {
       if (u.id !== post.userId) {
-        try { await db.postLike.create({ data: { postId: post.id, userId: u.id } }); } catch { }
+        const score = 6 + Math.floor(Math.random() * 5); // 6..10
+        try { await db.postRating.create({ data: { postId: post.id, userId: u.id, score } }); } catch { }
       }
     }
 
@@ -110,11 +114,10 @@ async function run() {
     }
   }
 
-  console.log(`Added likes and comments to ${featuredPosts.length} posts`);
-  const finalCount = await db.post.count({ where: { isFeatured: true } });
-  const likeCount = await db.postLike.count();
+  const finalPosts = await db.post.count();
+  const ratingCount = await db.postRating.count();
   const commentCount = await db.comment.count();
-  console.log(`\nFinal: ${finalCount} featured posts, ${likeCount} likes, ${commentCount} comments`);
+  console.log(`\nFinal: ${finalPosts} posts, ${ratingCount} star ratings, ${commentCount} comments`);
   await db.$disconnect();
 }
 

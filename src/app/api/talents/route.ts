@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { provinceCandidates } from "@/lib/geo";
 import { categoryColorMap, resolveUserColor } from "@/lib/cat-color";
+import { usersStarInfo } from "@/lib/stars";
 import type { TalentListItem } from "@/lib/types";
 
 // GET /api/talents — browse talents (users) with filters
@@ -34,16 +35,10 @@ export async function GET(req: Request) {
     where.profile = { ...where.profile, city };
   }
   if (q) {
-    if (q.startsWith("@")) {
-      // مود جستجوی آیدی — فقط نام‌کاربری
-      const uname = q.slice(1).toLowerCase();
-      if (uname) where.username = { contains: uname };
-    } else {
-      where.OR = [
-        { name: { contains: q } },
-        { profile: { bioShort: { contains: q } } },
-      ];
-    }
+    where.OR = [
+      { name: { contains: q } },
+      { profile: { bioShort: { contains: q } } },
+    ];
   }
 
   const users = await db.user.findMany({
@@ -58,33 +53,39 @@ export async function GET(req: Request) {
   });
 
   const catMap = await categoryColorMap();
+  const starInfo = await usersStarInfo(users.map((u) => u.id));
 
-  const result: TalentListItem[] = users.map((u) => ({
-    id: u.id,
-    name: u.name,
-    username: u.username,
-    isVerifiedBadge: u.isVerifiedBadge,
-    isTopTalent: u.isTopTalent,
-    bioShort: u.profile?.bioShort || "",
-    avatarUrl: u.profile?.avatarUrl ?? null,
-    gender: (u.profile?.gender as string | null) ?? null,
-    province: u.profile?.province ?? null,
-    city: u.profile?.city ?? null,
-    categories: u.userCategories.map((uc) => ({
-      id: uc.category.id,
-      name: uc.category.name,
-      iconUrl: uc.category.iconUrl,
-      color: uc.category.color,
-    })),
-    followersCount: u.connectionsRec.length,
-    mainCategoryColor: resolveUserColor(
-      catMap,
-      u.profile?.mainCategoryId,
-      u.userCategories?.[0]?.categoryId
-    ),
-  }));
+  const result: TalentListItem[] = users.map((u) => {
+    const si = starInfo.get(u.id)!;
+    return {
+      id: u.id,
+      name: u.name,
+      isVerifiedBadge: u.isVerifiedBadge,
+      isTopTalent: si.isTopTalent,
+      frame: si.frame,
+      totalStars: si.totalStars,
+      bioShort: u.profile?.bioShort || "",
+      avatarUrl: u.profile?.avatarUrl ?? null,
+      gender: (u.profile?.gender as string | null) ?? null,
+      province: u.profile?.province ?? null,
+      city: u.profile?.city ?? null,
+      categories: u.userCategories.map((uc) => ({
+        id: uc.category.id,
+        name: uc.category.name,
+        iconUrl: uc.category.iconUrl,
+        color: uc.category.color,
+      })),
+      followersCount: u.connectionsRec.length,
+      mainCategoryColor: resolveUserColor(
+        catMap,
+        u.profile?.mainCategoryId,
+        u.userCategories?.[0]?.categoryId
+      ),
+    };
+  });
 
-  // Sort by followers if requested
+  // مرتب‌سازی — پیش‌فرض: ستاره‌های بیشتر اول (چهره‌های برتر بالاتر)
+  result.sort((a, b) => (b.totalStars ?? 0) - (a.totalStars ?? 0));
   if (sort === "followers") {
     result.sort((a, b) => b.followersCount - a.followersCount);
   }

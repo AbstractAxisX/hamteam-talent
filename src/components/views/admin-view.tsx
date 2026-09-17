@@ -98,15 +98,9 @@ import {
   FolderPlus,
   Pencil,
   Tag,
-  Award,
   Crown,
   Image as ImageIcon,
-  MapPin,
-  Calendar,
-  FileImage,
   Palette,
-  Phone,
-  AtSign,
   Sparkles,
   User as UserIcon,
   Megaphone as MegaphoneIcon,
@@ -180,6 +174,8 @@ type AdminUser = {
   isVerifiedBadge: boolean;
   isBanned: boolean;
   isTopTalent?: boolean;
+  frame?: "gold" | "rosegold" | null;
+  totalStars?: number;
   avatarUrl?: string | null;
   createdAt: string;
 };
@@ -190,56 +186,6 @@ type AdminPost = {
   isFeatured?: boolean;
   createdAt: string;
   user: { name: string; isTopTalent?: boolean };
-};
-
-type TopTalentRequest = {
-  id: string;
-  userId: string;
-  userName: string;
-  userAvatar: string | null;
-  phoneNumber: string;
-  socialMediaId: string;
-  description: string;
-  status: "pending" | "approved" | "rejected";
-  rejectReason: string | null;
-  createdAt: string;
-  reviewedAt: string | null;
-};
-
-type TopTalentRequestDetail = {
-  id: string;
-  userId: string;
-  userName: string;
-  userPhone: string;
-  userAvatar: string | null;
-  userBio: string;
-  userBioLong: string;
-  userProvince: string | null;
-  userCity: string | null;
-  nationalIdPhotoUrl: string | null;
-  phoneNumber: string;
-  socialMediaId: string;
-  description: string;
-  status: "pending" | "approved" | "rejected";
-  rejectReason: string | null;
-  createdAt: string;
-  reviewedAt: string | null;
-  experiences: {
-    id: string;
-    title: string;
-    company: string;
-    startDate: string;
-    endDate: string | null;
-    description?: string;
-  }[];
-  educations: {
-    id: string;
-    degree: string;
-    field: string;
-    institution: string;
-    startDate: string;
-    endDate: string | null;
-  }[];
 };
 
 type AdminJob = {
@@ -443,7 +389,6 @@ type PageKey =
   | "categories"
   | "posts"
   | "needs"
-  | "top-talent"
   | "broadcast"
   | "banners"
   | "reports"
@@ -457,7 +402,6 @@ const PAGES: { key: PageKey; label: string; icon: typeof UsersIcon }[] = [
   { key: "posts", label: "پست‌ها", icon: FileText },
   { key: "categories", label: "دسته‌بندی‌ها", icon: FolderTree },
   { key: "needs", label: "نیازمندی‌ها", icon: Briefcase },
-  { key: "top-talent", label: "درخواست‌های استعداد برتر", icon: Award },
   { key: "tickets", label: "تیکت‌های پشتیبانی", icon: TicketIcon },
   { key: "banners", label: "بنرها و تبلیغات", icon: MegaphoneIcon },
   { key: "broadcast", label: "اعلان سراسری", icon: Megaphone },
@@ -629,7 +573,6 @@ function AdminDashboard({
               {page === "categories" && <CategoriesTab />}
               {page === "posts" && <PostsTab />}
               {page === "needs" && <NeedsTab />}
-              {page === "top-talent" && <TopTalentTab />}
               {page === "broadcast" && <BroadcastTab />}
               {page === "banners" && <BannersTab />}
               {page === "reports" && <ReportsTab />}
@@ -1102,42 +1045,35 @@ function StatusBadge({
   );
 }
 
-function TopTalentStatusBadge({
-  status,
-}: {
-  status: "pending" | "approved" | "rejected";
-}) {
-  if (status === "approved") {
-    return (
-      <Badge className="bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-50 text-[10px] h-5 rounded gap-1">
-        <CheckCircle2 className="w-3 h-3" /> تایید شده
-      </Badge>
-    );
+/* ── نمایش ستارهٔ کاربر — فقط-خواندنی، مشتق از رأی‌ها (چهره برتر) ── */
+function UserStarsCell({ user }: { user: AdminUser }) {
+  if (!user.isTopTalent && !(user.totalStars ?? 0)) {
+    return <span className="text-xs text-gray-400">—</span>;
   }
-  if (status === "rejected") {
-    return (
-      <Badge className="bg-red-50 text-red-700 border border-red-200 hover:bg-red-50 text-[10px] h-5 rounded gap-1">
-        <XCircle className="w-3 h-3" /> رد شده
-      </Badge>
-    );
-  }
+  const rose = user.frame === "rosegold";
   return (
-    <Badge className="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50 text-[10px] h-5 rounded gap-1">
-      <Clock className="w-3 h-3" /> در انتظار
-    </Badge>
-  );
-}
-
-function TopTalentCrownBadge({ className }: { className?: string }) {
-  return (
-    <Badge
-      className={cn(
-        "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50 text-[10px] h-5 rounded gap-1",
-        className
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <span
+        className="inline-flex items-center gap-1 text-xs font-bold nums-fa"
+        title="مجموع ستاره‌های دریافتی"
+      >
+        <Sparkles className={rose ? "w-3.5 h-3.5 text-rose-500" : "w-3.5 h-3.5 text-amber-500"} />
+        {toFa(user.totalStars ?? 0)}
+      </span>
+      {user.frame && (
+        <Badge
+          className={cn(
+            "text-[10px] h-5 rounded gap-1",
+            rose
+              ? "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-50"
+              : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50"
+          )}
+        >
+          <Crown className="w-3 h-3" />
+          {rose ? "رزگلد" : "طلایی"}
+        </Badge>
       )}
-    >
-      <Crown className="w-3 h-3" /> استعداد برتر
-    </Badge>
+    </div>
   );
 }
 
@@ -1377,14 +1313,6 @@ function UsersTab() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // User-documents dialog (top-talent national ID photo viewer)
-  const [docsUser, setDocsUser] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const [docsRequests, setDocsRequests] = useState<TopTalentRequestDetail[]>([]);
-  const [docsLoading, setDocsLoading] = useState(false);
-
   // Debounce search input
   useEffect(() => {
     const t = setTimeout(() => {
@@ -1480,63 +1408,6 @@ function UsersTab() {
     } finally {
       setActionLoading(null);
     }
-  }
-
-  async function toggleTopTalent(id: string, current: boolean) {
-    setActionLoading(id + "top-talent");
-    try {
-      const res = await apiPost<{ ok: boolean; isTopTalent: boolean }>(
-        `/api/admin/users/${id}/top-talent`,
-        {}
-      );
-      // Optimistically update local list so the badge updates immediately
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === id ? { ...u, isTopTalent: res.isTopTalent } : u
-        )
-      );
-      toast({
-        title: res.isTopTalent
-          ? "نشان استعداد برتر اعطا شد"
-          : "نشان استعداد برتر لغو شد",
-      });
-    } catch (e) {
-      toast({
-        title: "خطا",
-        description: (e as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  // View top-talent documents for a user (national ID photo, identity tracking)
-  function openDocs(id: string, name: string) {
-    setDocsUser({ id, name });
-    setDocsRequests([]);
-    setDocsLoading(true);
-    // First fetch the list of all requests, filter by userId, then fetch each detail
-    api<{ requests: TopTalentRequest[] }>("/api/top-talent/requests")
-      .then(async (d) => {
-        const userReqs = d.requests.filter((r) => r.userId === id);
-        if (userReqs.length === 0) return;
-        const details = await Promise.all(
-          userReqs.map((r) =>
-            api<TopTalentRequestDetail>(`/api/top-talent/requests/${r.id}`)
-              .then((detail) => detail)
-              .catch(() => null)
-          )
-        );
-        setDocsRequests(details.filter(Boolean) as TopTalentRequestDetail[]);
-      })
-      .catch(() =>
-        toast({
-          title: "خطا در بارگذاری مدارک",
-          variant: "destructive",
-        })
-      )
-      .finally(() => setDocsLoading(false));
   }
 
   async function bulkAction(action: "ban" | "unban" | "verify" | "unverify") {
@@ -1664,11 +1535,11 @@ function UsersTab() {
           <FilterSelect
             value={filterTopTalent}
             onChange={setFilterTopTalent}
-            placeholder="استعداد برتر"
+            placeholder="قاب چهره برتر"
             options={[
-              { value: "all", label: "همه (استعداد)" },
-              { value: "yes", label: "استعداد برتر" },
-              { value: "no", label: "عادی" },
+              { value: "all", label: "همه (قاب)" },
+              { value: "yes", label: "دارای قاب (چهره برتر)" },
+              { value: "no", label: "بدون قاب" },
             ]}
           />
           {hasActiveFilters && (
@@ -1697,6 +1568,7 @@ function UsersTab() {
                 </TableHead>
                 <TableHead className="font-bold text-gray-700">کاربر</TableHead>
                 <TableHead className="font-bold text-gray-700">تلفن</TableHead>
+                <TableHead className="font-bold text-gray-700">ستاره</TableHead>
                 <TableHead className="font-bold text-gray-700">تایید</TableHead>
                 <TableHead className="font-bold text-gray-700">وضعیت</TableHead>
                 <TableHead className="font-bold text-gray-700">عضویت</TableHead>
@@ -1707,13 +1579,13 @@ function UsersTab() {
               {loading ? (
                 [...Array(6)].map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={7}>
+                    <TableCell colSpan={8}>
                       <Skeleton className="h-10 w-full rounded-md" />
                     </TableCell>
                   </TableRow>
                 ))
               ) : paginated.length === 0 ? (
-                <EmptyRow colSpan={7} message="کاربری پیدا نشد" />
+                <EmptyRow colSpan={8} message="کاربری پیدا نشد" />
               ) : (
                 paginated.map((u) => {
                   const isSelected = selected.has(u.id);
@@ -1732,7 +1604,7 @@ function UsersTab() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2.5 min-w-[180px]">
-                          <div className="relative shrink-0">
+                          <div className="shrink-0">
                             <div
                               className="grid place-items-center w-9 h-9 rounded-full text-xs font-bold overflow-hidden"
                               style={{ backgroundColor: ADMIN_PRIMARY, color: ADMIN_FG }}
@@ -1747,22 +1619,10 @@ function UsersTab() {
                                 u.name.slice(0, 1)
                               )}
                             </div>
-                            {u.isTopTalent && (
-                              <span
-                                className="absolute -top-1 -left-1 grid place-items-center w-4 h-4 rounded-full shadow-sm border border-white"
-                                style={{ backgroundColor: "oklch(0.72 0.14 80)" }}
-                                title="استعداد برتر"
-                              >
-                                <Crown className="w-2.5 h-2.5 text-white" />
-                              </span>
-                            )}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-bold text-sm text-gray-900 truncate flex items-center gap-1">
+                            <p className="font-bold text-sm text-gray-900 truncate">
                               {u.name}
-                              {u.isTopTalent && (
-                                <Crown className="w-3 h-3 text-amber-500 inline" />
-                              )}
                             </p>
                             <p className="text-[10px] text-gray-400 truncate">
                               {u.avatarUrl ? "دارای عکس" : "بدون عکس"}
@@ -1772,6 +1632,9 @@ function UsersTab() {
                       </TableCell>
                       <TableCell dir="ltr" className="text-sm text-gray-700 font-mono">
                         {u.phone}
+                      </TableCell>
+                      <TableCell>
+                        <UserStarsCell user={u} />
                       </TableCell>
                       <TableCell>
                         <StatusBadge
@@ -1833,23 +1696,6 @@ function UsersTab() {
                                 </>
                               )}
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => toggleTopTalent(u.id, !!u.isTopTalent)}
-                              disabled={actionLoading === u.id + "top-talent"}
-                              className="gap-2 cursor-pointer"
-                            >
-                              <Award className="w-4 h-4 text-amber-600" />
-                              {u.isTopTalent
-                                ? "لغو نشان استعداد برتر"
-                                : "اعطای نشان استعداد برتر"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openDocs(u.id, u.name)}
-                              className="gap-2 cursor-pointer"
-                            >
-                              <FileImage className="w-4 h-4 text-blue-600" />
-                              مشاهده مدارک استعداد برتر
-                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() =>
@@ -1879,122 +1725,6 @@ function UsersTab() {
         />
       </TableCard>
 
-      {/* User top-talent documents dialog (national ID photo, identity tracking) */}
-      <Dialog
-        open={docsUser !== null}
-        onOpenChange={(o) => {
-          if (!o) {
-            setDocsUser(null);
-            setDocsRequests([]);
-          }
-        }}
-      >
-        <DialogContent className="rounded-xl max-w-2xl max-h-[90vh] overflow-y-auto slim-scroll">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <FileImage className="w-4 h-4 text-blue-600" />
-              مدارک استعداد برتر — {docsUser?.name}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-2 space-y-3">
-            {docsLoading ? (
-              <div className="py-10 grid place-items-center">
-                <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-                <p className="text-xs text-gray-500 mt-2">
-                  در حال بارگذاری مدارک...
-                </p>
-              </div>
-            ) : docsRequests.length === 0 ? (
-              <div className="py-10 text-center">
-                <FileImage className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">
-                  این کاربر هنوز درخواست استعداد برتر ثبت نکرده است.
-                </p>
-              </div>
-            ) : (
-              docsRequests.map((r) => (
-                <div
-                  key={r.id}
-                  className="rounded-xl border border-gray-200 overflow-hidden"
-                >
-                  <div className="flex items-center justify-between gap-2 p-3 bg-gray-50/60 border-b border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <TopTalentStatusBadge status={r.status} />
-                      <span className="text-[11px] text-gray-500 nums-fa">
-                        {formatFaDate(r.createdAt)}
-                      </span>
-                    </div>
-                    {r.phoneNumber && (
-                      <span
-                        dir="ltr"
-                        className="text-[11px] text-gray-600 font-mono inline-flex items-center gap-1"
-                      >
-                        <Phone className="w-3 h-3" />
-                        {r.phoneNumber}
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-3 space-y-2">
-                    {r.description && (
-                      <p className="text-xs text-gray-700 leading-6 whitespace-pre-wrap bg-gray-50/60 border border-gray-100 rounded-lg p-2.5">
-                        {r.description}
-                      </p>
-                    )}
-                    {r.nationalIdPhotoUrl ? (
-                      <a
-                        href={r.nationalIdPhotoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block group"
-                      >
-                        <div className="relative rounded-lg border border-gray-200 overflow-hidden bg-gray-50 hover:border-blue-300 transition-colors">
-                          <img
-                            src={r.nationalIdPhotoUrl}
-                            alt="کارت ملی"
-                            className="w-full max-h-72 object-contain"
-                          />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                            <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-gray-800 rounded-lg px-3 py-1.5 text-xs font-bold flex items-center gap-1.5">
-                              <Eye className="w-3.5 h-3.5" />
-                              مشاهده در اندازه کامل
-                            </span>
-                          </div>
-                        </div>
-                      </a>
-                    ) : (
-                      <div className="p-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-center">
-                        <FileImage className="w-7 h-7 text-gray-300 mx-auto mb-1" />
-                        <p className="text-xs text-gray-400">
-                          تصویر کارت ملی بارگذاری نشده
-                        </p>
-                      </div>
-                    )}
-                    {r.status === "rejected" && r.rejectReason && (
-                      <div className="p-2.5 rounded-lg border border-red-200 bg-red-50/50">
-                        <p className="text-[11px] font-bold text-red-700 mb-0.5">
-                          دلیل رد:
-                        </p>
-                        <p className="text-xs text-red-800">{r.rejectReason}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <DialogFooter>
-            <OutlineButton
-              onClick={() => {
-                setDocsUser(null);
-                setDocsRequests([]);
-              }}
-              className="h-9 rounded-lg"
-            >
-              بستن
-            </OutlineButton>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -2661,8 +2391,8 @@ function PostsTab() {
       );
       toast({
         title: res.isFeatured
-          ? "پست به ویترین استعدادهای برتر اضافه شد"
-          : "پست از ویترین استعدادهای برتر حذف شد",
+          ? "پست به ویترین چهره برتر اضافه شد"
+          : "پست از ویترین چهره برتر حذف شد",
       });
     } catch (e) {
       toast({
@@ -2774,7 +2504,7 @@ function PostsTab() {
                           </span>
                           {p.user.isTopTalent && (
                             <span
-                              title="استعداد برتر"
+                              title="چهره برتر"
                               className="inline-grid place-items-center w-5 h-5 rounded-full"
                               style={{
                                 backgroundColor: "oklch(0.92 0.07 80)",
@@ -2811,7 +2541,7 @@ function PostsTab() {
                             title={
                               p.isFeatured
                                 ? "حذف از ویترین"
-                                : "ارسال به ویترین استعدادهای برتر"
+                                : "ارسال به ویترین چهره برتر"
                             }
                           >
                             {actionLoading === p.id + "feature" ? (
@@ -3182,795 +2912,6 @@ function NeedsTab() {
           onPageChange={setPage}
         />
       </TableCard>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// 5b. Top Talent Requests Tab — list with detail dialog (approve / reject)
-// ═══════════════════════════════════════════════════════════════════
-const TOP_TALENT_PAGE_SIZE = 10;
-
-function TopTalentTab() {
-  const [requests, setRequests] = useState<TopTalentRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [page, setPage] = useState(1);
-
-  // Detail dialog state
-  const [detailId, setDetailId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<TopTalentRequestDetail | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [rejectMode, setRejectMode] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(1);
-    }, 250);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    api<{ requests: TopTalentRequest[] }>("/api/top-talent/requests")
-      .then((d) => setRequests(d.requests))
-      .catch(() => toast({ title: "خطا در بارگذاری", variant: "destructive" }))
-      .finally(() => setLoading(false));
-  }, []);
-  useEffect(load, [load]);
-
-  const filtered = useMemo(() => {
-    return requests.filter((r) => {
-      if (filterStatus !== "all" && r.status !== filterStatus) return false;
-      if (!debouncedSearch) return true;
-      const q = debouncedSearch.trim().toLowerCase();
-      return (
-        r.userName.toLowerCase().includes(q) ||
-        r.phoneNumber.toLowerCase().includes(q) ||
-        r.socialMediaId.toLowerCase().includes(q)
-      );
-    });
-  }, [requests, debouncedSearch, filterStatus]);
-
-  const paginated = useMemo(() => {
-    const start = (page - 1) * TOP_TALENT_PAGE_SIZE;
-    return filtered.slice(start, start + TOP_TALENT_PAGE_SIZE);
-  }, [filtered, page]);
-
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / TOP_TALENT_PAGE_SIZE));
-  useEffect(() => {
-    if (page > totalPages) setPage(1);
-  }, [page, totalPages]);
-
-  // Pending count badge
-  const pendingCount = requests.filter((r) => r.status === "pending").length;
-
-  // Counts per status
-  const statusCounts = useMemo(() => {
-    return {
-      pending: requests.filter((r) => r.status === "pending").length,
-      approved: requests.filter((r) => r.status === "approved").length,
-      rejected: requests.filter((r) => r.status === "rejected").length,
-    };
-  }, [requests]);
-
-  function clearFilters() {
-    setSearch("");
-    setFilterStatus("all");
-  }
-  const hasActiveFilters = debouncedSearch !== "" || filterStatus !== "all";
-
-  // ─── Detail dialog ───
-  function openDetail(id: string) {
-    setDetailId(id);
-    setDetail(null);
-    setRejectMode(false);
-    setRejectReason("");
-    setDetailLoading(true);
-    api<TopTalentRequestDetail>(`/api/top-talent/requests/${id}`)
-      .then((d) => setDetail(d))
-      .catch(() =>
-        toast({ title: "خطا در بارگذاری درخواست", variant: "destructive" })
-      )
-      .finally(() => setDetailLoading(false));
-  }
-
-  function closeDetail() {
-    setDetailId(null);
-    setDetail(null);
-    setRejectMode(false);
-    setRejectReason("");
-  }
-
-  async function doApprove() {
-    if (!detail) return;
-    setActionLoading(true);
-    try {
-      await apiPost(`/api/top-talent/requests/${detail.id}`, {
-        action: "approve",
-      });
-      toast({ title: "استعداد برتر تایید شد" });
-      closeDetail();
-      load();
-    } catch (e) {
-      toast({
-        title: "خطا در تایید",
-        description: (e as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  async function doReject() {
-    if (!detail) return;
-    if (!rejectReason.trim()) {
-      toast({ title: "دلیل رد را وارد کنید", variant: "destructive" });
-      return;
-    }
-    setActionLoading(true);
-    try {
-      await apiPost(`/api/top-talent/requests/${detail.id}`, {
-        action: "reject",
-        rejectReason: rejectReason.trim(),
-      });
-      toast({ title: "درخواست رد شد" });
-      closeDetail();
-      load();
-    } catch (e) {
-      toast({
-        title: "خطا در رد",
-        description: (e as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  return (
-    <div>
-      <PageHeader
-        title="درخواست‌های استعداد برتر"
-        description="بررسی، تایید یا رد درخواست‌های کاربران برای دریافت نشان استعداد برتر"
-        actions={
-          <OutlineButton size="sm" onClick={load} className="gap-1.5 h-9">
-            <RotateCcw className="w-3.5 h-3.5" />
-            به‌روزرسانی
-          </OutlineButton>
-        }
-      />
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <SummaryCard
-          label="کل درخواست‌ها"
-          value={requests.length}
-          icon={Award}
-          tint="bg-blue-50"
-          text="text-blue-700"
-        />
-        <SummaryCard
-          label="در انتظار"
-          value={statusCounts.pending}
-          icon={Clock}
-          tint="bg-amber-50"
-          text="text-amber-700"
-        />
-        <SummaryCard
-          label="تایید شده"
-          value={statusCounts.approved}
-          icon={CheckCircle2}
-          tint="bg-sky-50"
-          text="text-sky-700"
-        />
-        <SummaryCard
-          label="رد شده"
-          value={statusCounts.rejected}
-          icon={XCircle}
-          tint="bg-red-50"
-          text="text-red-700"
-        />
-      </div>
-
-      {pendingCount > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-4 p-3 rounded-xl border flex items-center gap-2"
-          style={{
-            backgroundColor: "oklch(0.96 0.05 80)",
-            borderColor: "oklch(0.88 0.07 80)",
-          }}
-        >
-          <Clock className="w-4 h-4 text-amber-600" />
-          <p className="text-sm text-gray-700">
-            <strong className="nums-fa">{toFa(pendingCount)}</strong> درخواست در
-            انتظار بررسی شماست.
-          </p>
-        </motion.div>
-      )}
-
-      <TableCard>
-        <TableToolbar>
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="جستجوی نام، تلفن یا شناسه شبکه اجتماعی..."
-          />
-          <FilterSelect
-            value={filterStatus}
-            onChange={setFilterStatus}
-            placeholder="وضعیت"
-            options={[
-              { value: "all", label: "همه" },
-              { value: "pending", label: "در انتظار" },
-              { value: "approved", label: "تایید شده" },
-              { value: "rejected", label: "رد شده" },
-            ]}
-          />
-          {hasActiveFilters && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={clearFilters}
-              className="h-9 text-gray-500 hover:text-gray-900 gap-1.5"
-            >
-              <X className="w-3.5 h-3.5" />
-              پاک کردن
-            </Button>
-          )}
-          <Badge className="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-50">
-            {toFa(total)} درخواست
-          </Badge>
-        </TableToolbar>
-
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
-                <TableHead className="font-bold text-gray-700">متقاضی</TableHead>
-                <TableHead className="font-bold text-gray-700">تلفن</TableHead>
-                <TableHead className="font-bold text-gray-700">
-                  شناسه شبکه اجتماعی
-                </TableHead>
-                <TableHead className="font-bold text-gray-700">وضعیت</TableHead>
-                <TableHead className="font-bold text-gray-700">تاریخ</TableHead>
-                <TableHead className="font-bold text-gray-700 text-left">
-                  عملیات
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                [...Array(6)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={6}>
-                      <Skeleton className="h-12 w-full rounded-md" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : paginated.length === 0 ? (
-                <EmptyRow colSpan={6} message="درخواستی پیدا نشد" />
-              ) : (
-                paginated.map((r) => (
-                  <TableRow
-                    key={r.id}
-                    className="hover:bg-blue-50/30 cursor-pointer transition-colors"
-                    onClick={() => openDetail(r.id)}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-2.5 min-w-[180px]">
-                        <div className="grid place-items-center w-9 h-9 rounded-full text-xs font-bold shrink-0 overflow-hidden"
-                          style={{ backgroundColor: ADMIN_PRIMARY, color: ADMIN_FG }}
-                        >
-                          {r.userAvatar ? (
-                            <img
-                              src={r.userAvatar}
-                              alt={r.userName}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            r.userName.slice(0, 1)
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm text-gray-900 truncate">
-                            {r.userName}
-                          </p>
-                          <p className="text-[10px] text-gray-400 truncate line-clamp-1">
-                            {r.description || "—"}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell
-                      dir="ltr"
-                      className="text-sm text-gray-700 font-mono"
-                    >
-                      {r.phoneNumber}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-700">
-                      {r.socialMediaId ? (
-                        <span className="inline-flex items-center gap-1">
-                          <AtSign className="w-3 h-3 text-gray-400" />
-                          {r.socialMediaId}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <TopTalentStatusBadge status={r.status} />
-                    </TableCell>
-                    <TableCell className="text-xs text-gray-600">
-                      {timeAgoFa(r.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-left">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDetail(r.id);
-                        }}
-                        className="h-8 px-2 gap-1 hover:bg-blue-50 hover:text-blue-700 text-gray-600"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span className="text-xs hidden sm:inline">مشاهده</span>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        <PaginationBar
-          page={page}
-          pageSize={TOP_TALENT_PAGE_SIZE}
-          total={total}
-          onPageChange={setPage}
-        />
-      </TableCard>
-
-      {/* Detail dialog */}
-      <Dialog
-        open={detailId !== null}
-        onOpenChange={(o) => {
-          if (!o) closeDetail();
-        }}
-      >
-        <DialogContent className="rounded-xl max-w-3xl max-h-[90vh] overflow-y-auto slim-scroll">
-          {detailLoading ? (
-            <div className="py-10 grid place-items-center">
-              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-              <p className="text-xs text-gray-500 mt-2">در حال بارگذاری...</p>
-            </div>
-          ) : detail ? (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-base font-bold flex items-center justify-between gap-2 flex-wrap">
-                  <span className="flex items-center gap-2">
-                    <Award className="w-4 h-4 text-amber-600" />
-                    جزئیات درخواست استعداد برتر
-                  </span>
-                  <TopTalentStatusBadge status={detail.status} />
-                </DialogTitle>
-              </DialogHeader>
-
-              <div className="space-y-4 py-2">
-                {/* User profile header */}
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50/40 border border-blue-100">
-                  <div className="grid place-items-center w-14 h-14 rounded-2xl text-base font-extrabold shrink-0 overflow-hidden"
-                    style={{ backgroundColor: ADMIN_PRIMARY, color: ADMIN_FG }}
-                  >
-                    {detail.userAvatar ? (
-                      <img
-                        src={detail.userAvatar}
-                        alt={detail.userName}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      detail.userName.slice(0, 1)
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-sm text-gray-900 truncate">
-                      {detail.userName}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[11px] text-gray-600">
-                      <span
-                        dir="ltr"
-                        className="inline-flex items-center gap-1 font-mono"
-                      >
-                        <Phone className="w-3 h-3" />
-                        {detail.userPhone}
-                      </span>
-                      {(detail.userProvince || detail.userCity) && (
-                        <span className="inline-flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {[detail.userProvince, detail.userCity]
-                            .filter(Boolean)
-                            .join(" - ")}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      navigate({ view: "profile", id: detail.userId })
-                    }
-                    className="h-8 gap-1.5"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    پروفایل
-                  </Button>
-                </div>
-
-                {/* Bio */}
-                {detail.userBio && (
-                  <DetailRow
-                    icon={UserIcon}
-                    label="بیوگرافی کوتاه"
-                    value={detail.userBio}
-                  />
-                )}
-                {detail.userBioLong && (
-                  <DetailRow
-                    icon={FileText}
-                    label="درباره من"
-                    value={detail.userBioLong}
-                  />
-                )}
-
-                {/* Application details */}
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <DetailField
-                    icon={Phone}
-                    label="شماره تماس در درخواست"
-                    value={detail.phoneNumber}
-                    mono
-                  />
-                  <DetailField
-                    icon={AtSign}
-                    label="شناسه شبکه اجتماعی"
-                    value={detail.socialMediaId}
-                  />
-                </div>
-
-                {detail.description && (
-                  <DetailRow
-                    icon={FileText}
-                    label="توضیحات متقاضی"
-                    value={detail.description}
-                  />
-                )}
-
-                {/* National ID photo */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-                    <FileImage className="w-3.5 h-3.5 text-blue-600" />
-                    تصویر کارت ملی (سند هویتی)
-                  </Label>
-                  {detail.nationalIdPhotoUrl ? (
-                    <a
-                      href={detail.nationalIdPhotoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block group"
-                    >
-                      <div className="relative rounded-xl border border-gray-200 overflow-hidden bg-gray-50 hover:border-blue-300 transition-colors">
-                        <img
-                          src={detail.nationalIdPhotoUrl}
-                          alt="کارت ملی متقاضی"
-                          className="w-full max-h-80 object-contain"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-gray-800 rounded-lg px-3 py-1.5 text-xs font-bold flex items-center gap-1.5">
-                            <Eye className="w-3.5 h-3.5" />
-                            مشاهده در اندازه کامل
-                          </span>
-                        </div>
-                      </div>
-                    </a>
-                  ) : (
-                    <div className="p-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center">
-                      <FileImage className="w-8 h-8 text-gray-300 mx-auto mb-1" />
-                      <p className="text-xs text-gray-400">
-                        تصویر کارت ملی بارگذاری نشده
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Experiences & Educations */}
-                {(detail.experiences?.length > 0 ||
-                  detail.educations?.length > 0) && (
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    {detail.experiences.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-                          <Briefcase className="w-3.5 h-3.5 text-blue-600" />
-                          سوابق شغلی ({toFa(detail.experiences.length)})
-                        </p>
-                        <div className="space-y-1.5">
-                          {detail.experiences.map((x) => (
-                            <div
-                              key={x.id}
-                              className="text-xs p-2 rounded-lg border border-gray-100 bg-gray-50/50"
-                            >
-                              <p className="font-bold text-gray-900">
-                                {x.title}
-                                {x.company ? ` — ${x.company}` : ""}
-                              </p>
-                              <p className="text-[10px] text-gray-500 nums-fa">
-                                {formatFaDate(x.startDate)}
-                                {x.endDate
-                                  ? ` تا ${formatFaDate(x.endDate)}`
-                                  : " — اکنون"}
-                              </p>
-                              {x.description && (
-                                <p className="text-[11px] text-gray-600 mt-0.5 line-clamp-2">
-                                  {x.description}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {detail.educations.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5 text-blue-600" />
-                          تحصیلات ({toFa(detail.educations.length)})
-                        </p>
-                        <div className="space-y-1.5">
-                          {detail.educations.map((x) => (
-                            <div
-                              key={x.id}
-                              className="text-xs p-2 rounded-lg border border-gray-100 bg-gray-50/50"
-                            >
-                              <p className="font-bold text-gray-900">
-                                {x.degree}
-                                {x.field ? ` — ${x.field}` : ""}
-                              </p>
-                              <p className="text-[10px] text-gray-500 nums-fa">
-                                {x.institution}
-                                {x.startDate
-                                  ? ` • ${formatFaDate(x.startDate)}`
-                                  : ""}
-                                {x.endDate
-                                  ? ` تا ${formatFaDate(x.endDate)}`
-                                  : ""}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Reject reason (if already rejected) */}
-                {detail.status === "rejected" && detail.rejectReason && (
-                  <div className="p-3 rounded-xl border border-red-200 bg-red-50/50">
-                    <p className="text-xs font-bold text-red-700 flex items-center gap-1.5 mb-1">
-                      <XCircle className="w-3.5 h-3.5" />
-                      دلیل رد
-                    </p>
-                    <p className="text-xs text-red-800">{detail.rejectReason}</p>
-                  </div>
-                )}
-
-                {/* Submission date */}
-                <div className="flex items-center gap-1.5 text-[11px] text-gray-500 pt-1">
-                  <Calendar className="w-3 h-3" />
-                  ارسال: {formatFaDate(detail.createdAt)}
-                  {detail.reviewedAt && (
-                    <span className="nums-fa">
-                      {" "}
-                      • بررسی: {formatFaDate(detail.reviewedAt)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Action footer — only for pending requests */}
-              {detail.status === "pending" && (
-                <DialogFooter className="gap-2 flex-col sm:flex-row sm:items-end">
-                  {rejectMode ? (
-                    <div className="w-full space-y-2">
-                      <Label className="text-xs font-bold text-gray-700">
-                        دلیل رد درخواست{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <Textarea
-                        value={rejectReason}
-                        onChange={(e) => setRejectReason(e.target.value)}
-                        placeholder="مثلاً: تصویر کارت ملی واضح نیست..."
-                        maxLength={500}
-                        className={cn(
-                          "rounded-lg border-gray-200 min-h-[80px] resize-y",
-                          TX.ringPrimary
-                        )}
-                      />
-                      <div className="flex items-center justify-end gap-2">
-                        <OutlineButton
-                          onClick={() => {
-                            setRejectMode(false);
-                            setRejectReason("");
-                          }}
-                          className="h-9"
-                          disabled={actionLoading}
-                        >
-                          انصراف
-                        </OutlineButton>
-                        <Button
-                          onClick={doReject}
-                          disabled={
-                            actionLoading || !rejectReason.trim()
-                          }
-                          className="rounded-lg h-9 bg-red-600 hover:bg-red-700 gap-1.5 text-white"
-                        >
-                          {actionLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <XCircle className="w-4 h-4" />
-                          )}
-                          تایید رد
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <Button
-                        onClick={() => setRejectMode(true)}
-                        disabled={actionLoading}
-                        variant="outline"
-                        className="rounded-lg h-9 gap-1.5 border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300 hover:text-red-800"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        رد درخواست
-                      </Button>
-                      <PrimaryButton
-                        onClick={doApprove}
-                        disabled={actionLoading}
-                        className="rounded-lg h-9 gap-1.5 bg-sky-600 hover:bg-sky-700"
-                        style={{
-                          backgroundColor: "oklch(0.6 0.13 160)",
-                          color: ADMIN_FG,
-                        }}
-                      >
-                        {actionLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="w-4 h-4" />
-                        )}
-                        تایید استعداد برتر
-                      </PrimaryButton>
-                    </>
-                  )}
-                </DialogFooter>
-              )}
-
-              {(detail.status === "approved" ||
-                detail.status === "rejected") && (
-                <DialogFooter>
-                  <OutlineButton
-                    onClick={closeDetail}
-                    className="h-9 rounded-lg"
-                  >
-                    بستن
-                  </OutlineButton>
-                </DialogFooter>
-              )}
-            </>
-          ) : (
-            <div className="py-10 text-center">
-              <AlertTriangle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">
-                بارگذاری درخواست ناموفق بود
-              </p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  icon: Icon,
-  tint,
-  text,
-}: {
-  label: string;
-  value: number;
-  icon: typeof UsersIcon;
-  tint: string;
-  text: string;
-}) {
-  return (
-    <Card className="p-3 border-gray-200 shadow-sm rounded-xl">
-      <div className="flex items-center gap-2.5">
-        <div className={cn("grid place-items-center w-9 h-9 rounded-lg", tint)}>
-          <Icon className={cn("w-4 h-4", text)} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xl font-extrabold text-gray-900 nums-fa leading-none">
-            {toFa(value)}
-          </p>
-          <p className="text-[10px] text-gray-500 font-medium truncate">
-            {label}
-          </p>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function DetailRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof UsersIcon;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <Label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-        <Icon className="w-3.5 h-3.5 text-blue-600" />
-        {label}
-      </Label>
-      <p className="text-sm text-gray-700 leading-6 whitespace-pre-wrap rounded-lg bg-gray-50/60 border border-gray-100 p-2.5">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function DetailField({
-  icon: Icon,
-  label,
-  value,
-  mono,
-}: {
-  icon: typeof UsersIcon;
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="space-y-1 p-2.5 rounded-lg border border-gray-100 bg-gray-50/40">
-      <Label className="text-[10px] font-bold text-gray-500 flex items-center gap-1.5">
-        <Icon className="w-3 h-3" />
-        {label}
-      </Label>
-      <p
-        dir={mono ? "ltr" : undefined}
-        className={cn(
-          "text-sm text-gray-900 font-bold text-right",
-          mono && "font-mono nums-fa"
-        )}
-      >
-        {value || "—"}
-      </p>
     </div>
   );
 }

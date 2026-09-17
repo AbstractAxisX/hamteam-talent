@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { categoryColorMap, resolveUserColor } from "@/lib/cat-color";
+import { usersStarInfo, postsRatingStats } from "@/lib/stars";
 import type { PostWithRelations, TalentListItem } from "@/lib/types";
 
 /* GET /api/feed/home — صفحهٔ خانهٔ شخصی (سبک لینکدین)
    1. پست‌های خودم + پست‌های ارتباط‌های متصل (ارتباط دوطرفهٔ تأییدشده)
    2. پیشنهاد افراد (شاید بشناسید) — هم‌مهارت‌ها و تازه‌واردها
-   3. آمار شخصی برای نوار خلاصه */
+   3. آمار شخصی برای نوار خلاصه + ستاره‌های من برای CTA چهره برتر */
 export async function GET() {
   const me = await getCurrentUser();
   if (!me) return NextResponse.json({ error: "ابتدا وارد شوید" }, { status: 401 });
@@ -41,38 +42,53 @@ export async function GET() {
       },
       category: true,
       skill: true,
-      likes: { where: { userId: me.id }, select: { id: true } },
-      _count: { select: { likes: true, comments: true } },
+      _count: { select: { comments: true } },
       media: true,
     },
   });
 
-  const feedPosts: PostWithRelations[] = posts.map((p) => ({
-    id: p.id,
-    content: p.content,
-    createdAt: p.createdAt.toISOString(),
-    categoryId: p.categoryId,
-    skillId: p.skillId,
-    categoryName: p.category?.name ?? null,
-    categoryColor: p.category?.color ?? null,
-    skillName: p.skill?.name ?? null,
-    user: {
-      id: p.user.id,
-      name: p.user.name,
-      isVerifiedBadge: p.user.isVerifiedBadge,
-      avatarUrl: p.user.profile?.avatarUrl ?? null,
-      gender: p.user.profile?.gender ?? null,
-      isTopTalent: p.user.isTopTalent,
-      mainCategoryColor: resolveUserColor(
-        catMap,
-        p.user.profile?.mainCategoryId,
-        p.user.userCategories?.[0]?.categoryId
-      ),
-    },
-    likeCount: p._count.likes,
-    likedByMe: p.likes.length > 0,
-    media: p.media.map((m) => ({ id: m.id, url: m.url, type: m.type, fileName: m.fileName, fileSize: m.fileSize })),
-  }));
+  // ── آمار ستاره: میانگین/تعداد پست‌ها + مجموع ستارهٔ نویسنده‌ها ──
+  const [ratings, authorStars] = await Promise.all([
+    postsRatingStats(posts.map((p) => p.id), me.id),
+    usersStarInfo([...feedUserIds]),
+  ]);
+
+  const feedPosts: PostWithRelations[] = posts.map((p) => {
+    const r = ratings.get(p.id)!;
+    const si = authorStars.get(p.userId)!;
+    return {
+      id: p.id,
+      content: p.content,
+      createdAt: p.createdAt.toISOString(),
+      categoryId: p.categoryId,
+      skillId: p.skillId,
+      categoryName: p.category?.name ?? null,
+      categoryColor: p.category?.color ?? null,
+      skillName: p.skill?.name ?? null,
+      isFeatured: p.isFeatured,
+      canFeature: p.userId === me.id && si.isTopTalent,
+      user: {
+        id: p.user.id,
+        name: p.user.name,
+        isVerifiedBadge: p.user.isVerifiedBadge,
+        avatarUrl: p.user.profile?.avatarUrl ?? null,
+        gender: p.user.profile?.gender ?? null,
+        isTopTalent: si.isTopTalent,
+        frame: si.frame,
+        totalStars: si.totalStars,
+        mainCategoryColor: resolveUserColor(
+          catMap,
+          p.user.profile?.mainCategoryId,
+          p.user.userCategories?.[0]?.categoryId
+        ),
+      },
+      commentCount: p._count.comments,
+      ratingAvg: r.ratingAvg,
+      ratingCount: r.ratingCount,
+      myRating: r.myRating,
+      media: p.media.map((m) => ({ id: m.id, url: m.url, type: m.type, fileName: m.fileName, fileSize: m.fileSize })),
+    };
+  });
 
   // ── ۲. پیشنهاد افراد (شاید بشناسید) ──
   const mySkillIds = (
@@ -90,6 +106,13 @@ export async function GET() {
     if (!excludeIds.includes(other)) excludeIds.push(other);
   }
 
+  const suggestInclude = {
+    profile: true,
+    userCategories: { include: { category: true }, take: 1 },
+    connectionsRec: { where: { status: "accepted" }, select: { id: true } },
+    connectionsReq: { where: { status: "accepted" }, select: { id: true } },
+  };
+
   let suggestUsers: any[] = [];
   if (mySkillIds.length > 0) {
     suggestUsers = await db.user.findMany({
@@ -99,38 +122,32 @@ export async function GET() {
         userSkills: { some: { skillId: { in: mySkillIds } } },
       },
       take: 12,
-      orderBy: [{ isTopTalent: "desc" }, { createdAt: "desc" }],
-      include: {
-        profile: true,
-        userCategories: { include: { category: true }, take: 1 },
-        connectionsRec: { where: { status: "accepted" }, select: { id: true } },
-        connectionsReq: { where: { status: "accepted" }, select: { id: true } },
-      },
+      orderBy: { createdAt: "desc" },
+      include: suggestInclude,
     });
   }
   if (suggestUsers.length < 6) {
     const extra = await db.user.findMany({
       where: { isBanned: false, id: { notIn: [...excludeIds, ...suggestUsers.map((u) => u.id)] } },
       take: 12 - suggestUsers.length,
-      orderBy: [{ isTopTalent: "desc" }, { createdAt: "desc" }],
-      include: {
-        profile: true,
-        userCategories: { include: { category: true }, take: 1 },
-        connectionsRec: { where: { status: "accepted" }, select: { id: true } },
-        connectionsReq: { where: { status: "accepted" }, select: { id: true } },
-      },
+      orderBy: { createdAt: "desc" },
+      include: suggestInclude,
     });
     suggestUsers = [...suggestUsers, ...extra];
   }
 
+  const suggestStars = await usersStarInfo(suggestUsers.map((u) => u.id));
   const suggestions: TalentListItem[] = suggestUsers
-    .sort((a, b) => a.isTopTalent === b.isTopTalent ? 0 : a.isTopTalent ? -1 : 1)
+    .slice()
+    .sort((a, b) => (suggestStars.get(b.id)?.totalStars ?? 0) - (suggestStars.get(a.id)?.totalStars ?? 0))
     .slice(0, 10)
     .map((u) => ({
       id: u.id,
       name: u.name,
-      username: u.username ?? null,
       isVerifiedBadge: u.isVerifiedBadge,
+      isTopTalent: suggestStars.get(u.id)?.isTopTalent ?? false,
+      frame: suggestStars.get(u.id)?.frame ?? null,
+      totalStars: suggestStars.get(u.id)?.totalStars ?? 0,
       bioShort: u.profile?.bioShort || "",
       avatarUrl: u.profile?.avatarUrl ?? null,
       gender: u.profile?.gender ?? null,
@@ -150,10 +167,11 @@ export async function GET() {
       ),
     }));
 
-  // ── ۳. آمار شخصی ──
-  const [myPostsCount, myFollowers] = await Promise.all([
+  // ── ۳. آمار شخصی + ستاره‌های من ──
+  const [myPostsCount, myFollowers, myStars] = await Promise.all([
     db.post.count({ where: { userId: me.id } }),
     db.connection.count({ where: { receiverId: me.id, status: "accepted" } }),
+    usersStarInfo([me.id]).then((m) => m.get(me.id)!),
   ]);
 
   return NextResponse.json({
@@ -163,6 +181,9 @@ export async function GET() {
       connectionsCount: connectionIds.length,
       postsCount: myPostsCount,
       followersCount: myFollowers,
+      totalStars: myStars.totalStars,
+      frame: myStars.frame,
+      nextAt: myStars.nextAt,
     },
   });
 }

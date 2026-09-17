@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { usersStarInfo } from "@/lib/stars";
 import { getCurrentUser } from "@/lib/auth";
 
 // GET /api/chat/conversations/[id]/messages — messages for a conversation.
@@ -47,6 +48,7 @@ export async function GET(
     where: { id: otherId },
     include: { profile: true },
   });
+  const otherSi = (await usersStarInfo([otherId])).get(otherId)!;
 
   return NextResponse.json({
     conversation: {
@@ -57,9 +59,8 @@ export async function GET(
         ? {
             id: other.id,
             name: other.name,
-            username: other.username ?? null,
             isVerifiedBadge: other.isVerifiedBadge,
-            isTopTalent: other.isTopTalent,
+            isTopTalent: otherSi.isTopTalent,
             avatarUrl: other.profile?.avatarUrl ?? null,
             bioShort: other.profile?.bioShort ?? "",
             city: other.profile?.city ?? null,

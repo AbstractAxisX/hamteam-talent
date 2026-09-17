@@ -6,23 +6,19 @@ import { api, apiPost, apiPut } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { Icon } from "@/components/shared/icon";
 import type { CategoryWithSkills } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 
-type Step = "username" | "categories" | "mainCategory" | "welcome";
+/* ویزارد آنبوردینگ — ۳ مرحله:
+   دسته‌بندی‌ها → دستهٔ اصلی → خوش‌آمد (مرحلهٔ نام کاربری حذف شد — سیستم آیدی از بک‌اند برداشته شد) */
+type Step = "categories" | "mainCategory" | "welcome";
 
 export function OnboardingView() {
   const { user, fetchUser } = useUser();
-  const [step, setStep] = useState<Step>("username");
-  const [username, setUsername] = useState("");
-  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
-  const [usernameError, setUsernameError] = useState("");
+  const [step, setStep] = useState<Step>("categories");
   const [categories, setCategories] = useState<CategoryWithSkills[]>([]);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
@@ -33,34 +29,6 @@ export function OnboardingView() {
   useEffect(() => {
     api<{ categories: CategoryWithSkills[] }>("/api/categories").then((d) => setCategories(d.categories)).catch(() => {});
   }, []);
-
-  // Username live check
-  useEffect(() => {
-    if (!username.trim()) { setUsernameStatus("idle"); return; }
-    const t = setTimeout(async () => {
-      const val = username.trim().toLowerCase();
-      if (val.length < 3) { setUsernameStatus("invalid"); setUsernameError("حداقل ۳ کاراکتر"); return; }
-      if (!/^[a-z0-9_]+$/.test(val)) { setUsernameStatus("invalid"); setUsernameError("فقط حروف انگلیسی، اعداد و _"); return; }
-      setUsernameStatus("checking");
-      try {
-        const res = await apiPost<{ available: boolean; error?: string }>("/api/username/check", { username: val });
-        if (res.available) { setUsernameStatus("available"); setUsernameError(""); }
-        else { setUsernameStatus("taken"); setUsernameError(res.error || "قبلاً گرفته شده"); }
-      } catch { setUsernameStatus("taken"); }
-    }, 500);
-    return () => clearTimeout(t);
-  }, [username]);
-
-  async function submitUsername() {
-    if (usernameStatus !== "available") return;
-    setSubmitting(true);
-    try {
-      await apiPost("/api/username/set", { username: username.trim().toLowerCase() });
-      await fetchUser();
-      setStep("categories");
-    } catch (e) { toast({ title: "خطا", description: (e as Error).message, variant: "destructive" }); }
-    finally { setSubmitting(false); }
-  }
 
   function toggleCategory(id: string) {
     setSelectedCats((prev) => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
@@ -111,8 +79,7 @@ export function OnboardingView() {
 
   // بازگشت مرحله‌ای در ویزارد
   function stepBack() {
-    if (step === "username") { navigate({ view: "feed" }); return; }
-    if (step === "categories") { setStep("username"); return; }
+    if (step === "categories") { navigate({ view: "feed" }); return; }
     if (step === "mainCategory") { setStep("categories"); return; }
   }
 
@@ -130,16 +97,16 @@ export function OnboardingView() {
           <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.4}>
             <path d="M14 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          {step === "username" ? "خروج" : "بازگشت"}
+          {step === "categories" ? "خروج" : "بازگشت"}
         </button>
       )}
 
-      {/* Progress bar */}
+      {/* Progress bar — ۳ مرحله (۳۳ / ۶۶ / ۱۰۰) */}
       <div className="h-1.5 bg-muted">
         <motion.div
           className="h-full bg-primary"
           initial={{ width: "0%" }}
-          animate={{ width: step === "username" ? "25%" : step === "categories" ? "50%" : step === "mainCategory" ? "75%" : "100%" }}
+          animate={{ width: step === "categories" ? "33%" : step === "mainCategory" ? "66%" : "100%" }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         />
       </div>
@@ -147,46 +114,7 @@ export function OnboardingView() {
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
           <AnimatePresence mode="wait">
-            {/* Step 1: Username */}
-            {step === "username" && (
-              <motion.div key="username" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3 }}>
-                <div className="text-center mb-8">
-                  <div className="grid place-items-center w-20 h-20 rounded-3xl bg-primary mx-auto mb-4">
-                    <Icon name="user" className="text-primary-foreground" size={36} />
-                  </div>
-                  <h1 className="text-2xl font-extrabold">نام کاربری خود را بسازید</h1>
-                  <p className="text-sm text-muted-foreground mt-2">این نام منحصربه‌فرد شما در فرصتینو خواهد بود</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-bold">نام کاربری</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
-                    <Input
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="username"
-                      className="h-13 pl-7 rounded-2xl text-base"
-                      dir="ltr"
-                      autoFocus
-                    />
-                    {usernameStatus === "checking" && <span className="absolute left-9 top-1/2 -translate-y-1/2 text-xs text-muted-foreground animate-pulse">بررسی...</span>}
-                    {usernameStatus === "available" && <Check className="absolute left-9 top-1/2 -translate-y-1/2 w-5 h-5 text-success" />}
-                  </div>
-                  {usernameError && <p className={cn("text-xs", usernameStatus === "available" ? "text-success" : "text-destructive")}>{usernameError}</p>}
-                </div>
-
-                <Button
-                  onClick={submitUsername}
-                  className="w-full h-13 mt-6 rounded-2xl text-base font-bold"
-                  disabled={usernameStatus !== "available" || submitting}
-                >
-                  ادامه
-                </Button>
-              </motion.div>
-            )}
-
-            {/* Step 2: Categories */}
+            {/* Step 1: Categories */}
             {step === "categories" && (
               <motion.div key="categories" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3 }}>
                 <div className="text-center mb-6">
@@ -234,7 +162,7 @@ export function OnboardingView() {
               </motion.div>
             )}
 
-            {/* Step 3: Main Category */}
+            {/* Step 2: Main Category */}
             {step === "mainCategory" && (
               <motion.div key="mainCategory" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3 }}>
                 <div className="text-center mb-6">
@@ -269,7 +197,7 @@ export function OnboardingView() {
               </motion.div>
             )}
 
-            {/* Step 4: Welcome */}
+            {/* Step 3: Welcome */}
             {step === "welcome" && (
               <motion.div key="welcome" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
                 <div className="text-center">
@@ -281,9 +209,6 @@ export function OnboardingView() {
                     {user?.name} عزیز، حساب شما آماده شد.<br />
                     حالا می‌توانید استعدادهایتان را نشان بدهید و با افراد مستعد ارتباط بگیرید.
                   </p>
-                  <div className="mt-4 text-sm text-muted-foreground">
-                    نام کاربری شما: <span className="font-bold text-primary" dir="ltr">@{username.toLowerCase()}</span>
-                  </div>
                 </div>
                 <Button onClick={finish} className="w-full h-13 mt-8 rounded-2xl text-base font-bold">
                   ورود به فرصتینو

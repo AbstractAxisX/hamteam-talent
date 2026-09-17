@@ -1,9 +1,10 @@
 "use client";
 
 /* ═══════════════════════════════════════════════════════════
-   Elite Design System — «استعداد برتر» (Gold / Obsidian)
-   زبان بصری نخبگان: قاب طلایی چندلایه (رفرنس کارفرما)،
-   تیک طلایی، برگ غار (Laurel)، بنر نخبگی — کالاف/پابجی vibes.
+   Elite Design System — «چهره برتر» (Gold / Rose Gold / Obsidian)
+   زبان بصری نخبگان: قاب طلایی چندلایه (۵۰۰۰ ستاره) و
+   رزگلد کمیاب (۱۰۰۰۰ ستاره)، تیک متال، برگ غار (Laurel)،
+   بنر نخبگی — کالاف/پابجی vibes.
    انیمیشن‌ها فقط transform/opacity (GPU-safe).
    ═══════════════════════════════════════════════════════════ */
 
@@ -16,8 +17,16 @@ const GOLD_METAL =
 const GOLD_CHANNEL = "linear-gradient(135deg, #7c4a0c, #59330a 50%, #7c4a0c)";
 const GLOW_GOLD = "0 6px 22px rgba(217,119,6,.4), 0 0 0 1px rgba(180,83,9,.28)";
 
+/* ── پالت متال رزگلد (۵۰۰۰ → ۱۰۰۰۰ ستاره؛ کمیاب و لاکچری) ──
+   رزگلد واقعی: رز گرم + نقره کثیف — سویچ‌های نرم
+   #f43f5e → #fb7185 → #fda4af → #e11d48 و تکرار. */
+const ROSE_METAL =
+  "conic-gradient(from 210deg, #fff1f2 0deg, #fb7185 50deg, #881337 105deg, #fecdd3 165deg, #e11d48 225deg, #ffe4e6 285deg, #9f1239 330deg, #fff1f2 360deg)";
+const ROSE_CHANNEL = "linear-gradient(135deg, #9f1239, #4c0519 50%, #9f1239)";
+const GLOW_ROSE_GOLD = "0 6px 22px rgba(225,29,72,.42), 0 0 0 1px rgba(190,18,60,.3)";
+
 /* ═══════════════════════════════════════════
-   GoldCheckMark — تیک طلایی استعداد برتر
+   GoldCheckMark — تیک طلایی چهره برتر
    جایگزین تاج (درخواست کارفرما)؛ متال با ریم
    تیره و درخشش گوشه.
    ═══════════════════════════════════════════ */
@@ -35,7 +44,7 @@ export function GoldCheckMark({
       height={size}
       viewBox="0 0 24 24"
       role="img"
-      aria-label="استعداد برتر"
+      aria-label="چهره برتر"
       className={cn("shrink-0 drop-shadow-[0_1px_2px_rgba(146,97,14,.45)]", className)}
     >
       <defs>
@@ -61,9 +70,54 @@ export function GoldCheckMark({
 }
 
 /* ═══════════════════════════════════════════
-   EliteAvatar — آواتار با قاب طلایی چندلایه
-   (بورت طلایی رفرنس: بِوِل متال + کانال تیره +
+   RoseGoldCheckMark — تیک رزگلد (۱۰۰۰۰+ ستاره)
+   نسخهٔ کمیاب‌تر و لاکچری‌تر از تیک طلایی؛
+   پالت رزگلد: #f43f5e → #fb7185 → #fda4af → #e11d48.
+   ═══════════════════════════════════════════ */
+export function RoseGoldCheckMark({
+  size = 16,
+  className,
+}: {
+  size?: number;
+  className?: string;
+}) {
+  const uid = React.useId();
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-label="چهره برتر رزگلد"
+      className={cn("shrink-0 drop-shadow-[0_1px_2px_rgba(159,18,57,.45)]", className)}
+    >
+      <defs>
+        <linearGradient id={`rgcm${uid}`} x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#fff1f2" />
+          <stop offset=".45" stopColor="#fb7185" />
+          <stop offset="1" stopColor="#be123c" />
+        </linearGradient>
+      </defs>
+      <circle cx="12" cy="12" r="11" fill={`url(#rgcm${uid})`} />
+      <circle cx="12" cy="12" r="8.9" fill="none" stroke="rgba(136,19,55,.5)" strokeWidth="1.2" />
+      <path
+        d="M7.6 12.4l2.9 2.9 5.9-6.4"
+        stroke="#fff"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path d="M6.2 7.2q1.8-1.6 4-1.9" stroke="rgba(255,255,255,.78)" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   EliteAvatar — آواتار با قاب چندلایهٔ متال
+   (بورت رفرنس: بِوِل متال + کانال تیره +
    نقطه‌های پرچی + حلقه داخلی + درخشش چرخان)
+   variant="gold" (۵۰۰۰+ ستاره) یا "rosegold" (۱۰۰۰۰+).
    ═══════════════════════════════════════════ */
 export function EliteAvatar({
   name,
@@ -71,6 +125,7 @@ export function EliteAvatar({
   box = 44,
   className,
   onClick,
+  variant = "gold",
 }: {
   name: string;
   src?: string | null;
@@ -78,11 +133,24 @@ export function EliteAvatar({
   box?: number;
   className?: string;
   onClick?: () => void;
+  /** نوع متال قاب — رزگلد کمیاب‌تر و لاکچری‌تر است */
+  variant?: "gold" | "rosegold";
 }) {
   const [broken, setBroken] = React.useState(false);
   const showImg = src && !broken;
   const initial = (name || "؟").trim().replace(/\u200c/g, " ").charAt(0) || "؟";
   const Tag = (onClick ? "button" : "span") as "button" | "span";
+
+  const rose = variant === "rosegold";
+  const metal = rose ? ROSE_METAL : GOLD_METAL;
+  const channel = rose ? ROSE_CHANNEL : GOLD_CHANNEL;
+  const glow = rose ? GLOW_ROSE_GOLD : GLOW_GOLD;
+  const dotColor = rose ? "#fecdd3" : "#fde68a";
+  const innerRing = rose ? "rgba(254,205,211,.85)" : "rgba(253,230,138,.85)";
+  const fallbackBg = rose
+    ? "linear-gradient(135deg, #e11d48, #650f22 55%, #be123c)"
+    : "linear-gradient(135deg, #92610e, #5c3a08 55%, #b45309)";
+
   return (
     <span
       className={cn("relative inline-block shrink-0", className)}
@@ -95,10 +163,10 @@ export function EliteAvatar({
           "block h-full w-full rounded-full outline-none",
           onClick && "cursor-pointer active:scale-95 transition-transform"
         )}
-        style={{ boxShadow: GLOW_GOLD }}
+        style={{ boxShadow: glow }}
       >
         {/* ۱ — حلقه متال بیولی */}
-        <span className="absolute inset-0 rounded-full" style={{ background: GOLD_METAL }} />
+        <span className="absolute inset-0 rounded-full" style={{ background: metal }} />
         <span
           className="absolute inset-0 rounded-full"
           style={{
@@ -118,19 +186,19 @@ export function EliteAvatar({
           }}
         />
         {/* ۳ — کانال تیره */}
-        <span className="absolute rounded-full" style={{ inset: "7%", background: GOLD_CHANNEL }} />
+        <span className="absolute rounded-full" style={{ inset: "7%", background: channel }} />
         {/* ۴ — نقطه‌های پرچی روی کانال */}
         <svg aria-hidden viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none">
           <circle
             cx="50" cy="50" r="40.8" fill="none"
-            stroke="#fde68a" strokeWidth="2.4" strokeLinecap="round"
+            stroke={dotColor} strokeWidth="2.4" strokeLinecap="round"
             strokeDasharray="0.1 5.5" opacity=".75"
           />
         </svg>
         {/* ۵ — حلقه داخلی روشن */}
         <span
           className="absolute rounded-full"
-          style={{ inset: "11.5%", boxShadow: "inset 0 0 0 1.4px rgba(253,230,138,.85)" }}
+          style={{ inset: "11.5%", boxShadow: `inset 0 0 0 1.4px ${innerRing}` }}
         />
         {/* ۶ — چهره */}
         <span
@@ -147,7 +215,7 @@ export function EliteAvatar({
             <span
               className="h-full w-full grid place-items-center font-extrabold text-white"
               style={{
-                background: "linear-gradient(135deg, #92610e, #5c3a08 55%, #b45309)",
+                background: fallbackBg,
                 fontSize: Math.round(box * 0.32),
               }}
             >
@@ -158,6 +226,15 @@ export function EliteAvatar({
       </Tag>
     </span>
   );
+}
+
+/* ═══════════════════════════════════════════
+   RoseGoldAvatar — قاب رزگلد (۱۰۰۰۰+ ستاره)
+   همان هندسهٔ EliteAvatar با متال رزِ گرم؛
+   درخشش نرم‌تر + پرچ‌های صورتی — کمیاب‌ترین سطح.
+   ═══════════════════════════════════════════ */
+export function RoseGoldAvatar(props: Omit<Parameters<typeof EliteAvatar>[0], "variant">) {
+  return <EliteAvatar {...props} variant="rosegold" />;
 }
 
 /* ═══════════════════════════════════════════
@@ -247,9 +324,9 @@ export function TopTalentBanner({ className }: { className?: string }) {
       <Laurel size={34} />
       <GoldCheckMark size={22} />
       <div className="relative z-10 text-center leading-tight">
-        <p className="text-gold-grad text-[15px] font-black">استعداد برتر</p>
+        <p className="text-gold-grad text-[15px] font-black">چهره برتر</p>
         <p className="text-[9.5px] font-bold text-amber-200/60 mt-0.5">
-          منتخب رسمی جامعهٔ فرصتینو
+          ۵۰۰۰+ ستاره — منتخب جامعهٔ فرصتینو
         </p>
       </div>
       <Laurel size={34} flip />

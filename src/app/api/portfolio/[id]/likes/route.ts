@@ -21,9 +21,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         select: {
           id: true,
           name: true,
-          username: true,
           isVerifiedBadge: true,
-          isTopTalent: true,
           profile: { select: { avatarUrl: true } },
         },
       },
@@ -34,10 +32,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const users = likes.slice(0, take).map((l) => ({
     id: l.user.id,
     name: l.user.name,
-    username: l.user.username,
     avatarUrl: l.user.profile?.avatarUrl ?? null,
     isVerifiedBadge: l.user.isVerifiedBadge,
-    isTopTalent: l.user.isTopTalent,
   }));
 
   return NextResponse.json({ users, hasMore });

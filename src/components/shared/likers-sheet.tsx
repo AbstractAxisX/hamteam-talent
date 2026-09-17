@@ -3,8 +3,9 @@
 /* ═══════════════════════════════════════════════════════════
    LikersSheet — مودال مشترک لیست لایک‌کنندگان (سرتاسر سایت)
    قرارداد Open-Closed: فقط fetcher پاس داده می‌شود؛
-   برای هر موجودیت جدید (پست/کامنت/نمونه کار/...) بدون ویرایش همین فایل.
+   برای هر موجودیت (کامنت/نمونه کار/...) بدون ویرایش همین فایل.
    fetcher(page) => { users: LikerUser[]; hasMore: boolean }
+   (لایک پست حذف شده — سیستم امتیاز ستاره‌ای ۱..۱۰ جایگزین آن است)
    ═══════════════════════════════════════════════════════════ */
 
 import * as React from "react";
@@ -18,7 +19,6 @@ import { Btn, IconBtn, Sk, SPRING } from "@/components/ui/atoms";
 export type LikerUser = {
   id: string;
   name: string;
-  username?: string | null;
   avatarUrl?: string | null;
   isVerifiedBadge?: boolean;
   isTopTalent?: boolean;
@@ -203,11 +203,6 @@ export function LikersSheet({
                           />
                           <span className="flex-1 min-w-0">
                             <span className="block text-[13.5px] font-black text-foreground truncate">{u.name}</span>
-                            {u.username && (
-                              <span className="block text-[11.5px] text-muted-foreground truncate" dir="ltr">
-                                @{u.username}
-                              </span>
-                            )}
                           </span>
                           <Icon name="chevronLeft" size={16} className="text-muted-foreground shrink-0" />
                         </button>
@@ -241,16 +236,7 @@ export function LikersSheet({
   );
 }
 
-/* ─────────── فچر آماده برای پست‌ها — نقاط مصرف فقط این را می‌سازند ─────────── */
-
-export function postLikersFetcher(postId: string): LikersFetcher {
-  return async (page) => {
-    const res = await fetch(`/api/posts/${postId}/likes?page=${page}`, { credentials: "same-origin" });
-    if (!res.ok) throw new Error("fetch failed");
-    const data = await res.json();
-    return { users: data.users ?? [], hasMore: !!data.hasMore };
-  };
-}
+/* ─────────── فچرهای آماده — نقاط مصرف فقط این‌ها را می‌سازند ─────────── */
 
 export function commentLikersFetcher(commentId: string): LikersFetcher {
   return async (page) => {

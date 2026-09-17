@@ -28,7 +28,6 @@ import { NotificationsView } from "@/components/views/notifications-view";
 import { TicketsView } from "@/components/views/tickets-view";
 import { TicketDetailView } from "@/components/views/ticket-detail-view";
 import { SettingsView } from "@/components/views/settings-view";
-import { TopTalentView } from "@/components/views/top-talent-view";
 import { OnboardingView } from "@/components/views/onboarding-view";
 import { AdminView } from "@/components/views/admin-view";
 import { apiPost } from "@/lib/api-client";
@@ -57,7 +56,6 @@ function renderView(route: Route) {
     case "tickets": return <TicketsView />;
     case "ticket": return <TicketDetailView id={route.id} />;
     case "settings": return <SettingsView />;
-    case "top-talent": return <TopTalentView />;
     case "onboarding": return <OnboardingView />;
     // ادمین با پالت سبز قبلی (ایزوله — کد ادمین دست‌نخورده)
     case "admin": return <div className="admin-legacy"><AdminView /></div>;
@@ -74,12 +72,12 @@ const TOP_LEVEL = new Set([
 ]);
 
 // Bottom tab bar (5 tabs + more) — ترتیب بر اساس جریان طبیعی اپ اجتماعی:
-// خانه → کشف محتوا → برترین‌ها → دایرکتوری افراد → فرصت‌ها
+// خانه → چهره‌یاب (کشف) → چهره برتر → دایرکتوری افراد → فرصت‌ها
 // دکمه اول برای مهمان «عمومی» (لندینگ) و برای کاربر لاگین‌شده «خانه» (فید شخصی) است
 const MOBILE_TABS = [
   { key: "feed", label: "خانه", icon: "home" as const, route: { view: "feed" } as Route },
-  { key: "discover", label: "کشف", icon: "compass" as const, route: { view: "discover" } as Route },
-  { key: "explore", label: "برترین‌ها", icon: "sparkles" as const, route: { view: "explore" } as Route },
+  { key: "discover", label: "چهره‌یاب", icon: "compass" as const, route: { view: "discover" } as Route },
+  { key: "explore", label: "چهره برتر", icon: "sparkles" as const, route: { view: "explore" } as Route },
   { key: "talents", label: "استعدادها", icon: "users" as const, route: { view: "talents" } as Route },
   { key: "needs", label: "نیازمندی", icon: "briefcase" as const, route: { view: "needs" } as Route },
 ];
@@ -87,8 +85,8 @@ const MOBILE_TABS = [
 // Desktop top nav (center cluster)
 const DESKTOP_NAV = [
   { key: "feed", label: "خانه", route: { view: "feed" } as Route },
-  { key: "discover", label: "کشف", route: { view: "discover" } as Route },
-  { key: "explore", label: "استعدادهای برتر", route: { view: "explore" } as Route },
+  { key: "discover", label: "چهره‌یاب", route: { view: "discover" } as Route },
+  { key: "explore", label: "چهره برتر", route: { view: "explore" } as Route },
   { key: "talents", label: "استعدادها", route: { view: "talents" } as Route },
   { key: "needs", label: "نیازمندی", route: { view: "needs" } as Route },
 ];
@@ -211,7 +209,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
         showBack={showBack}
       />
 
-      {/* ═══ Mobile: floating chat FAB (bottom-left, above tab bar) ═══ */}
+      {/* ═══ Mobile: floating chat FAB (bottom-left, above tab bar) — کوچک، سفید، آبی ═══ */}
       {user && activeView !== "chat" && (
         <motion.button
           initial={{ scale: 0, opacity: 0 }}
@@ -221,18 +219,18 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
           onClick={() => navigate({ view: "chat" })}
           className={cn(
             "md:hidden fixed left-4 z-40 grid place-items-center rounded-full",
-            "grad-brand text-white shadow-glow"
+            "bg-card text-blue-600 dark:text-blue-400 border border-border shadow-[0_6px_20px_rgba(0,0,0,0.12)]"
           )}
           style={{
-            width: "56px",
-            height: "56px",
-            bottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
+            width: "44px",
+            height: "44px",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 84px)",
           }}
           aria-label="چت"
         >
-          <Icon name="chat" size={24} strokeWidth={2.2} className="text-white" />
+          <Icon name="chat" size={20} strokeWidth={2.2} className="text-blue-600 dark:text-blue-400" />
           {chatUnread > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1 grid place-items-center rounded-full bg-rose text-white text-[11px] font-extrabold ring-2 ring-background">
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-extrabold ring-2 ring-background">
               {chatUnread > 9 ? toFa(9) + "+" : toFa(chatUnread)}
             </span>
           )}
@@ -337,7 +335,7 @@ function MobileHeader({
                   name={user.name}
                   avatarUrl={user.profile?.avatarUrl}
                   verified={user.isVerifiedBadge}
-                  topTalent={user.isTopTalent}
+                  frame={user.frame}
                   gender={user.profile?.gender}
                   size="sm"
                 />
@@ -675,10 +673,9 @@ function MobileTabBar({
                     onClick={() => { navigate({ view: "my-profile" }); setMoreOpen(false); }}
                     className="mx-4 mb-3 flex items-center gap-3 p-3 rounded-2xl bg-accent w-[calc(100%-2rem)] text-right"
                   >
-                    <UserAvatar name={user.name} avatarUrl={user.profile?.avatarUrl} verified={user.isVerifiedBadge} gender={user.profile?.gender} size="md" />
+                    <UserAvatar name={user.name} avatarUrl={user.profile?.avatarUrl} verified={user.isVerifiedBadge} frame={user.frame} gender={user.profile?.gender} size="md" />
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm truncate">{user.name}</p>
-                      {user.username && <p className="text-xs text-muted-foreground truncate" dir="ltr">@{user.username}</p>}
                     </div>
                     <Icon name="chevronRight" size={16} className="text-muted-foreground" />
                   </button>
