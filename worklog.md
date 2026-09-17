@@ -250,3 +250,21 @@ Work Log:
 Stage Summary:
 - کل سیستم جدید ستاره/چهره برتر/حذف آیدی/کراپر/FAB از سر تا کلاینت کامل و تست‌شده.
 - آماده push + استقرار production (سرور 217.114.40.93).
+
+---
+Task ID: DEPLOY-2
+Agent: Z.ai Code (maintainer)
+Task: استقرار سیستم جدید روی سرور production (217.114.40.93)
+
+Work Log:
+- push 3722a56 به origin/main → سرور: git pull + bun install (react-easy-crop).
+- DB تازه (schema جدید): rm db → db:push → زنجیره کامل seed در پس‌زمینه (سرور تک‌هسته‌ای).
+- rebuild موفق (BUILD_EXIT_0) + restart سرویس‌ها (next/nginx/chat).
+- تست E2E بیرونی:
+  · Home 200 · لاگین OTP ✓ · /api/auth/me: {frame:"gold", totalStars:5868} بدون آیدی ✓
+  · چهره برتر: ۲۰ پست ویترین — مهتاب rosegold 11520⭐ / امیرحسین gold 5868⭐ (میانگین ۱۰/۱۰، ۷۲ رأی) ✓
+  · آپلود+سرو فایل ✓ · وب‌سوکت چت handshake ✓
+  · API ویترین: سقف ۵ پست فعال به‌درستی خطا داد ✓
+
+Stage Summary:
+- http://217.114.40.93 با سیستم ستاره/چهره برتر/کراپر/بدون آیدی کاملاً بالاست.
