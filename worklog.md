@@ -332,3 +332,41 @@ Stage Summary:
 - قرارداد ScoutBadge: `<ScoutBadge size="sm"|"md" />` — برای نمایش‌های آیندهٔ نشان چهره‌یاب.
 - «چهره‌یاب» از این پس یعنی داشبورد scout (#/scout)؛ «کشف» = صفحهٔ discover. هیچ جای دیگری نباید discover را چهره‌یاب بنامد.
 - NominateDialog الگوی استاندارد بات‌شیت مودال این پروژه است (mobile bottom-sheet + sm centered) — قابل کپی برای مودال‌های متنی بعدی.
+
+---
+Task ID: SCOUT-1
+Agent: Z.ai Code (maintainer)
+Task: سیستم چهره‌یاب (استعدادیاب) + مسیر جایگزین چهره برتر + سقف هفتگی ویترین + رینم کشف + پولیش UI
+
+Work Log:
+- ترمیم رگرسیون سندباکس (ششمین بار): history با commitهای UUID خراب شده بود + api/upload حذف + DB خالی (۱ کاربر/۰ پست — همان «دموت خالی از دیتا» که کاربر گفت) → reset به origin/main (48931be) + clean + زنجیره کامل seed + ری‌استارت dev.
+- Backend (خودم):
+  · Schema: User.isScout/scoutStatus/isAdminElite + ScoutApplication (userId@unique, nationalCode, cardImageUrl, description, status, adminNote, reviewedAt) + EliteRequest (userId, source user|scout, nominatorId, reason, status) + Post.featuredAt.
+  · stars.ts: votes (COUNT(r.id)) در همان raw SQL + GOLD_VOTES=500/ROSE_VOTES=1000 + isAdminElite از جدول User (امضای usersStarInfo دست‌نخورده ماند) → frameFor(stars, votes, adminElite).
+  · feature route: سقف هفتگی ۱ پست (featuredAt ≥ now-7d) → 429 + پیام فارسی + retryAt؛ سقف ۵ هم‌زمان ماند.
+  · APIهای جدید: scout/apply (GET/POST + اعتبارسنجی کد ملی + حداقل ۲۰ کاراکتر) · scout/dashboard (elite/rising/myNeeds/stats) · scout/nominate (403/404/409) · elite/request (GET/POST، حداقل ۳۰ کاراکتر) · admin/scouts (GET + POST approve/reject/revoke + نوتیفیکیشن) · admin/elite-requests (GET + POST approve→isAdminElite).
+  · سریالایزرها: isScout به auth/me (SafeUser) + talents + profile + needs + chat conversations + admin users؛ upload route kind=scout-card.
+- Frontend (دو ساب‌ایجنت موازی):
+  · FE-1: nav scout/scout-apply + app-shell (تب «چهره‌یاب» جایگزین «چهره برتر» برای اسکات‌ها در موبایل+دسکتاپ، رینم کشف، TOP_LEVEL) + ScoutApplyView (ریدایرکت مهمان، فرم کد ملی با چکسام ایرانی + آپلود کارت + توضیحات، وضعیت pending/rejected) + ScoutView (هدر emerald، ۴ آمار، چهره‌های برتر، در حال رشد + NominateDialog، نیازمندی‌های من) + auth?mode=scout (سگمنت‌مانت عضو/چهره‌یاب → بعد از OTP به scout-apply) + لندینگ ScoutSection + ScoutBadge در پروفایل/نیازمندی/چت/استعدادها + «نخبه»→«چهره برتر» در چت.
+  · FE-2: home پنل طلایی → دکمهٔ «استعداد برتری داری؟ درخواست بررسی مستقیم ادمین» + EliteRequestDialog + چیپ وضعیت pending/approved + ادمین: تب «چهره‌یاب‌ها» (کارت‌های درخواست + لایت‌باکس کارت ملی + approve/reject/revoke + لیست فعال‌ها) و «درخواست‌های چهره برتر» (source chip معرفی چهره‌یاب/مستقیم + approve→قاب طلایی).
+- پولیش (خودم): لوگو ۳۰→۳۴/۴۰ (اپ‌شل/اثر/لندینگ) + کپی قوانین جدید (۵۰۰ رأی/هفتگی/مسیر جایگزین) در لندینگ/خانه/FeatureButton + هدر چهره برتر بزرگ‌تر (۲۶/۳۲px) + زیرعنوان «۵۰۰۰+ ستاره یا ۵۰۰+ رأی — هفته‌ای یک پست».
+- seed-scouts.ts: ۲ چهره‌یاب فعال (آژانس آرتا 09121110021 / کانون نگین 09121110022) + ۱ درخواست pending (استعدادیاب پارس) + ۳ نیازمندی استعدادیابی + درخواست مستقیم سارا + معرفی آرتا→علی + ۳ SVG کارت ملی دمو (force-added چون uploads گیت‌ایگنور بود).
+- seed-stars: featuredAt واقعی برای پست‌های ویترین (آخرین هر نفر = امروز) + استمپ روی DB موجود (لوکال+سرور).
+
+E2E (browser + API):
+- ثبت‌نام چهره‌یاب کامل: لندینگ CTA → auth?mode=scout → OTP → scout-apply → آپلود PNG (SVG correctly rejected 400) → ثبت → pending card ✓
+- لاگین اسکات → تب «چهره‌یاب» جایگزین «چهره برتر» ✓ → داشبورد (مهتاب رزگلد/امیرحسین طلایی در elite) → nominate رضا 200 ✓ (سارا 409 درست)
+- ادمین: چهره‌یاب‌ها → approve پارس → isScout=true ✓ → لایت‌باکس کارت ✓ · درخواست‌ها → approve سارا → isAdminElite=true → قاب طلایی با ۹۹ ستاره ✓ (پارس برای دمو به pending برگشت)
+- سقف هفتگی: امیرحسین (امروز ویترین کرده) → 429 «هر هفته فقط یک پست…۷ روز دیگر» ✓
+- خانه مهدی → دیالوگ مسیر جایگزین → ثبت 200 → چیپ «در انتظار بررسی ادمین» ✓
+- VLM: لندینگ/اسکات‌پيج/پروفایل «professional» · مجموع ۸.۵/۱۰ · بدون گلیچ
+- tsc 0 خطا در src/ · eslint 0 · dev.log پاک (فقط 404های stale از URL قدیمی .jpg)
+
+Deploy:
+- push 415fa29 (۲ commit: feat + demo assets) → سرور: pull + db:push (additive, دیتا دست‌نخورده) + seed-scouts + استمپ featuredAt + build در پس‌زمینه.
+- باگ سریالیزشن API: bun add paramiko اشتباهی پکیج npm فیک نصب کرد → revert کردم؛ paramiko با pip.
+- نکته: بعد از db push باید dev سرور ری‌استارت شود تا کلایننت prisma جدید لود شود (خطای 500 me/route با کلایننت قدیمی).
+
+Stage Summary:
+- کل سیستم چهره‌یاب + مسیر جایگزین + سقف هفتگی کامل، تست‌شده و در حال استقرار production.
+- دموی کامل: ۲ اسکات فعال + ۱ درخواست pending + ۲ معرفی + ۱ درخواست مستقیم + سارا طلایی (مسیر ادمین).
