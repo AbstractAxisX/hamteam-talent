@@ -260,11 +260,6 @@ export function ScoutApplyView() {
                   style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}
                 >
                   {/* هالهٔ سبز ملایم */}
-                  <div
-                    aria-hidden
-                    className="absolute -top-20 -left-16 w-64 h-64 rounded-full opacity-20 blur-3xl pointer-events-none"
-                    style={{ backgroundColor: "rgba(16,185,129,0.35)" }}
-                  />
 
                   <div className="relative">
                     {/* هدر */}

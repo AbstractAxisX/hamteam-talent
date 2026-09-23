@@ -5,8 +5,8 @@ import { usersStarInfo } from "@/lib/stars";
 
 /* GET /api/admin/elite-requests — درخواست‌های مستقیم «چهره برتر»
    (خودِ کاربر + معرفی چهره‌یاب)
-   POST /api/admin/elite-requests — { id, action: "approve"|"reject", note? }
-   approve → user.isAdminElite=true (قاب طلایی مستقیم) */
+   POST /api/admin/elite-requests — { id, action: "approve"|"reject", note?, level?: "gold"|"rosegold" }
+   approve → user.isAdminElite=true + eliteLevel (پیش‌فرض gold) */
 export async function GET(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "غیرمجاز" }, { status: 403 });
@@ -67,6 +67,7 @@ export async function POST(req: Request) {
   const id = String(body.id || "");
   const action = String(body.action || "");
   const note = String(body.note || "").trim();
+  const level = body.level === "rosegold" ? "rosegold" : "gold";
 
   const reqRow = await db.eliteRequest.findUnique({ where: { id }, include: { user: true } });
   if (!reqRow) return NextResponse.json({ error: "درخواست پیدا نشد" }, { status: 404 });
@@ -77,17 +78,21 @@ export async function POST(req: Request) {
         where: { id },
         data: { status: "approved", adminNote: note, reviewedAt: new Date() },
       }),
-      db.user.update({ where: { id: reqRow.userId }, data: { isAdminElite: true } }),
+      db.user.update({
+        where: { id: reqRow.userId },
+        data: { isAdminElite: true, eliteLevel: level },
+      }),
     ]);
+    const levelFa = level === "rosegold" ? "رزگلد" : "طلایی";
     await db.notification.create({
       data: {
         userId: reqRow.userId,
         type: "broadcast",
-        title: "قاب چهره برتر شما فعال شد ⭐",
-        body: "ادمین صلاح‌دید شما را تأیید کرد — قاب طلایی چهره برتر فعال است و می‌توانید هفته‌ای یک پست به صفحهٔ چهره برتر بفرستید.",
+        title: `قاب چهره برتر ${levelFa} شما فعال شد ⭐`,
+        body: `ادمین صلاح‌دید شما را تأیید کرد — قاب ${levelFa} چهره برتر فعال است و می‌توانید هفته‌ای یک پست به صفحهٔ چهره برتر بفرستید.`,
       },
     });
-    return NextResponse.json({ ok: true, message: `«${reqRow.user.name}» چهره برتر شد` });
+    return NextResponse.json({ ok: true, message: `«${reqRow.user.name}» چهره برتر ${levelFa} شد` });
   }
 
   if (action === "reject") {

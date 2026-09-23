@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { usersStarInfo } from "@/lib/stars";
 import type { NeedDetail, NeedListItem } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────
@@ -43,20 +44,31 @@ export async function GET(
     ? need.applications.find((a) => a.applicantId === me.id)
     : undefined;
 
+  /* قاب چهره برتر برای پوستر و متقاضی‌ها */
+  const starInfo = await usersStarInfo([
+    need.userId,
+    ...need.applications.map((a) => a.applicantId),
+  ]);
+
   // For non-owners, do not expose applications list
   const applications = isOwner
-    ? need.applications.map((a) => ({
-        id: a.id,
-        message: a.message,
-        createdAt: a.createdAt.toISOString(),
-        applicant: {
-          id: a.applicant.id,
-          name: a.applicant.name,
-          isVerifiedBadge: a.applicant.isVerifiedBadge,
-          avatarUrl: a.applicant.profile?.avatarUrl ?? null,
-          bioShort: a.applicant.profile?.bioShort ?? null,
-        },
-      }))
+    ? need.applications.map((a) => {
+        const si = starInfo.get(a.applicantId);
+        return {
+          id: a.id,
+          message: a.message,
+          createdAt: a.createdAt.toISOString(),
+          applicant: {
+            id: a.applicant.id,
+            name: a.applicant.name,
+            isVerifiedBadge: a.applicant.isVerifiedBadge,
+            isTopTalent: si?.isTopTalent ?? false,
+            frame: si?.frame ?? null,
+            avatarUrl: a.applicant.profile?.avatarUrl ?? null,
+            bioShort: a.applicant.profile?.bioShort ?? null,
+          },
+        };
+      })
     : [];
 
   const detail: NeedDetail = {
@@ -81,7 +93,11 @@ export async function GET(
       id: need.user.id,
       name: need.user.name,
       isVerifiedBadge: need.user.isVerifiedBadge,
+      isScout: need.user.isScout,
+      isTopTalent: starInfo.get(need.userId)?.isTopTalent ?? false,
+      frame: starInfo.get(need.userId)?.frame ?? null,
       avatarUrl: need.user.profile?.avatarUrl ?? null,
+      gender: (need.user.profile?.gender as string | null) ?? null,
     },
     // NeedDetail extends NeedListItem; description is already present
     applications,

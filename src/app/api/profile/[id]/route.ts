@@ -165,6 +165,7 @@ export async function GET(
     totalStars: si.totalStars,
     nextAt: si.nextAt,
     isScout: user.isScout,
+    scoutStatus: (user.scoutStatus as string | null) ?? null,
     isAdminElite: user.isAdminElite,
     bioShort: user.profile?.bioShort ?? "",
     bioLong: user.profile?.bioLong ?? "",

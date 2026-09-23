@@ -125,7 +125,7 @@ export function FilterFab({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setOpen(false)}
-              className="absolute inset-0 bg-black/55 backdrop-blur-[6px]"
+              className="absolute inset-0 bg-black/50"
             />
 
             {/* کارت پنل — پاپ وسط صفحه، فقط transform/opacity (۶۰fps) */}

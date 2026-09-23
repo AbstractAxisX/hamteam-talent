@@ -244,58 +244,37 @@
 }
 
 @layer utilities {
-  /* ─── شیشه‌مورفیزم (نقاط کلیدی: ناوبری، هدر، شیت‌ها) ─── */
+  /* ─── سطوح کلاسیک (Solid) — جایگزین شیشه‌مورفیزم؛ سریع و بی‌لگ ───
+     همان نام کلاس‌ها تا ۳۰+ فایل بدون ویرایش کلاسیک شوند */
   .glass {
-    background-color: rgba(255, 255, 255, 0.82);
-    backdrop-filter: blur(20px) saturate(170%);
-    -webkit-backdrop-filter: blur(20px) saturate(170%);
+    background-color: var(--card);
+    border: 1px solid var(--border);
   }
   .dark .glass {
-    background-color: rgba(16, 24, 53, 0.82);
+    background-color: var(--card);
   }
   .glass-strong {
-    background-color: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px rgba(16, 24, 53, 0.05);
   }
   .dark .glass-strong {
-    background-color: rgba(24, 39, 65, 0.92);
+    background-color: var(--card);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
-  /* ─── شیشه‌ی مایع (Liquid Glass) — داکِ پایین و سطوح شناور اصلی ───
-     شفافیت واقعی + بلورِ اشباع + لبه‌ی نورِ داخلی = حس مایع */
+  /* ─── داکِ پایین — سطح کلاسیک تک‌رنگ با خطِ بالایی ─── */
   .glass-liquid {
-    position: relative;
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.58) 0%,
-      rgba(255, 255, 255, 0.38) 42%,
-      rgba(255, 255, 255, 0.52) 100%
-    );
-    backdrop-filter: blur(28px) saturate(200%) brightness(1.06);
-    -webkit-backdrop-filter: blur(28px) saturate(200%) brightness(1.06);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    box-shadow:
-      inset 0 1px 1px rgba(255, 255, 255, 0.65),
-      inset 0 -1px 1px rgba(255, 255, 255, 0.18),
-      0 14px 38px rgba(22, 42, 75, 0.2);
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: 0 -1px 2px rgba(16, 24, 53, 0.04), 0 6px 18px rgba(16, 24, 53, 0.08);
   }
   .dark .glass-liquid {
-    background: linear-gradient(
-      135deg,
-      rgba(34, 56, 90, 0.6) 0%,
-      rgba(22, 36, 60, 0.44) 42%,
-      rgba(30, 51, 85, 0.55) 100%
-    );
-    border-color: rgba(255, 255, 255, 0.14);
-    box-shadow:
-      inset 0 1px 1px rgba(255, 255, 255, 0.14),
-      inset 0 -1px 1px rgba(255, 255, 255, 0.05),
-      0 14px 38px rgba(0, 0, 0, 0.5);
+    background-color: var(--card);
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px rgba(0, 0, 0, 0.5);
   }
   .glass-dark-chip {
-    background-color: rgba(16, 24, 53, 0.55);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background-color: var(--card);
+    border: 1px solid var(--border);
   }
 
   /* ─── امضای گرادیان برند ─── */
@@ -312,55 +291,9 @@
     color: transparent;
   }
 
-  /* ─── پس‌زمینه‌ی زنده‌ی aurora (فقط transform — سازگار با ۶۰fps) ───
-     z منفی: محتوا بدون نیاز به z-index روی main همیشه بالای aurora می‌ماند؛
-     در نتیجه main بدون stacking-context می‌ماند و شیت‌های fixed (z-70+) از زیر
-     داکِ z-40 بیرون می‌آیند و دیگر زیر منوی پایین گیر نمی‌کنند. */
+  /* ─── پس‌زمینه — حذف aurora (بلور ۸۰px = لگ شدید موبایل)؛ پس‌زمینهٔ سادهٔ کلاسیک ─── */
   .aurora {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    overflow: hidden;
-  }
-  .aurora-blob {
-    position: absolute;
-    display: block;
-    border-radius: 9999px;
-    filter: blur(80px);
-    opacity: 0.5;
-    will-change: transform;
-  }
-  .dark .aurora-blob {
-    opacity: 0.22;
-  }
-  .aurora-1 {
-    width: 480px;
-    height: 480px;
-    top: -160px;
-    right: -120px;
-    background: radial-gradient(circle, #3d7cbe 0%, transparent 70%);
-    animation: aurora-drift-1 26s ease-in-out infinite alternate;
-  }
-  .aurora-2 {
-    width: 420px;
-    height: 420px;
-    top: 30%;
-    left: -160px;
-    background: radial-gradient(circle, #a4e86d 0%, transparent 70%);
-    animation: aurora-drift-2 32s ease-in-out infinite alternate;
-  }
-  .aurora-3 {
-    width: 360px;
-    height: 360px;
-    bottom: -140px;
-    right: 20%;
-    background: radial-gradient(circle, #0f569e 0%, transparent 70%);
-    opacity: 0.24;
-    animation: aurora-drift-3 38s ease-in-out infinite alternate;
-  }
-  .dark .aurora-3 {
-    opacity: 0.12;
+    display: none;
   }
 
   /* ─── سایه‌ها (سه‌سطحی + گلوی برند، ته‌رنگ سبز) ─── */
@@ -386,9 +319,10 @@
     background-clip: text;
     color: transparent;
   }
-  .animate-elite-spin { animation: elite-spin 7s linear infinite; }
-  .animate-elite-twinkle { animation: elite-twinkle 2.8s ease-in-out infinite; }
-  .animate-elite-shine { animation: elite-shine 3.2s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+  /* ─── نخبگان طلایی — قاب متال ایستا (بدون انیمیشن بی‌نهایت) ─── */
+  .animate-elite-spin { animation: none; }
+  .animate-elite-twinkle { animation: none; opacity: .8; }
+  .animate-elite-shine { animation: none; opacity: 0; }
 
   /* ─── اسکرول‌بار ─── */
   .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -481,34 +415,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   0%, 100% { transform: translateX(-50%); }
   50% { transform: translateX(calc(-50% - 8px)); }
 }
-/* ─── Aurora: فقط transform/translate3d — کاملاً GPU-composited ─── */
-@keyframes aurora-drift-1 {
-  0% { transform: translate3d(0, 0, 0) scale(1); }
-  100% { transform: translate3d(-60px, 50px, 0) scale(1.12); }
-}
-@keyframes aurora-drift-2 {
-  0% { transform: translate3d(0, 0, 0) scale(1.05); }
-  100% { transform: translate3d(70px, -40px, 0) scale(0.94); }
-}
-@keyframes aurora-drift-3 {
-  0% { transform: translate3d(0, 0, 0) scale(1); }
-  100% { transform: translate3d(-50px, -60px, 0) scale(1.15); }
-}
-
-/* ─── نخبگان طلایی: چرخش درخشش قاب، چشمک ستاره، عبور نور ─── */
-@keyframes elite-spin {
-  to { transform: rotate(360deg); }
-}
-@keyframes elite-twinkle {
-  0%, 100% { opacity: 0.14; transform: scale(0.65) rotate(0deg); }
-  50% { opacity: 0.95; transform: scale(1.12) rotate(24deg); }
-}
-@keyframes elite-shine {
-  0% { transform: translateX(-160%) skewX(-14deg); opacity: 0; }
-  18% { opacity: 1; }
-  60% { opacity: 0.7; }
-  100% { transform: translateX(340%) skewX(-14deg); opacity: 0; }
-}
+/* ─── Aurora حذف شد (کارایی موبایل) — keyframes هم پاک ─── */
 
 /* ═══ احترام به کاهش حرکت ═══ */
 @media (prefers-reduced-motion: reduce) {

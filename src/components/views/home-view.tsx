@@ -10,6 +10,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Icon } from "@/components/shared/icon";
 import { PostCard } from "@/components/shared/post-card";
+import { Sheet } from "@/components/shared/sheet";
 import { ComposerInline } from "@/components/composer";
 import { BannerSlider } from "@/components/shared/banner-slider";
 import { GoldCheckMark, GoldSparkle, RoseGoldCheckMark } from "@/components/ui/elite";
@@ -193,11 +194,6 @@ export function HomeView() {
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
         className="relative overflow-hidden rounded-[26px] glass border border-border/60 p-5 md:p-6"
       >
-        <div
-          aria-hidden
-          className="absolute -top-20 -left-14 w-56 h-56 rounded-full opacity-25 blur-3xl pointer-events-none"
-          style={{ backgroundColor: "rgba(61, 124, 190, 0.42)" }}
-        />
         <div className="relative flex items-center gap-4">
           <button
             onClick={() => navigate({ view: "my-profile" })}
@@ -609,56 +605,30 @@ function EliteRequestDialog({
   }
 
   return (
-    <AnimatePresence>
-      {open && (
-        <div
-          className="fixed inset-0 z-[75] grid place-items-center p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="مسیر جایگزین چهره برتر"
+    <Sheet
+      open={open}
+      onClose={() => !submitting && onClose()}
+      title="مسیر جایگزین چهره برتر"
+      description="اگر سابقه و افتخارات شما نشان می‌دهد استعدادی برتر هستید، می‌توانید به‌جای مسیر ستاره (۵٬۰۰۰ ستاره یا ۵۰۰ رأی) از ادمین بررسی مستقیم بخواهید. درخواست شما با صلاح‌دید ادمین و نظر چهره‌یاب‌ها بررسی می‌شود."
+      footer={
+        <button
+          onClick={submit}
+          disabled={submitting || tooShort}
+          className="w-full h-12 rounded-2xl text-white font-extrabold text-sm disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-[filter] hover:brightness-105 outline-none"
+          style={{ background: "linear-gradient(135deg,#d97706,#f59e0b)" }}
         >
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => !submitting && onClose()}
-            className="absolute inset-0 bg-black/55 backdrop-blur-[6px]"
-          />
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.88, y: 24 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.92, y: 12, transition: { duration: 0.18 } }}
-            transition={{ type: "spring", stiffness: 480, damping: 20 }}
-            className="relative w-full max-w-md bg-card rounded-[28px] border border-border/70 shadow-float overflow-hidden"
-          >
-            <div className="h-[3px] w-full grad-gold" aria-hidden />
-
-            <div className="px-5 pt-4 pb-5">
-              <div className="flex items-start gap-3">
-                <div className="grid place-items-center size-11 rounded-2xl grad-gold shadow-glow-gold shrink-0">
-                  <GoldCheckMark size={22} />
-                </div>
-                <div className="flex-1 min-w-0 pt-0.5">
-                  <h2 className="text-[15.5px] font-black text-foreground leading-snug">
-                    مسیر جایگزین چهره برتر
-                  </h2>
-                  <p className="text-[11.5px] text-muted-foreground mt-1 leading-5">
-                    اگر سابقه و افتخارات شما نشان می‌دهد استعدادی برتر هستید، می‌توانید به‌جای مسیر ستاره (۵٬۰۰۰ ستاره یا ۵۰۰ رأی) از ادمین بررسی مستقیم بخواهید. درخواست شما با صلاح‌دید ادمین و نظر چهره‌یاب‌ها بررسی می‌شود.
-                  </p>
-                </div>
-                <button
-                  onClick={() => !submitting && onClose()}
-                  aria-label="بستن"
-                  className="shrink-0 grid place-items-center size-9 rounded-full bg-secondary text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                >
-                  <Icon name="x" size={15} />
-                </button>
-              </div>
-
-              {/* متن ادعا — حداقل ۳۰ کاراکتر */}
-              <div className="mt-4">
+          {submitting ? (
+            <Icon name="loader" size={16} className="animate-spin" />
+          ) : (
+            <Icon name="send" size={15} />
+          )}
+          {submitting ? "در حال ارسال…" : "ارسال درخواست بررسی"}
+        </button>
+      }
+    >
+      <div>
+          {/* متن ادعا — حداقل ۳۰ کاراکتر */}
+          <div>
                 <textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
@@ -674,33 +644,16 @@ function EliteRequestDialog({
                 </p>
               </div>
 
-              {error && (
-                <p className="mt-1.5 text-[12px] font-bold text-destructive" role="alert">
-                  {error}
-                </p>
-              )}
-
-              <motion.button
-                whileTap={submitting || tooShort ? undefined : { scale: 0.96 }}
-                onClick={submit}
-                disabled={submitting || tooShort}
-                className="mt-2.5 w-full h-11 rounded-2xl grad-gold text-white font-extrabold text-[13px] shadow-glow-gold disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-opacity"
-              >
-                {submitting ? (
-                  <Icon name="loader" size={16} className="animate-spin" />
-                ) : (
-                  <Icon name="send" size={15} />
-                )}
-                {submitting ? "در حال ارسال…" : "ارسال درخواست بررسی"}
-              </motion.button>
-              <p className="mt-2 text-center text-[10.5px] text-muted-foreground/80 leading-4">
-                نتیجه از طریق اعلان‌ها اعلام می‌شود — با تأیید ادمین، قاب طلایی بدون نیاز به ۵٬۰۰۰ ستاره فعال می‌شود.
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+          {error && (
+            <p className="mt-1.5 text-[12px] font-bold text-destructive" role="alert">
+              {error}
+            </p>
+          )}
+      </div>
+      <p className="mt-2 text-center text-[10.5px] text-muted-foreground/80 leading-4">
+        نتیجه از طریق اعلان‌ها اعلام می‌شود — با تأیید ادمین، قاب طلایی/رزگلد بدون نیاز به آستانهٔ ستاره فعال می‌شود.
+      </p>
+    </Sheet>
   );
 }
 

@@ -101,7 +101,7 @@ export function LikersSheet({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/55 backdrop-blur-[6px]"
+            className="absolute inset-0 bg-black/50"
           />
 
           <motion.div

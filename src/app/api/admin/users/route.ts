@@ -41,6 +41,7 @@ export async function GET(req: Request) {
         totalStars: si.totalStars,
         votes: si.votes,
         isAdminElite: u.isAdminElite,
+        eliteLevel: u.eliteLevel,
         isScout: u.isScout,
         scoutStatus: u.scoutStatus,
         avatarUrl: u.profile?.avatarUrl ?? null,

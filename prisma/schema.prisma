@@ -22,7 +22,10 @@ model User {
   isScout         Boolean   @default(false)
   scoutStatus     String?   // "pending" | "rejected" | null (هرگز درخواست نداده)
   // چهره برتر مستقیم — مسیر جایگزین: تأیید صلاح‌دید ادمین (دور زدن آستانهٔ ستاره)
+  // eliteLevel: سطح قاب ادمینی — none | gold (۵۰۰۰) | rosegold (۱۰۰۰۰)
+  // isAdminElite denormalized = (eliteLevel != none) برای کوئری‌های موجود
   isAdminElite    Boolean   @default(false)
+  eliteLevel      String    @default("none")
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

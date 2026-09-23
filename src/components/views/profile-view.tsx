@@ -25,7 +25,7 @@ import { Icon } from "@/components/shared/icon";
 import { ComposerSheet } from "@/components/composer";
 import { PortfolioTab } from "@/components/portfolio/portfolio-tab";
 import { AboutTab, ResumeTab, shadeColor } from "@/components/views/profile-tabs";
-import { EliteAvatar, GoldCheckMark, GoldSparkle, TopTalentBanner } from "@/components/ui/elite";
+import { EliteAvatar, GoldCheckMark, RoseGoldCheckMark, TopTalentBanner } from "@/components/ui/elite";
 import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, formatFaDate } from "@/lib/format";
 import { getProvinceName } from "@/lib/geo";
@@ -103,7 +103,12 @@ export function ProfileView({ id }: { id: string }) {
   }, [profile, meta, catColorMap]);
 
   const isSelf = me?.id === profile?.userId;
-  const isTopTalent = profile?.isTopTalent ?? meta?.isTopTalent ?? false;
+  /* قاب واقعی از سرور — رزگلد (۱۰۰۰۰) بر طلایی (۵۰۰۰) اولویت دارد */
+  const frame = profile?.frame ?? meta?.frame ?? null;
+  const isRose = frame === "rosegold";
+  const isTopTalent = frame != null;
+  /* چهره‌یاب — پروفایل رسمی و حرفه‌ای (الگوی اکانت کمپانی لینکدین) */
+  const isScoutProfile = !!profile?.isScout;
 
   async function handleConnection() {
     if (!profile || !me) return;
@@ -166,12 +171,24 @@ export function ProfileView({ id }: { id: string }) {
   const totalStars = profile.totalStars ?? meta?.totalStars ?? 0;
   const showBanner = !!profile.bannerUrl && !profile.bannerUrl.startsWith("default");
 
-  /* ── کاور: ابیسیدین‌طلا برای استعداد برتر / زمردی برای بقیه ── */
-  const coverStyle = isTopTalent
+  /* ── کاور: رزگلد / طلایی / رسمی چهره‌یاب / زمردی عادی ── */
+  const coverStyle = isRose
+    ? {
+        background: `radial-gradient(130% 150% at 88% -12%, rgba(251,113,133,.3) 0%, transparent 55%),
+                      radial-gradient(100% 120% at 8% 112%, rgba(136,19,55,.42) 0%, transparent 60%),
+                      linear-gradient(160deg, #3b0a1c 0%, #26060f 48%, #33101f 100%)`,
+      }
+    : isTopTalent
     ? {
         background: `radial-gradient(130% 150% at 88% -12%, rgba(245,200,76,.28) 0%, transparent 55%),
                       radial-gradient(100% 120% at 8% 112%, rgba(146,97,14,.4) 0%, transparent 60%),
                       linear-gradient(160deg, #2a1a04 0%, #171005 48%, #241604 100%)`,
+      }
+    : isScoutProfile
+    ? {
+        /* کاور رسمی چهره‌یاب — سرمه‌ای اداری با خطِ نشان */
+        background: `radial-gradient(120% 130% at 85% -8%, rgba(61,124,190,.35) 0%, transparent 52%),
+                      linear-gradient(160deg, #162a4b 0%, #101835 55%, #0d1426 100%)`,
       }
     : {
         background: `radial-gradient(120% 140% at 85% -10%, ${shadeColor(heroTint, 0.72, 160)} 0%, transparent 55%),
@@ -238,8 +255,17 @@ export function ProfileView({ id }: { id: string }) {
         disabled={connBusy}
         className={cn(
           "flex-1 h-12 rounded-2xl text-white font-extrabold text-[13px] inline-flex items-center justify-center gap-2 hover:brightness-105 transition-[filter] outline-none disabled:opacity-60",
-          isTopTalent ? "grad-gold shadow-glow-gold" : "grad-brand shadow-grad"
+          isRose
+            ? "text-white shadow-[0_6px_20px_rgba(190,18,60,.4)]"
+            : isTopTalent
+            ? "grad-gold shadow-glow-gold"
+            : "grad-brand shadow-grad"
         )}
+        style={
+          isRose
+            ? { background: "linear-gradient(135deg,#e11d48,#be123c 60%,#9f1239)" }
+            : undefined
+        }
       >
         <Icon name={connBusy ? "loader" : "userPlus"} size={17} className={connBusy ? "animate-spin" : ""} />
         {isTopTalent ? "دنبال کردن استعداد برتر" : "برقراری ارتباط"}
@@ -298,45 +324,30 @@ export function ProfileView({ id }: { id: string }) {
           <div
             className="absolute inset-0 opacity-[0.13] pointer-events-none"
             style={{
-              backgroundImage: `radial-gradient(${isTopTalent ? "rgba(245,200,76,.95)" : "rgba(255,255,255,.9)"} 1px, transparent 1px)`,
+              backgroundImage: `radial-gradient(${isRose ? "rgba(251,113,133,.9)" : isTopTalent ? "rgba(245,200,76,.95)" : "rgba(255,255,255,.9)"} 1px, transparent 1px)`,
               backgroundSize: "18px 18px",
             }}
           />
-          {/* هاله‌های نور — فقط حالت گرادیانت (روی بنرِ عکس، کاور تمیز می‌ماند) */}
-          {!showBanner && (
+          {/* هاله‌های نور ایستا — فقط حالت گرادیانت (روی بنرِ عکس، کاور تمیز می‌ماند) */}
+          {!showBanner && !isScoutProfile && (
             <>
-              <motion.div
-                animate={{ scale: [1, 1.15, 1], opacity: [0.25, 0.4, 0.25] }}
-                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute -top-14 -left-10 w-52 h-52 rounded-full blur-3xl pointer-events-none"
-                style={{ background: isTopTalent ? "#f5c84c" : heroTint }}
-              />
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], opacity: [0.15, 0.3, 0.15] }}
-                transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-                className="absolute -bottom-16 -right-10 w-48 h-48 rounded-full blur-3xl pointer-events-none"
-                style={{ background: "#fbbf24" }}
-              />
             </>
           )}
-          {/* ستاره‌های طلایی — فقط استعداد برتر */}
-          {isTopTalent && (
-            <>
-              <GoldSparkle size={12} delay={0.2} style={{ top: "22%", left: "16%" }} />
-              <GoldSparkle size={9} delay={1.1} style={{ top: "58%", left: "7%" }} />
-              <GoldSparkle size={14} delay={0.6} style={{ top: "14%", right: "30%" }} />
-              <GoldSparkle size={8} delay={1.8} style={{ bottom: "24%", right: "14%" }} />
-              {/* خط طلایی پایین کاور */}
-              <div
-                aria-hidden
-                className="absolute bottom-0 inset-x-0 h-[3px]"
-                style={{
-                  background:
-                    "linear-gradient(90deg, transparent, #b45309, #f5c84c, #fef3c7, #f5c84c, #b45309, transparent)",
-                }}
-              />
-            </>
+          {/* خط نشان پایین کاور — رزگلد/طلایی/چهره‌یاب رسمی */}
+          {(isTopTalent || isScoutProfile) && (
+            <div
+              aria-hidden
+              className="absolute bottom-0 inset-x-0 h-[3px]"
+              style={{
+                background: isRose
+                  ? "linear-gradient(90deg, transparent, #be123c, #fb7185, #fff1f2, #fb7185, #be123c, transparent)"
+                  : isTopTalent
+                  ? "linear-gradient(90deg, transparent, #b45309, #f5c84c, #fef3c7, #f5c84c, #b45309, transparent)"
+                  : "linear-gradient(90deg, transparent, #162a4b, #3d7cbe, #a4e86d, #3d7cbe, #162a4b, transparent)",
+              }}
+            />
           )}
+          {/* نشان رسمی چهره‌یاب روی کاور — سمت مقابل اکشن‌ها */}
 
           {/* اکشن‌های شناور بالای کاور — دکمه بازگشت به هدر موبایل منتقل شد (کاور تمیز) */}
           <div className="absolute top-4 inset-x-4 flex items-center justify-between">
@@ -365,6 +376,12 @@ export function ProfileView({ id }: { id: string }) {
                 <Icon name={isSelf ? "pencil" : "chat"} size={19} />
               </button>
             </div>
+            {isScoutProfile && (
+              <span className="inline-flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/12 border border-white/25 text-white text-[11px] font-extrabold">
+                <Icon name="compass" size={14} className="text-secondary" />
+                چهره‌یاب تأییدشده
+              </span>
+            )}
           </div>
         </motion.div>
 
@@ -382,6 +399,7 @@ export function ProfileView({ id }: { id: string }) {
                   name={profile.name}
                   src={profile.avatarUrl}
                   box={124}
+                  variant={isRose ? "rosegold" : "gold"}
                 />
               ) : (
                 <div
@@ -409,16 +427,21 @@ export function ProfileView({ id }: { id: string }) {
                 </h1>
                 {profile.isScout && <ScoutBadge />}
                 {isTopTalent && (
-                  <motion.span
-                    initial={{ scale: 0, rotate: -30 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: "spring", stiffness: 380, damping: 20, delay: 0.25 }}
-                    title="استعداد برتر"
-                  >
-                    <GoldCheckMark size={22} />
-                  </motion.span>
+                  isRose ? <RoseGoldCheckMark size={22} /> : <GoldCheckMark size={22} />
                 )}
               </div>
+              {/* سطر رسمی چهره‌یاب — عنوان حرفه‌ای */}
+              {isScoutProfile && (
+                <p className="mt-0.5 text-[12px] font-bold text-primary">
+                  استعدادیاب حرفه‌ای — کشف و معرفی استعدادهای برتر
+                </p>
+              )}
+              {isSelf && profile.scoutStatus === "pending" && (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/25 rounded-full px-3 py-1">
+                  <Icon name="clock" size={12} />
+                  درخواست چهره‌یاب شما در انتظار تأیید ادمین است
+                </p>
+              )}
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap text-muted-foreground">
                 {province && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold">
@@ -449,7 +472,7 @@ export function ProfileView({ id }: { id: string }) {
           <p className="text-[14px] leading-7 text-foreground/90 px-1 text-center">{profile.bioShort}</p>
         )}
 
-        {/* بنر نخبگی — فقط استعداد برتر */}
+        {/* بنر چهره برتر — طلایی / رزگلد */}
         {isTopTalent && (
           <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.97 }}
@@ -457,26 +480,27 @@ export function ProfileView({ id }: { id: string }) {
             transition={{ type: "spring", stiffness: 300, damping: 24, delay: 0.2 }}
             className="mt-4"
           >
-            <TopTalentBanner />
+            <TopTalentBanner variant={isRose ? "rosegold" : "gold"} />
           </motion.div>
         )}
 
-        {/* نوار آمار شیشه‌ای تک‌تکه — الگوی مدرن (طلایی برای نخبه) */}
+        {/* نوار آمار — الگوی مدرن (رزگلد/طلایی برای چهره برتر) */}
         <div
           className={cn(
             "mt-4 glass rounded-[22px] shadow-card grid grid-cols-4 divide-x divide-border/70 rtl:divide-x-reverse",
-            isTopTalent &&
-              "!bg-gradient-to-br !from-amber-500/12 !to-amber-600/5 border border-amber-400/25"
+            isRose && "!bg-gradient-to-br !from-rose-500/10 !to-rose-600/5 !border-rose-400/25",
+            !isRose && isTopTalent && "!bg-gradient-to-br !from-amber-500/12 !to-amber-600/5 !border-amber-400/25"
           )}
         >
-          <StatSeg value={formatCount(connCount)} label="ارتباطات" icon="users" gold={isTopTalent} />
-          <StatSeg value={toFa(profile.postCount)} label="پست‌ها" icon="image" gold={isTopTalent} />
-          <StatSeg value={toFa(profile.categories?.length || 0)} label="تخصص‌ها" icon="award" gold={isTopTalent} />
+          <StatSeg value={formatCount(connCount)} label="ارتباطات" icon="users" gold={isTopTalent} rose={isRose} />
+          <StatSeg value={toFa(profile.postCount)} label="پست‌ها" icon="image" gold={isTopTalent} rose={isRose} />
+          <StatSeg value={toFa(profile.categories?.length || 0)} label="تخصص‌ها" icon="award" gold={isTopTalent} rose={isRose} />
           <StatSeg
             value={toFa(totalStars.toLocaleString("fa-IR"))}
             label="ستاره‌ها"
             icon="star"
             gold={isTopTalent}
+            rose={isRose}
           />
         </div>
 
@@ -507,8 +531,13 @@ export function ProfileView({ id }: { id: string }) {
                   layoutId="profile-tab-pill"
                   className={cn(
                     "absolute inset-0 rounded-xl shadow-glow",
-                    isTopTalent ? "grad-gold" : "grad-brand"
+                    isRose
+                      ? ""
+                      : isTopTalent
+                      ? "grad-gold"
+                      : "grad-brand"
                   )}
+                  style={isRose ? { background: "linear-gradient(135deg,#e11d48,#be123c)" } : undefined}
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
                 />
               )}
@@ -612,18 +641,26 @@ function TabPane({ children, className }: { children: React.ReactNode; className
   );
 }
 
-function StatSeg({ value, label, icon, gold }: { value: string; label: string; icon: string; gold?: boolean }) {
+function StatSeg({ value, label, icon, gold, rose }: { value: string; label: string; icon: string; gold?: boolean; rose?: boolean }) {
   return (
     <div className="py-3.5 flex flex-col items-center gap-1">
       <div
         className={cn(
           "size-7 rounded-xl grid place-items-center text-white",
-          gold ? "grad-gold shadow-glow-gold" : "grad-brand"
+          rose ? "" : gold ? "grad-gold shadow-glow-gold" : "grad-brand"
         )}
+        style={rose ? { background: "linear-gradient(135deg,#e11d48,#be123c)" } : undefined}
       >
         <Icon name={icon} size={14} />
       </div>
-      <span className={cn("font-black text-[17px] leading-none nums-fa", gold && "text-amber-600 dark:text-amber-400")}>
+      <span
+        className={cn(
+          "font-black text-[17px] leading-none nums-fa",
+          rose
+            ? "text-rose-600 dark:text-rose-400"
+            : gold && "text-amber-600 dark:text-amber-400"
+        )}
+      >
         {value}
       </span>
       <span className="text-[10.5px] text-muted-foreground font-bold">{label}</span>

@@ -215,6 +215,8 @@ export function NeedDetailView({ id }: { id: string }) {
                 name={need.user.name}
                 avatarUrl={need.user.avatarUrl}
                 verified={need.user.isVerifiedBadge}
+                gender={need.user.gender}
+                frame={need.user.frame}
                 size="md"
               />
               <div className="text-right">
@@ -316,6 +318,7 @@ export function NeedDetailView({ id }: { id: string }) {
                         name={app.applicant.name}
                         avatarUrl={app.applicant.avatarUrl}
                         verified={app.applicant.isVerifiedBadge}
+                        frame={app.applicant.frame}
                         size="md"
                       />
                     </button>

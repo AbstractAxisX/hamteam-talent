@@ -327,7 +327,7 @@ export function ComposerSheet({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22 }}
             onClick={() => !busy && onClose()}
-            className="absolute inset-0 bg-black/55 backdrop-blur-[6px]"
+            className="absolute inset-0 bg-black/50"
           />
 
           {/* شیت */}

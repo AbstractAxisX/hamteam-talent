@@ -24,6 +24,8 @@ type OtherUser = {
   name: string;
   isVerifiedBadge: boolean;
   isTopTalent?: boolean;
+  frame?: "gold" | "rosegold" | null;
+  totalStars?: number;
   isScout?: boolean;
   avatarUrl: string | null;
   gender?: string | null;
@@ -886,6 +888,7 @@ function ConversationRow({
             avatarUrl={c.otherUser.avatarUrl}
             verified={c.otherUser.isVerifiedBadge}
             gender={c.otherUser.gender}
+            frame={c.otherUser.frame}
             size="md"
           />
           {c.unreadCount > 0 && c.status === "active" && (
@@ -1078,6 +1081,7 @@ function ChatThread({
                 avatarUrl={other.avatarUrl}
                 verified={other.isVerifiedBadge}
                 gender={other.gender}
+                frame={other.frame}
                 size="md"
               />
             </button>
@@ -1117,13 +1121,14 @@ function ChatThread({
             verified={other.isVerifiedBadge}
             gender={other.gender}
             size="xl"
-            topTalent={other.isTopTalent}
+            frame={other.frame}
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="font-extrabold text-[15px] text-foreground truncate">{other.name}</span>
               {!!other.isScout && <ScoutBadge size="sm" />}
-              {other.isTopTalent && <span className="text-[10px] font-black px-2 py-0.5 rounded-full grad-gold text-white">چهره برتر</span>}
+              {other.frame === "rosegold" && <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: "linear-gradient(135deg,#e11d48,#be123c)" }}>چهره برتر رزگلد</span>}
+              {other.frame === "gold" && <span className="text-[10px] font-black px-2 py-0.5 rounded-full grad-gold text-white">چهره برتر</span>}
             </div>
             {other.bioShort && (
               <p className="text-[11.5px] text-muted-foreground mt-1 line-clamp-2 leading-5">{other.bioShort}</p>
@@ -1205,12 +1210,30 @@ function ChatThread({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                   className={cn(
-                    "flex flex-col",
-                    isMine ? "items-end" : "items-start"
+                    "flex gap-2",
+                    isMine ? "flex-row-reverse items-end justify-start" : "items-end justify-start"
                   )}
                 >
+                  {!isMine && showSender && other && (
+                    <button
+                      onClick={() => navigate({ view: "profile", id: other.id })}
+                      className="shrink-0 mb-0.5"
+                      aria-label={`پروفایل ${other.name}`}
+                    >
+                      <UserAvatar
+                        name={other.name}
+                        avatarUrl={other.avatarUrl}
+                        verified={other.isVerifiedBadge}
+                        gender={other.gender}
+                        frame={other.frame}
+                        size="sm"
+                      />
+                    </button>
+                  )}
+                  {!isMine && !showSender && <span className="w-9 shrink-0" aria-hidden />}
+                  <div className={cn("flex flex-col", isMine ? "items-end" : "items-start")}>
                   {showSender && (
-                    <span className="text-[10px] text-muted-foreground mb-1 px-2 font-medium">
+                    <span className="text-[10px] text-muted-foreground mb-1 px-1 font-medium">
                       {other?.name}
                     </span>
                   )}
@@ -1256,6 +1279,7 @@ function ChatThread({
                         )}
                       </span>
                     )}
+                  </div>
                   </div>
                 </motion.div>
               );

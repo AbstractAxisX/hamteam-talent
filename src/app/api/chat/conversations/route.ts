@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { usersStarInfo } from "@/lib/stars";
 
 // GET /api/chat/conversations — list current user's conversations with
 // the "other user", last message preview, status, and unread count.
@@ -34,11 +35,17 @@ export async function GET() {
     },
   });
 
+  /* قاب چهره برتر (طلایی/رزگلد) برای همهٔ طرف‌های گفتگو */
+  const starInfo = await usersStarInfo(
+    conversations.map((c) => (c.userAId === me.id ? c.userBId : c.userAId))
+  );
+
   const active: any[] = [];
   const requests: any[] = [];
 
   for (const c of conversations) {
     const other = c.userAId === me.id ? c.userB : c.userA;
+    const si = starInfo.get(other.id);
     const last = c.messages[0];
     const item = {
       id: c.id,
@@ -47,6 +54,9 @@ export async function GET() {
         name: other.name,
         isVerifiedBadge: other.isVerifiedBadge,
         isScout: other.isScout,
+        isTopTalent: si?.isTopTalent ?? false,
+        frame: si?.frame ?? null,
+        totalStars: si?.totalStars ?? 0,
         avatarUrl: other.profile?.avatarUrl ?? null,
         gender: (other.profile?.gender as string | null) ?? null,
       },

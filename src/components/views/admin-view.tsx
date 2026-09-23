@@ -181,6 +181,10 @@ type AdminUser = {
   isTopTalent?: boolean;
   frame?: "gold" | "rosegold" | null;
   totalStars?: number;
+  isAdminElite?: boolean;
+  eliteLevel?: string;
+  isScout?: boolean;
+  scoutStatus?: string | null;
   avatarUrl?: string | null;
   createdAt: string;
 };
@@ -1555,11 +1559,12 @@ function UsersTab() {
 
   async function patchUser(
     id: string,
-    action: "ban" | "unban" | "verify" | "unverify"
+    action: "ban" | "unban" | "verify" | "unverify" | "elite" | "unelite",
+    level?: "gold" | "rosegold"
   ) {
     setActionLoading(id + action);
     try {
-      await apiPut(`/api/admin/users/${id}`, { action });
+      const res = await apiPut<{ ok: boolean; eliteLevel?: string }>(`/api/admin/users/${id}`, { action, level });
       const verb =
         action === "ban"
           ? "مسدود شد"
@@ -1567,7 +1572,13 @@ function UsersTab() {
           ? "رفع مسدودیت شد"
           : action === "verify"
           ? "تایید شد"
-          : "تایید لغو شد";
+          : action === "unverify"
+          ? "تایید لغو شد"
+          : action === "unelite"
+          ? "قاب چهره برتر لغو شد"
+          : level === "rosegold"
+          ? "چهره برتر رزگلد شد"
+          : "چهره برتر طلایی شد";
       toast({ title: verb });
       load();
     } catch (e) {
@@ -1867,6 +1878,36 @@ function UsersTab() {
                                 </>
                               )}
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {u.isAdminElite ? (
+                              <DropdownMenuItem
+                                onClick={() => patchUser(u.id, "unelite")}
+                                disabled={actionLoading === u.id + "unelite"}
+                                className="gap-2 cursor-pointer"
+                              >
+                                <Crown className="w-4 h-4 text-gray-500" />
+                                لغو قاب چهره برتر
+                              </DropdownMenuItem>
+                            ) : (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => patchUser(u.id, "elite", "gold")}
+                                  disabled={actionLoading === u.id + "elite"}
+                                  className="gap-2 cursor-pointer"
+                                >
+                                  <Crown className="w-4 h-4 text-amber-500" />
+                                  چهره برتر طلایی (۵۰۰۰)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => patchUser(u.id, "elite", "rosegold")}
+                                  disabled={actionLoading === u.id + "elite"}
+                                  className="gap-2 cursor-pointer"
+                                >
+                                  <Crown className="w-4 h-4 text-rose-500" />
+                                  چهره برتر رزگلد (۱۰۰۰۰)
+                                </DropdownMenuItem>
+                              </>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() =>
@@ -3518,12 +3559,13 @@ function EliteRequestsTab() {
   }, [status]);
   useEffect(load, [load]);
 
-  async function approveReq(r: EliteRequestRow) {
+  async function approveReq(r: EliteRequestRow, level: "gold" | "rosegold") {
     setActionLoading(r.id + "approve");
     try {
       const res = await apiPost<{ ok: boolean; message: string }>("/api/admin/elite-requests", {
         id: r.id,
         action: "approve",
+        level,
       });
       toast({ title: res.message || `${r.user.name} چهره برتر شد` });
       load();
@@ -3671,7 +3713,7 @@ function EliteRequestsTab() {
                 <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-100">
                   <Button
                     size="sm"
-                    onClick={() => approveReq(r)}
+                    onClick={() => approveReq(r, "gold")}
                     disabled={actionLoading === r.id + "approve"}
                     className="h-9 gap-1.5 bg-amber-500 hover:bg-amber-600 text-white border border-amber-400 shadow-sm"
                   >
@@ -3680,7 +3722,16 @@ function EliteRequestsTab() {
                     ) : (
                       <Crown className="w-3.5 h-3.5" />
                     )}
-                    تأیید → قاب طلایی
+                    تأیید → قاب طلایی (۵۰۰۰)
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => approveReq(r, "rosegold")}
+                    disabled={actionLoading === r.id + "approve"}
+                    className="h-9 gap-1.5 bg-rose-600 hover:bg-rose-700 text-white border border-rose-500 shadow-sm"
+                  >
+                    <Crown className="w-3.5 h-3.5" />
+                    تأیید → قاب رزگلد (۱۰۰۰۰)
                   </Button>
                   <OutlineButton
                     size="sm"

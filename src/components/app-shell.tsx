@@ -113,15 +113,18 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
     return cleanup;
   }, [init, fetchUser]);
 
-  // Fetch unread notification + chat counts
+  // Fetch unread notification + chat counts — هر ۳۰ ثانیه و فقط وقتی تب فعال است
   useEffect(() => {
     if (!user) return;
+    let alive = true;
     const tick = async () => {
+      if (typeof document !== "undefined" && document.hidden) return;
       try {
         const [notifRes, chatRes] = await Promise.all([
           fetch("/api/notifications"),
           fetch("/api/chat/conversations"),
         ]);
+        if (!alive) return;
         if (notifRes.ok) {
           const data = await notifRes.json();
           setUnread(data.unreadCount || 0);
@@ -133,8 +136,8 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
       } catch { /* ignore */ }
     };
     tick();
-    const id = setInterval(tick, 15000);
-    return () => clearInterval(id);
+    const id = setInterval(tick, 30000);
+    return () => { alive = false; clearInterval(id); };
   }, [user, route]);
 
   // Scroll to top on route change
@@ -207,17 +210,10 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
 
   return (
     <div className="relative min-h-screen flex flex-col bg-background">
-      {/* ═══ Aurora ambient background — زنده، فقط transform (۶۰fps) ═══ */}
-      <div aria-hidden className="aurora">
-        <span className="aurora-blob aurora-1" />
-        <span className="aurora-blob aurora-2" />
-        <span className="aurora-blob aurora-3" />
-      </div>
-
-      {/* ═══ Mobile: هدر شیشه‌ای چسبان (بازگشت در صفحات داخلی + لوگو + دکمه ورود/اکشن‌ها) ═══ */}
+      {/* ═══ Mobile: هدر رسمی چسبان — سطح تک‌رنگ کلاسیک (بدون شیشه) ═══ */}
       <MobileHeader user={user} loading={loading} unread={unread} showBack={showBack} />
 
-      {/* ═══ Desktop: clean top bar (glass, logo start, nav center, actions end) ═══ */}
+      {/* ═══ Desktop: clean top bar — سطح تک‌رنگ، لوگو راست، ناو وسط ═══ */}
       <DesktopTopBar
         isActive={isActive}
         nav={desktopNav}
@@ -258,14 +254,14 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
 
       {/* ═══ Main content ═══ */}
       <main ref={mainRef} className="relative flex-1 w-full">
-        <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-1 md:pt-[4.75rem] pb-28 md:pb-12">
-          <AnimatePresence mode="wait">
+        <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-1 md:pt-[4.75rem] pb-24 md:pb-12">
+          <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={routeKey}
-              initial={{ opacity: 0, y: 14, scale: 0.99 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.99 }}
-              transition={{ type: "spring", stiffness: 280, damping: 28 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.14, ease: "easeOut" }}
             >
               {renderView(route)}
             </motion.div>
@@ -308,7 +304,7 @@ function MobileHeader({
 
   return (
     <header
-      className="md:hidden sticky top-0 z-40 h-14 glass-strong border-b border-border/50"
+      className="md:hidden sticky top-0 z-40 h-16 bg-card border-b border-border"
       aria-label="هدر موبایل"
     >
       <div className="h-full px-3 flex items-center justify-between gap-2">
@@ -329,7 +325,7 @@ function MobileHeader({
             className="flex items-center gap-2 shrink-0 min-w-0"
             aria-label="فرصتینو"
           >
-            <LogoFull h={34} className="drop-shadow-sm" />
+            <LogoFull h={40} />
           </button>
         </div>
 
@@ -396,7 +392,7 @@ function DesktopTopBar({
 }) {
   return (
     <header
-      className="hidden md:flex fixed top-0 inset-x-0 z-40 h-16 glass-strong border-b border-border/60"
+      className="hidden md:flex fixed top-0 inset-x-0 z-40 h-16 bg-card border-b border-border"
     >
       <div className="mx-auto w-full max-w-7xl px-6 flex items-center justify-between gap-6">
         {/* ── Start: Logo + wordmark ── */}
@@ -405,7 +401,7 @@ function DesktopTopBar({
           className="flex items-center gap-2.5 shrink-0"
           aria-label="فرصتینو"
         >
-          <LogoFull h={34} className="drop-shadow-sm" />
+          <LogoFull h={38} />
         </button>
 
         {/* ── Center: nav links ── */}
@@ -601,60 +597,53 @@ function MobileTabBar({
   return (
     <>
       <nav
-        className="md:hidden fixed z-40 inset-x-3"
-        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)" }}
+        className="md:hidden fixed z-40 inset-x-0 bottom-0 bg-card border-t border-border pb-safe"
+        aria-label="ناوبری اصلی"
       >
-        {/* داکِ شیشه‌ای مایع — بدون z-index روی main تا شیت‌ها (z-70+) روی آن قرار گیرند
-            (کلاس‌های backdrop-* خودِ Tailwind چون unprefixed کامپایل می‌شوند، در همه‌ی مرورگرها بلور واقعی می‌دهند) */}
-        <div className="glass-liquid backdrop-blur-[28px] backdrop-saturate-200 backdrop-brightness-105 rounded-[26px] overflow-hidden">
-        <div className="grid grid-cols-6 h-[64px]">
+        {/* داک کلاسیک — سطح تک‌رنگ، خطِ بالایی، نشانگر فعال */}
+        <div className="grid grid-cols-6 h-[62px]">
           {tabs.map((tab) => {
             const active = isActive(tab.key);
             return (
-              <motion.button
+              <button
                 key={tab.key}
                 onClick={() => onTabClick(tab)}
-                whileTap={{ scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 500, damping: 22 }}
-                className="relative flex flex-col items-center justify-center gap-0.5"
+                className="relative flex flex-col items-center justify-center gap-1 pt-1.5 pb-1 outline-none"
                 aria-label={tab.label}
+                aria-current={active ? "page" : undefined}
               >
                 {active && (
-                  <motion.span
-                    layoutId="dock-pill"
-                    className="absolute inset-x-2 inset-y-1.5 rounded-[18px] grad-brand shadow-glow"
-                    transition={{ type: "spring", stiffness: 420, damping: 32 }}
-                  />
+                  <span className="absolute top-0 w-9 h-[3px] rounded-b-full bg-primary" />
                 )}
-                <motion.span
-                  key={active ? `${tab.key}-on` : `${tab.key}-off`}
-                  initial={false}
-                  animate={active ? { scale: [1, 1.28, 1] } : { scale: 1 }}
-                  transition={{ duration: 0.35, ease: "easeOut" }}
-                  className={cn("relative grid place-items-center w-7 h-7", active ? "text-white" : "text-muted-foreground")}
+                <Icon
+                  name={tab.icon}
+                  size={22}
+                  strokeWidth={active ? 2.4 : 2}
+                  className={cn(
+                    "transition-colors",
+                    active ? "text-primary" : "text-muted-foreground"
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-[10px] font-bold leading-none transition-colors",
+                    active ? "text-primary" : "text-muted-foreground"
+                  )}
                 >
-                  <Icon name={tab.icon} size={23} strokeWidth={active ? 2.5 : 2.0} />
-                </motion.span>
-                <span className={cn("relative text-[10px] font-bold leading-none", active ? "text-white" : "text-muted-foreground")}>
                   {tab.label}
                 </span>
-              </motion.button>
+              </button>
             );
           })}
           {/* More button — opens swipe-up sheet */}
-          <motion.button
+          <button
             onClick={() => setMoreOpen(true)}
-            whileTap={{ scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 500, damping: 22 }}
-            className="relative flex flex-col items-center justify-center gap-0.5"
+            className="relative flex flex-col items-center justify-center gap-1 pt-1.5 pb-1 outline-none"
             aria-label="بیشتر"
           >
-            <span className="relative grid place-items-center w-7 h-7 text-muted-foreground">
-              <Icon name="more" size={23} strokeWidth={2.0} />
-            </span>
-            <span className="relative text-[10px] font-bold leading-none text-muted-foreground">بیشتر</span>
-          </motion.button>
-        </div>
+            <Icon name="more" size={22} strokeWidth={2} className="text-muted-foreground" />
+            <span className="text-[10px] font-bold leading-none text-muted-foreground">بیشتر</span>
+          </button>
         </div>
       </nav>
 
@@ -667,7 +656,7 @@ function MobileTabBar({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setMoreOpen(false)}
-              className="md:hidden fixed inset-0 z-40 bg-black/30"
+              className="md:hidden fixed inset-0 z-40 bg-black/40"
             />
             <motion.div
               initial={{ y: "100%" }}
@@ -676,7 +665,7 @@ function MobileTabBar({
               transition={{ type: "spring", stiffness: 400, damping: 35 }}
               className="md:hidden fixed bottom-0 inset-x-0 z-50 pb-safe"
             >
-              <div className="glass-strong rounded-t-[28px] border-t border-border/40 overflow-hidden" style={{ boxShadow: "0 -12px 40px rgba(0,0,0,0.15)" }}>
+              <div className="bg-card rounded-t-[20px] border-t border-border overflow-hidden" style={{ boxShadow: "0 -8px 30px rgba(16,24,53,0.14)" }}>
                 {/* Drag handle */}
                 <div className="pt-3 pb-1 grid place-items-center">
                   <div className="w-10 h-1 rounded-full bg-border" />
@@ -684,7 +673,7 @@ function MobileTabBar({
                 {/* Header */}
                 <div className="px-5 pt-2 pb-3 flex items-center justify-between">
                   <h3 className="font-bold text-base">منوی بیشتر</h3>
-                  <button onClick={() => setMoreOpen(false)} className="grid place-items-center w-8 h-8 rounded-full bg-muted">
+                  <button onClick={() => setMoreOpen(false)} className="grid place-items-center w-8 h-8 rounded-full bg-muted" aria-label="بستن">
                     <Icon name="x" size={16} />
                   </button>
                 </div>

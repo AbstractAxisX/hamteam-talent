@@ -294,7 +294,6 @@ function Header({
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className="relative overflow-hidden rounded-3xl glass border border-border/50 p-6 shadow-float"
     >
-      <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/15 blur-3xl" aria-hidden />
       <div className="relative flex items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <div className="grid place-items-center w-16 h-16 rounded-3xl bg-primary text-primary-foreground shadow-glow shrink-0 relative">

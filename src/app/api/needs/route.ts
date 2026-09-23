@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { usersStarInfo } from "@/lib/stars";
 import { provinceCandidates } from "@/lib/geo";
 import type { NeedListItem } from "@/lib/types";
 
@@ -46,6 +47,9 @@ export async function GET(req: Request) {
     },
   });
 
+  /* قاب چهره برتر برای پوسترهای نیازمندی */
+  const needStars = await usersStarInfo(needs.map((n) => n.userId));
+
   let list: NeedListItem[] = needs.map((n) => ({
     id: n.id,
     title: n.title,
@@ -63,7 +67,10 @@ export async function GET(req: Request) {
       name: n.user.name,
       isVerifiedBadge: n.user.isVerifiedBadge,
       isScout: n.user.isScout,
+      isTopTalent: needStars.get(n.userId)?.isTopTalent ?? false,
+      frame: needStars.get(n.userId)?.frame ?? null,
       avatarUrl: n.user.profile?.avatarUrl ?? null,
+      gender: (n.user.profile?.gender as string | null) ?? null,
     },
   }));
 

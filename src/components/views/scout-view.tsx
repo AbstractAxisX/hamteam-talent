@@ -15,6 +15,7 @@ import { navigate } from "@/lib/nav";
 import { toast } from "@/hooks/use-toast";
 import { Icon } from "@/components/shared/icon";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { Sheet } from "@/components/shared/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Btn, IconBtn, Sk, SPRING, Spinner } from "@/components/ui/atoms";
 import { timeAgoFa, toFa, formatCount, formatFaDate } from "@/lib/format";
@@ -112,16 +113,6 @@ export function ScoutView() {
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="relative overflow-hidden rounded-3xl glass border border-border/50 p-6 shadow-float"
       >
-        <div
-          aria-hidden
-          className="absolute -top-12 -right-12 w-40 h-40 rounded-full blur-3xl"
-          style={{ backgroundColor: "rgba(16,185,129,0.16)" }}
-        />
-        <div
-          aria-hidden
-          className="absolute -bottom-12 -left-12 w-40 h-40 rounded-full blur-3xl"
-          style={{ backgroundColor: "rgba(16,185,129,0.10)" }}
-        />
         <div className="relative">
           <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-emerald-600/10 text-emerald-700 dark:text-emerald-300 border border-emerald-600/20 text-[11px] font-black">
             <Icon name="compass" size={12} strokeWidth={2.4} />
@@ -518,112 +509,64 @@ function NominateDialog({
   }
 
   return (
-    <AnimatePresence>
-      {talent && (
-        <div
-          className="fixed inset-0 z-[75] flex items-end sm:items-center justify-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="معرفی به ادمین"
-        >
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => !submitting && onClose()}
-            className="absolute inset-0 bg-black/55 backdrop-blur-[6px]"
-          />
-
-          <motion.div
-            initial={{ y: 90, opacity: 0, scale: 0.98 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 70, opacity: 0, scale: 0.98, transition: { duration: 0.18 } }}
-            transition={SPRING.sheet}
-            className="relative w-full sm:max-w-md bg-card rounded-t-[28px] sm:rounded-[28px] border border-border/70 overflow-hidden shadow-float"
+    <Sheet
+      open={!!talent}
+      onClose={() => !submitting && onClose()}
+      title={talent ? `معرفی «${talent.name}» به ادمین` : undefined}
+      description="با تأیید ادمین، این استعداد قاب «چهره برتر» می‌گیرد."
+      footer={
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            className="h-12 px-5 rounded-2xl border border-border text-muted-foreground font-bold text-sm hover:bg-muted transition-colors outline-none"
           >
-            {/* نوار هویت سبز */}
-            <div className="h-[3px] w-full bg-emerald-600" aria-hidden />
-
-            {/* درگ-هندل موبایل */}
-            <div className="sm:hidden pt-3 pb-1 grid place-items-center">
-              <div className="w-10 h-1 rounded-full bg-border" />
-            </div>
-
-            <div className="px-5 pt-3 pb-5 sm:pt-4">
-              {/* هدر: آواتار + نام + عنوان */}
-              <div className="flex items-start gap-3">
-                <div className="shrink-0">
-                  <UserAvatar
-                    name={talent.name}
-                    avatarUrl={talent.avatarUrl}
-                    verified={talent.isVerifiedBadge}
-                    gender={talent.gender}
-                    size="md"
-                    ringColor={talent.mainCategoryColor || "var(--primary)"}
-                  />
-                </div>
-                <div className="flex-1 min-w-0 pt-0.5">
-                  <h2 className="text-[15.5px] font-black text-foreground leading-snug truncate">
-                    معرفی «{talent.name}» به ادمین
-                  </h2>
-                  <p className="text-[11.5px] text-muted-foreground mt-1 leading-5">
-                    با تأیید ادمین، این استعداد قاب «چهره برتر» می‌گیرد.
-                  </p>
-                </div>
-                <IconBtn label="بستن" variant="soft" size={36} onClick={() => !submitting && onClose()}>
-                  <Icon name="x" size={16} />
-                </IconBtn>
-              </div>
-
-              {/* فرم دلیل */}
-              <div className="mt-4">
-                <label htmlFor="nominate-reason" className="block text-[13px] font-bold mb-2">
-                  دلیل معرفی
-                </label>
-                <Textarea
-                  id="nominate-reason"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="مثلاً: پرفروش‌ترین کارهایش امتیاز ۹+ گرفته و در حوزهٔ موسیقی استان کم‌نظیر است…"
-                  className="min-h-28 rounded-2xl text-[13px] leading-7 bg-muted/60 border-[1.5px]"
-                  disabled={submitting}
-                />
-                <div className="flex items-center justify-between mt-1.5 px-1">
-                  <p className={cn("text-[11px] font-bold", error ? "text-destructive" : "text-muted-foreground")}>
-                    {error || "حداقل ۱۰ کاراکتر"}
-                  </p>
-                  <p
-                    className={cn(
-                      "text-[10.5px] font-bold nums-fa",
-                      reason.trim().length >= 10 ? "text-emerald-600" : "text-muted-foreground"
-                    )}
-                  >
-                    {reason.trim().length.toLocaleString("fa-IR")}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center gap-2.5">
-                <Btn variant="ghost" size="lg" onClick={onClose} disabled={submitting}>
-                  انصراف
-                </Btn>
-                <Btn
-                  size="lg"
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-600 shadow-[0_10px_30px_rgba(5,150,105,0.3)]"
-                  onClick={submit}
-                  disabled={reason.trim().length < 10 || submitting}
-                  loading={submitting}
-                  icon={<Icon name="award" size={17} className="text-white" />}
-                >
-                  ارسال معرفی
-                </Btn>
-              </div>
-            </div>
-          </motion.div>
+            انصراف
+          </button>
+          <button
+            onClick={submit}
+            disabled={reason.trim().length < 10 || submitting}
+            className="flex-1 h-12 rounded-2xl bg-emerald-600 text-white font-extrabold text-sm
+                       inline-flex items-center justify-center gap-2 disabled:opacity-50
+                       outline-none transition-[filter] hover:brightness-105"
+          >
+            {submitting ? (
+              <Icon name="loader" size={17} className="animate-spin" />
+            ) : (
+              <Icon name="award" size={17} />
+            )}
+            ارسال معرفی
+          </button>
         </div>
-      )}
-    </AnimatePresence>
+      }
+    >
+      <div>
+        <label htmlFor="nominate-reason" className="block text-[13px] font-bold mb-2">
+          دلیل معرفی
+        </label>
+        <Textarea
+          id="nominate-reason"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="مثلاً: پرفروش‌ترین کارهایش امتیاز ۹+ گرفته و در حوزهٔ موسیقی استان کم‌نظیر است…"
+          className="min-h-28 rounded-2xl text-[13px] leading-7 bg-muted/60 border-[1.5px]"
+          disabled={submitting}
+        />
+        <div className="flex items-center justify-between mt-1.5 px-1">
+          <p className={cn("text-[11px] font-bold", error ? "text-destructive" : "text-muted-foreground")}>
+            {error || "حداقل ۱۰ کاراکتر"}
+          </p>
+          <p
+            className={cn(
+              "text-[10.5px] font-bold nums-fa",
+              reason.trim().length >= 10 ? "text-emerald-600" : "text-muted-foreground"
+            )}
+          >
+            {reason.trim().length.toLocaleString("fa-IR")}
+          </p>
+        </div>
+      </div>
+    </Sheet>
   );
 }
 

@@ -114,7 +114,10 @@ export type NeedListItem = {
     name: string;
     isVerifiedBadge: boolean;
     isScout?: boolean;
+    isTopTalent?: boolean;
+    frame?: FrameLevel;
     avatarUrl: string | null;
+    gender?: string | null;
   };
 };
 
@@ -126,6 +129,8 @@ export type NeedApplication = {
     id: string;
     name: string;
     isVerifiedBadge: boolean;
+    isTopTalent?: boolean;
+    frame?: FrameLevel;
     avatarUrl: string | null;
     bioShort: string | null;
   };
@@ -165,6 +170,7 @@ export type ProfileDetail = {
   totalStars?: number;
   nextAt?: number | null;
   isScout?: boolean;
+  scoutStatus?: string | null;
   isAdminElite?: boolean;
   mainCategoryId?: string | null; // user's chosen main category id (for avatar color ring)
   bioShort: string;

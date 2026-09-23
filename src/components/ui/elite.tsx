@@ -244,13 +244,17 @@ export function RoseGoldAvatar(props: Omit<Parameters<typeof EliteAvatar>[0], "v
 export function Laurel({
   size = 56,
   flip = false,
+  tint = "gold",
   className,
 }: {
   size?: number;
   flip?: boolean;
+  /** رنگ برگ‌ها — gold یا rose (رزگلد) */
+  tint?: "gold" | "rose";
   className?: string;
 }) {
   const uid = React.useId();
+  const rose = tint === "rose";
   const P0 = { x: 5, y: 43 };
   const P1 = { x: 11, y: 12 };
   const P2 = { x: 43, y: 5 };
@@ -282,14 +286,24 @@ export function Laurel({
     >
       <defs>
         <linearGradient id={`lf${uid}`} x1="0" y1="0" x2="8" y2="0" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#b45309" />
-          <stop offset=".55" stopColor="#f5c84c" />
-          <stop offset="1" stopColor="#fef3c7" />
+          {rose ? (
+            <>
+              <stop offset="0" stopColor="#be123c" />
+              <stop offset=".55" stopColor="#fb7185" />
+              <stop offset="1" stopColor="#fff1f2" />
+            </>
+          ) : (
+            <>
+              <stop offset="0" stopColor="#b45309" />
+              <stop offset=".55" stopColor="#f5c84c" />
+              <stop offset="1" stopColor="#fef3c7" />
+            </>
+          )}
         </linearGradient>
       </defs>
       <path
         d={`M${P0.x} ${P0.y} Q ${P1.x} ${P1.y} ${P2.x} ${P2.y}`}
-        fill="none" stroke="#d97706" strokeWidth="1.1" strokeLinecap="round" opacity=".8"
+        fill="none" stroke={rose ? "#e11d48" : "#d97706"} strokeWidth="1.1" strokeLinecap="round" opacity=".8"
       />
       {leaves}
     </svg>
@@ -297,48 +311,50 @@ export function Laurel({
 }
 
 /* ═══════════════════════════════════════════
-   TopTalentBanner — بنر نخبگی پروفایل
-   ابیسیدین + دو غار + تیک طلایی + درخشش
+   TopTalentBanner — بنر چهره برتر پروفایل
+   gold (۵۰۰۰ ستاره) / rosegold (۱۰۰۰۰ ستاره)
    ═══════════════════════════════════════════ */
-export function TopTalentBanner({ className }: { className?: string }) {
+export function TopTalentBanner({ className, variant = "gold" }: { className?: string; variant?: "gold" | "rosegold" }) {
+  const rose = variant === "rosegold";
   return (
     <div
       className={cn(
         "relative overflow-hidden rounded-2xl h-14 flex items-center justify-center gap-3 px-5",
         className
       )}
-      style={{
-        background: "linear-gradient(120deg, #2a1a04 0%, #171005 45%, #241604 100%)",
-        boxShadow: "inset 0 0 0 1px rgba(245,200,76,.35), 0 8px 24px rgba(146,97,14,.28)",
-      }}
+      style={
+        rose
+          ? {
+              background: "linear-gradient(120deg, #3b0a1c 0%, #26060f 45%, #33101f 100%)",
+              boxShadow: "inset 0 0 0 1px rgba(251,113,133,.4), 0 8px 24px rgba(190,18,60,.3)",
+            }
+          : {
+              background: "linear-gradient(120deg, #2a1a04 0%, #171005 45%, #241604 100%)",
+              boxShadow: "inset 0 0 0 1px rgba(245,200,76,.35), 0 8px 24px rgba(146,97,14,.28)",
+            }
+      }
     >
-      {/* بافت نقطه‌ای طلایی */}
+      {/* بافت نقطه‌ای */}
       <div
         aria-hidden
         className="absolute inset-0 opacity-[0.16]"
         style={{
-          backgroundImage: "radial-gradient(rgba(245,200,76,.8) 1px, transparent 1px)",
+          backgroundImage: `radial-gradient(${rose ? "rgba(251,113,133,.85)" : "rgba(245,200,76,.8)"} 1px, transparent 1px)`,
           backgroundSize: "14px 14px",
         }}
       />
-      <Laurel size={34} />
-      <GoldCheckMark size={22} />
+      <Laurel size={34} tint={rose ? "rose" : "gold"} />
+      {rose ? <RoseGoldCheckMark size={22} /> : <GoldCheckMark size={22} />}
       <div className="relative z-10 text-center leading-tight">
-        <p className="text-gold-grad text-[15px] font-black">چهره برتر</p>
-        <p className="text-[9.5px] font-bold text-amber-200/60 mt-0.5">
-          ۵۰۰۰+ ستاره — منتخب جامعهٔ فرصتینو
+        <p className={rose ? "text-[15px] font-black" : "text-gold-grad text-[15px] font-black"}
+           style={rose ? { background: "linear-gradient(135deg,#fff1f2 5%,#fb7185 32%,#be123c 66%,#fecdd3 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" } : undefined}>
+          {rose ? "چهره برتر رزگلد" : "چهره برتر"}
+        </p>
+        <p className={cn("text-[9.5px] font-bold mt-0.5", rose ? "text-rose-200/60" : "text-amber-200/60")}>
+          {rose ? "۱۰۰۰۰+ ستاره — کمیاب‌ترین سطح فرصتینو" : "۵۰۰۰+ ستاره — منتخب جامعهٔ فرصتینو"}
         </p>
       </div>
-      <Laurel size={34} flip />
-      {/* درخشش عبوری */}
-      <div
-        aria-hidden
-        className="absolute top-0 bottom-0 w-14 -skew-x-12 animate-elite-shine pointer-events-none"
-        style={{
-          background:
-            "linear-gradient(90deg, transparent, rgba(255,251,215,.35), transparent)",
-        }}
-      />
+      <Laurel size={34} flip tint={rose ? "rose" : "gold"} />
     </div>
   );
 }

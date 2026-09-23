@@ -370,3 +370,47 @@ Deploy:
 Stage Summary:
 - کل سیستم چهره‌یاب + مسیر جایگزین + سقف هفتگی کامل، تست‌شده و در حال استقرار production.
 - دموی کامل: ۲ اسکات فعال + ۱ درخواست pending + ۲ معرفی + ۱ درخواست مستقیم + سارا طلایی (مسیر ادمین).
+
+---
+Task ID: AUDIT-1
+Agent: Z.ai Code (maintainer)
+Task: بازطراحی کلاسیک + رفع باگ رزگلد سراسری + eliteLevel ادمین + کارایی
+
+Work Log:
+- بک‌اند:
+  · Schema: User.eliteLevel (none|gold|rosegold) + isAdminElite denormalized؛ مایگریشن SQL (isAdminElite=true→gold).
+  · stars.ts: frameFor(stars, votes, adminEliteLevel) — level=rosegold→رزگلد، level=gold→حداقل طلایی؛ usersStarInfo سطح ادمین را از eliteLevel می‌خواند.
+  · سریالایزرها + frame/isScout/totalStars: chat conversations، chat messages (هدر + گوینده)، connections، needs list، need detail (پوستر + متقاضیان)، comments؛ profile += scoutStatus.
+  · admin/elite-requests POST: level param (gold|rosegold) + نوتیف فارسی با نام سطح؛ admin/users/[id]: اکشن‌های elite/unelite با level + نوتیف.
+- UI کلاسیک (globals.css):
+  · glass/glass-strong/glass-liquid → سطوح Solid تک‌رنگ (بدون backdrop-filter) — ۳۰+ فایل بی‌ویرایش کلاسیک شد.
+  · aurora حذف کامل (blob های ۴۸۰px blur-80 + انیمیشن بی‌نهایت = عامل اصلی لگ).
+  · انیمیشن‌های بی‌نهایت elite-spin/twinkle/shine → ایستا.
+  · ۲۶ blob تزئینی blur-3xl از ۱۷ ویو حذف شد (اسکریپت پایتون).
+- app-shell:
+  · هدر: bg-card solid + border-b (بدون شیشه) h-16؛ لوگو ۳۴→۴۰؛ دسکتاپ ۳۸.
+  · تبار موبایل: داک شیشه‌ای شناور → تبار کلاسیک full-width (bg-card + border-t + نشانگر ۳px بالای تب فعال + رنگ primary؛ بدون layoutId/spring).
+  · ترنزیشن مسیر: spring ۲۸۰ms → fade ۱۴۰ms (حس نرم‌تر/سریع‌تر).
+  · polling اعلان/چت: ۱۵s→۳۰s + skip وقتی tab hidden (بار سرور).
+- profile-view:
+  · باگ رزگلد: isTopTalent boolean → frame level؛ کاور/بنر TopTalentBanner(variant)/دکمه‌ها/StatSeg/تب‌پیل/چک‌مارک (RoseGoldCheckMark) همگی rose palette.
+  · چهره‌یاب رسمی: کاور سرمه‌ای اداری + چیپ «چهره‌یاب تأییدشده» روی کاور + عنوان حرفه‌ای + خط نشان؛ بنر pending خودِ کاربر («در انتظار تأیید ادمین»).
+  · حذف motion blurهای بی‌نهایت کاور (perf).
+- elite.tsx: TopTalentBanner/Laurel پارامتر tint (gold|rose)؛ حذف درخشش عبوری.
+- chat-view: UserAvatar با frame در لیست/هدر/کارت پروفایل + آواتار قاب‌دار کنار اولین پیام هر گروه incoming (الگوی مسنجر کلاسیک) + چیپ رزگلد/طلایی کنار نام.
+- PostCard: حذف نوار گرادیانی بالای کارت؛ اکشن‌ها قرص‌های یکدست quiet (امتیاز quiet amber با ستاره پر)؛ تاریخ انتهایی حذف (تکراری).
+- Sheet جدید (shared/sheet.tsx): مودال کلاسیک استاندارد — موبایل بات‌شیت + دسکتاپ دیالوگ، روکش solid بدون بلور، ESC/قفل‌اسکرول/فوتر. RatingModal/ReportDialog/EliteRequestDialog/NominateDialog بازنویسی با Sheet؛ بک‌دراپ‌های blur مودال‌ها (composer/likers/filter/crop/portfolio) → solid.
+- landing: هیرو → پنل سرمه‌ای کلاسیک (بدون blob متحرک/بلور)، لوگو ۴۸px، متن سفید، دکمه‌ها solid؛ گرید دسته‌ها بدون stagger فریم‌موشن؛ حذف بلورهای سکشن پایانی/اسکات.
+- admin-view: درخواست‌های چهره برتر → دو دکمه «تأیید → قاب طلایی (۵۰۰۰)» / «تأیید → قاب رزگلد (۱۰۰۰۰)»؛ منوی کاربران → اکشن‌های ارتقا طلایی/رزگلد/لغو قاب.
+
+E2E (agent-browser + VLM + API):
+- مهدی کریمی: ادمین تأیید رزگلد → eliteLevel=rosegold → پروفایل کاملاً رزگلد (VLM: ۱۰/۱۰، PASS هر ۳ آیتم).
+- چت: قاب طلایی سارا در لیست + هدر + کنار پیام‌ها (VLM ۹+۹)؛ سرویس socket مستقیم تست شد (connect/token/join/message → DB).
+- اسکات: پروفایل رسمی (VLM ۸ رسمی/۹ تمایز) + داشبورد ۹/۱۰؛ پارس pending → بنر روی پروفایل خودش ✓ و می‌تواند عادی بگردد.
+- Pages VLM: landing ۸.۵ / feed ۷.۵ / home-needs-talents ۹×۳ / explore ۹ / rating-modal ۹ / elite-sheet کلاسیک ✓.
+- tsc 0 خطا در src؛ eslint 0؛ dev.log پاک؛ تبار full-fit (844px viewport).
+
+Stage Summary:
+- رزگلد در «همه‌جا» (پروفایل/چت/لیست‌ها) + انتخاب سطح در ادمین = کل چرخه تست‌شده.
+- حذف کامل شیشه/aurora/blobها → کلاسیک solid + سرعت.
+- مودال‌ها روی Sheet استاندارد کلاسیک.

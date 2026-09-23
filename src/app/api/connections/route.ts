@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { usersStarInfo } from "@/lib/stars";
 
 // GET /api/connections — current user's connections in three lists:
 //   pending (received requests), sent (sent requests), accepted (mutual).
@@ -31,11 +32,24 @@ export async function GET() {
     }),
   ]);
 
+  /* قاب چهره برتر (طلایی/رزگلد) + بج چهره‌یاب برای همهٔ طرف‌ها */
+  const otherIds = [
+    ...received.map((c) => c.requesterId),
+    ...sent.map((c) => c.receiverId),
+    ...acceptedAsReceiver.map((c) => c.requesterId),
+    ...acceptedAsRequester.map((c) => c.receiverId),
+  ];
+  const starInfo = await usersStarInfo(otherIds);
+
   type OtherUser = {
     id: string;
     name: string;
     isVerifiedBadge: boolean;
+    isScout: boolean;
+    isTopTalent: boolean;
+    frame: string | null;
     avatarUrl: string | null;
+    gender: string | null;
     bioShort: string;
   };
   type ConnItem = {
@@ -56,18 +70,25 @@ export async function GET() {
       | (typeof sent)[number]["receiver"]
       | (typeof acceptedAsReceiver)[number]["requester"]
       | (typeof acceptedAsRequester)[number]["receiver"]
-  ): ConnItem => ({
-    id: c.id,
-    otherUser: {
-      id: other.id,
-      name: other.name,
-      isVerifiedBadge: other.isVerifiedBadge,
-      avatarUrl: other.profile?.avatarUrl ?? null,
-      bioShort: other.profile?.bioShort ?? "",
-    },
-    status: c.status,
-    createdAt: c.createdAt.toISOString(),
-  });
+  ): ConnItem => {
+    const si = starInfo.get(other.id);
+    return {
+      id: c.id,
+      otherUser: {
+        id: other.id,
+        name: other.name,
+        isVerifiedBadge: other.isVerifiedBadge,
+        isScout: other.isScout,
+        isTopTalent: si?.isTopTalent ?? false,
+        frame: si?.frame ?? null,
+        avatarUrl: other.profile?.avatarUrl ?? null,
+        gender: (other.profile?.gender as string | null) ?? null,
+        bioShort: other.profile?.bioShort ?? "",
+      },
+      status: c.status,
+      createdAt: c.createdAt.toISOString(),
+    };
+  };
 
   const pending: ConnItem[] = received.map((c) => mapItem(c, c.requester));
   const sentList: ConnItem[] = sent.map((c) => mapItem(c, c.receiver));

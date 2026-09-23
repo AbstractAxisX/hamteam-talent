@@ -12,7 +12,7 @@ import { RatingSummary, RatingModal } from "@/components/shared/rating-control";
 import { FeatureButton } from "@/components/shared/feature-button";
 import { ReportDialog } from "@/components/shared/report-dialog";
 import { toast } from "@/hooks/use-toast";
-import { timeAgoFa, formatCount, formatFaDate, toFa } from "@/lib/format";
+import { timeAgoFa, formatCount, toFa } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /* ════════════════════════════════════════════════════════════════════
@@ -96,17 +96,9 @@ export function PostCard({ post, index = 0 }: { post: PostWithRelations; index?:
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3), ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.2), ease: [0.16, 1, 0.3, 1] }}
     >
-      <article className="relative bg-card rounded-[24px] overflow-hidden border border-border/50 shadow-card">
-        {/* نوار بالای پست — رنگ دستهٔ اصلیِ فرد (هماهنگ با رینگ آواتار) */}
-        <div
-          className="absolute top-0 inset-x-0 h-[3px] opacity-80"
-          style={{
-            background: `linear-gradient(90deg, transparent, ${userColor || "var(--primary)"}, transparent)`,
-          }}
-        />
-
+      <article className="relative bg-card rounded-[20px] overflow-hidden border border-border shadow-soft">
         {/* Header */}
         <div className="p-4 pt-4 flex items-start gap-3">
           <button
@@ -120,8 +112,8 @@ export function PostCard({ post, index = 0 }: { post: PostWithRelations; index?:
               verified={post.user.isVerifiedBadge}
               gender={post.user.gender}
               size="md"
-              topTalent={post.user.isTopTalent}
-              ringColor={post.user.isTopTalent ? null : userColor || "var(--primary)"}
+              frame={post.user.frame}
+              ringColor={post.user.frame ? null : userColor || "var(--primary)"}
             />
           </button>
           <div className="flex-1 min-w-0">
@@ -171,62 +163,53 @@ export function PostCard({ post, index = 0 }: { post: PostWithRelations; index?:
         {/* Media */}
         <MediaBlock media={post.media} />
 
-        {/* Actions — قرصی با فنر؛ امتیاز + کامنت + اشتراک */}
+        {/* Actions — امتیاز + کامنت + اشتراک + گزارش */}
         <div className="flex gap-2 px-3 pb-3 pt-1.5">
           <motion.button
-            whileTap={{ scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 500, damping: 22 }}
+            whileTap={{ scale: 0.94 }}
             onClick={() => setRatingOpen(true)}
             className={cn(
-              "flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-[12.5px] font-extrabold border transition-colors",
+              "flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-[12.5px] font-extrabold border transition-colors outline-none",
               myScore
-                ? "text-white grad-gold border-transparent shadow-glow-gold"
-                : "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20"
+                ? "bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300"
+                : "text-muted-foreground bg-card border-border hover:bg-muted/70 hover:text-amber-700 dark:hover:text-amber-300"
             )}
             aria-label={myScore ? `ویرایش امتیاز ${toFa(myScore)} از ۱۰` : "ثبت امتیاز"}
           >
-            <Icon name="spark" size={17} strokeWidth={2} />
-            <span className="nums-fa">{myScore ? `ویرایش (${toFa(myScore)}/۱۰)` : "ثبت امتیاز"}</span>
+            <Icon name="star" size={16} strokeWidth={2} className={myScore ? "fill-amber-400 text-amber-500" : ""} />
+            <span className="nums-fa">{myScore ? `${toFa(myScore)}/۱۰` : "امتیاز"}</span>
           </motion.button>
 
           <motion.button
-            whileTap={{ scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 500, damping: 22 }}
+            whileTap={{ scale: 0.94 }}
             onClick={openDetail}
-            className="flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-[12.5px] font-extrabold text-muted-foreground bg-card border border-border hover:bg-muted/70 hover:text-primary transition-colors"
+            className="flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-[12.5px] font-extrabold text-muted-foreground bg-card border border-border hover:bg-muted/70 hover:text-primary transition-colors outline-none"
             aria-label={`نظرات (${formatCount(post.commentCount)})`}
           >
-            <Icon name="comment" size={17} strokeWidth={2} />
+            <Icon name="comment" size={16} strokeWidth={2} />
             <span className="tabular-nums">{formatCount(post.commentCount)}</span>
           </motion.button>
 
           <motion.button
-            whileTap={{ scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 500, damping: 22 }}
+            whileTap={{ scale: 0.94 }}
             onClick={sharePost}
-            className="h-11 px-4 rounded-full flex items-center justify-center text-[12.5px] font-extrabold text-muted-foreground bg-card border border-border hover:bg-muted/70 hover:text-primary transition-colors"
+            className="h-11 px-4 rounded-full flex items-center justify-center text-[12.5px] font-extrabold text-muted-foreground bg-card border border-border hover:bg-muted/70 hover:text-primary transition-colors outline-none"
             aria-label="اشتراک‌گذاری"
           >
-            <Icon name="share" size={17} strokeWidth={2} />
+            <Icon name="share" size={16} strokeWidth={2} />
           </motion.button>
 
           {/* گزارش تخلف — مدیریت محتوا */}
           {user && user.id !== post.user.id && (
             <motion.button
-              whileTap={{ scale: 0.9 }}
-              transition={{ type: "spring", stiffness: 500, damping: 22 }}
+              whileTap={{ scale: 0.94 }}
               onClick={() => setReportOpen(true)}
-              className="h-11 w-11 shrink-0 rounded-full grid place-items-center text-muted-foreground bg-card border border-border hover:bg-rose/5 hover:text-rose hover:border-rose/30 transition-colors"
+              className="h-11 w-11 shrink-0 rounded-full grid place-items-center text-muted-foreground bg-card border border-border hover:bg-rose/5 hover:text-rose hover:border-rose/30 transition-colors outline-none"
               aria-label="گزارش تخلف"
             >
-              <Icon name="flag" size={16} strokeWidth={2} />
+              <Icon name="flag" size={15} strokeWidth={2} />
             </motion.button>
           )}
-        </div>
-
-        {/* تاریخ */}
-        <div className="px-4 pb-3 text-[11px] text-muted-foreground/70">
-          {formatFaDate(post.createdAt)}
         </div>
 
         {/* ارسال به ویترین چهره برتر — فقط پست خودِ کاربرِ دارای قاب */}

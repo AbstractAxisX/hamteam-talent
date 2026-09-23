@@ -185,7 +185,7 @@ export function PortfolioFormSheet({
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }}
             onClick={() => !busy && onClose()}
-            className="absolute inset-0 bg-black/55 backdrop-blur-[6px]"
+            className="absolute inset-0 bg-black/50"
           />
           <motion.div
             initial={{ y: "100%", opacity: 0.6, scale: 0.98 }}

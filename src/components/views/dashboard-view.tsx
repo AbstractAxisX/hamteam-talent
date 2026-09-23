@@ -75,14 +75,6 @@ export function DashboardView() {
         className="relative overflow-hidden rounded-3xl glass border border-border/60 p-6 md:p-8"
       >
         {/* Ambient blobs */}
-        <div
-          className="absolute -top-16 -left-12 w-64 h-64 rounded-full opacity-30 blur-3xl pointer-events-none"
-          style={{ backgroundColor: "rgba(61, 124, 190, 0.42)" }}
-        />
-        <div
-          className="absolute -bottom-20 -right-12 w-56 h-56 rounded-full opacity-20 blur-3xl pointer-events-none"
-          style={{ backgroundColor: "rgba(164, 232, 109, 0.35)" }}
-        />
         <div className="relative flex items-center gap-4 md:gap-5">
           <button
             onClick={() => navigate({ view: "my-profile" })}
@@ -94,6 +86,7 @@ export function DashboardView() {
               avatarUrl={user?.profile?.avatarUrl || null}
               verified={user?.isVerifiedBadge}
               gender={user?.profile?.gender}
+              frame={user?.frame ?? undefined}
               size="xl"
               ringColor="var(--primary)"
             />
@@ -274,6 +267,8 @@ function TimelinePost({ post, index }: { post: PostWithRelations; index: number 
           name={post.user.name}
           avatarUrl={post.user.avatarUrl}
           verified={post.user.isVerifiedBadge}
+          gender={post.user.gender}
+          frame={post.user.frame ?? undefined}
           size="md"
           ringColor="var(--background)"
         />
@@ -390,6 +385,7 @@ function TalentTallCard({
           avatarUrl={talent.avatarUrl}
           verified={talent.isVerifiedBadge}
           gender={talent.gender}
+          frame={talent.frame ?? undefined}
           size="md"
         />
         <div className="min-w-0 flex-1">

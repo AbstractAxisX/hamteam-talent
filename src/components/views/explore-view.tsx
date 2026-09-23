@@ -90,7 +90,9 @@ type Comment = {
     name: string;
     avatarUrl: string | null;
     gender: string | null;
+    isScout?: boolean;
     isTopTalent: boolean;
+    frame?: "gold" | "rosegold" | null;
   };
   likeCount: number;
   myReaction: "like" | "dislike" | null;
@@ -318,11 +320,6 @@ export function ExploreView() {
         <GoldSparkle size={8} delay={0.4} style={{ bottom: "18%", right: "12%" }} />
 
         {/* نور طلایی بالا */}
-        <div
-          aria-hidden
-          className="absolute -top-20 left-1/2 -translate-x-1/2 w-72 h-40 rounded-full blur-3xl opacity-25 pointer-events-none"
-          style={{ background: "#f5c84c" }}
-        />
 
         <div className="relative px-5 py-6 sm:px-6 sm:py-7 flex flex-col items-center gap-3">
           {/* مدال طلایی */}
@@ -2079,6 +2076,7 @@ function CommentNode({
             avatarUrl={comment.user.avatarUrl}
             verified={false}
             gender={comment.user.gender}
+            frame={comment.user.frame ?? undefined}
             size={depth === 0 ? "sm" : "xs"}
           />
         </button>

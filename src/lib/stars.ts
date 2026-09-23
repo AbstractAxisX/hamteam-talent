@@ -24,9 +24,19 @@ export const FEATURE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type FrameLevel = "gold" | "rosegold" | null;
 
-export function frameFor(totalStars: number, votes = 0, isAdminElite = false): FrameLevel {
+/** سطح قاب ادمینی روی User.eliteLevel */
+export type AdminEliteLevel = "none" | "gold" | "rosegold";
+
+export function frameFor(
+  totalStars: number,
+  votes = 0,
+  adminElite: AdminEliteLevel | boolean = "none"
+): FrameLevel {
+  const level: AdminEliteLevel =
+    adminElite === true ? "gold" : adminElite === false ? "none" : adminElite;
+  if (level === "rosegold") return "rosegold";
   if (totalStars >= ROSE_GOLD_THRESHOLD || votes >= ROSE_GOLD_VOTES_THRESHOLD) return "rosegold";
-  if (totalStars >= GOLD_THRESHOLD || votes >= GOLD_VOTES_THRESHOLD || isAdminElite) return "gold";
+  if (totalStars >= GOLD_THRESHOLD || votes >= GOLD_VOTES_THRESHOLD || level === "gold") return "gold";
   return null;
 }
 
@@ -43,7 +53,7 @@ export interface UserStarInfo {
 
 const ZERO: UserStarInfo = { totalStars: 0, votes: 0, frame: null, isTopTalent: false, nextAt: GOLD_THRESHOLD };
 
-function infoFor(total: number, votes: number, adminElite = false): UserStarInfo {
+function infoFor(total: number, votes: number, adminElite: AdminEliteLevel = "none"): UserStarInfo {
   const frame = frameFor(total, votes, adminElite);
   return {
     totalStars: total,
@@ -54,7 +64,7 @@ function infoFor(total: number, votes: number, adminElite = false): UserStarInfo
   };
 }
 
-/** مجموع ستاره/رأی دریافتی چند کاربر + فلگ ادمین — دو کوئری، همان API قبلی */
+/** مجموع ستاره/رأی دریافتی چند کاربر + سطح ادمین — دو کوئری، همان API قبلی */
 export async function usersStarInfo(userIds: string[]): Promise<Map<string, UserStarInfo>> {
   const uniq = [...new Set(userIds)].filter(Boolean);
   const map = new Map<string, UserStarInfo>();
@@ -68,13 +78,13 @@ export async function usersStarInfo(userIds: string[]): Promise<Map<string, User
     ),
     db.user.findMany({
       where: { id: { in: uniq }, isAdminElite: true },
-      select: { id: true },
+      select: { id: true, eliteLevel: true },
     }),
   ]);
-  const eliteSet = new Set(adminElites.map((u) => u.id));
-  for (const r of rows) map.set(r.userId, infoFor(Number(r.total), Number(r.votes), eliteSet.has(r.userId)));
+  const eliteMap = new Map(adminElites.map((u) => [u.id, (u.eliteLevel as AdminEliteLevel) || "gold"]));
+  for (const r of rows) map.set(r.userId, infoFor(Number(r.total), Number(r.votes), eliteMap.get(r.userId) ?? "none"));
   for (const id of uniq) {
-    if (!map.has(id)) map.set(id, eliteSet.has(id) ? infoFor(0, 0, true) : ZERO);
+    if (!map.has(id)) map.set(id, infoFor(0, 0, eliteMap.get(id) ?? "none"));
   }
   return map;
 }

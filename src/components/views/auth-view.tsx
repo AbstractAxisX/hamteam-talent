@@ -65,18 +65,6 @@ export function AuthView() {
     <div className="relative min-h-screen overflow-hidden bg-background">
       {/* ═══ Ambient background — solid colored blobs (NO gradient fills) ═══ */}
       <div
-        className="absolute -top-32 -right-24 w-[440px] h-[440px] rounded-full opacity-35 blur-3xl pointer-events-none"
-        style={{ backgroundColor: "rgba(61, 124, 190, 0.45)" }}
-      />
-      <div
-        className="absolute top-1/4 -left-32 w-[360px] h-[360px] rounded-full opacity-25 blur-3xl pointer-events-none"
-        style={{ backgroundColor: "rgba(164, 232, 109, 0.32)" }}
-      />
-      <div
-        className="absolute -bottom-24 right-1/3 w-[300px] h-[300px] rounded-full opacity-12 blur-3xl pointer-events-none"
-        style={{ backgroundColor: "rgba(225, 29, 72, 0.16)" }}
-      />
-      <div
         className="absolute inset-0 opacity-[0.04] pointer-events-none"
         style={{
           backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",

@@ -173,7 +173,7 @@ export function CropDialog({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22 }}
             onClick={() => requestClose()}
-            className="absolute inset-0 bg-black/60 backdrop-blur-[6px]"
+            className="absolute inset-0 bg-black/55"
           />
 
           {/* شیت پایین (موبایل) / کارت وسط (دسکتاپ) */}
