@@ -18,6 +18,7 @@ import { navigate } from "@/lib/nav";
 import type { ProfileDetail, ProfileMeta, PostWithRelations, CategoryWithSkills } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { ScoutBadge } from "@/components/shared/scout-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PostCard } from "@/components/shared/post-card";
 import { Icon } from "@/components/shared/icon";
@@ -406,6 +407,7 @@ export function ProfileView({ id }: { id: string }) {
                 <h1 className="text-[21px] font-black tracking-tight text-foreground leading-tight">
                   {profile.name}
                 </h1>
+                {profile.isScout && <ScoutBadge />}
                 {isTopTalent && (
                   <motion.span
                     initial={{ scale: 0, rotate: -30 }}

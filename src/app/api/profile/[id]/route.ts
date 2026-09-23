@@ -164,6 +164,8 @@ export async function GET(
     frame: si.frame,
     totalStars: si.totalStars,
     nextAt: si.nextAt,
+    isScout: user.isScout,
+    isAdminElite: user.isAdminElite,
     bioShort: user.profile?.bioShort ?? "",
     bioLong: user.profile?.bioLong ?? "",
     avatarUrl: user.profile?.avatarUrl ?? null,

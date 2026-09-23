@@ -25,6 +25,7 @@ import type { FrameLevel } from "@/lib/stars";
    · چک‌لیست قدم‌به‌قدم تکمیل پروفایل (شورتکات مستقیم)
    · فرم معمولی پست (روی صفحه — بدون شیت)
    · پنل پیشرفت ستاره «چهره برتر شو» (۵۰۰۰ طلایی / ۱۰۰۰۰ رزگلد)
+     + مسیر جایگزین: درخواست بررسی مستقیم ادمین (EliteRequestDialog)
    · شاید بشناسید + دسته‌بندی‌ها + فید ارتباط‌ها
    ═══════════════════════════════════════════════════════════ */
 
@@ -53,6 +54,25 @@ type CompletionStep = {
   section: string;
 };
 
+/* ── مسیر جایگزین چهره برتر — وضعیت درخواست بررسی مستقیم ادمین ──
+   GET /api/elite/request → { isTopTalent, frame, request | null } */
+type EliteRequestState = {
+  id: string;
+  status: "pending" | "approved" | "rejected";
+  reason: string;
+  adminNote: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+};
+
+type EliteStatus = {
+  isTopTalent: boolean;
+  frame: FrameLevel;
+  request: EliteRequestState | null;
+};
+
+const ELITE_REASON_MIN = 30;
+
 export function HomeView() {
   const { user, loading: userLoading } = useUser();
   const [data, setData] = useState<HomeData | null>(null);
@@ -61,6 +81,20 @@ export function HomeView() {
   const [cats, setCats] = useState<CategoryWithSkills[]>([]);
   const [loading, setLoading] = useState(true);
   const [connectingIds, setConnectingIds] = useState<Set<string>>(new Set());
+  /* مسیر جایگزین چهره برتر */
+  const [eliteStatus, setEliteStatus] = useState<EliteStatus | null>(null);
+  const [eliteDialogOpen, setEliteDialogOpen] = useState(false);
+
+  const refreshEliteStatus = useCallback(() => {
+    api<EliteStatus>("/api/elite/request")
+      .then((d) => setEliteStatus(d))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    refreshEliteStatus();
+  }, [user, refreshEliteStatus]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -117,6 +151,14 @@ export function HomeView() {
   const target = myFrame === "rosegold" ? null : data?.stats.nextAt ?? (myFrame === "gold" ? ROSE_GOLD_THRESHOLD : GOLD_THRESHOLD);
   const starPct = target ? Math.min(100, Math.round((myStars / target) * 100)) : 100;
   const remaining = target ? Math.max(0, target - myStars) : 0;
+
+  /* ── مسیر جایگزین — فقط برای کاربرانی که هنوز چهره برتر نیستند
+     (درخواست تأییدشده همیشه چیپ تأیید ادمین را نشان می‌دهد) ── */
+  const eliteReq = eliteStatus?.request ?? null;
+  const alreadyElite = eliteStatus ? eliteStatus.isTopTalent : myFrame != null;
+  const showEliteAltPath = eliteReq?.status === "approved" || !alreadyElite;
+  const elitePending = eliteReq?.status === "pending";
+  const eliteApproved = eliteReq?.status === "approved";
 
   async function handleConnect(talent: TalentListItem) {
     setConnectingIds((s) => new Set(s).add(talent.id));
@@ -299,7 +341,7 @@ export function HomeView() {
                 چهره برتر شو
               </h2>
               <p className="text-[11.5px] text-amber-100/70 font-medium leading-5 mt-1">
-                ۵۰۰۰ ستاره → قاب طلایی و ارسال پست به چهره برتر · ۱۰۰۰۰ ستاره → قاب رزگلد
+                ۵۰۰۰ ستاره یا ۵۰۰ رأی → قاب طلایی و ارسال هفته‌ای یک پست به چهره برتر · ۱۰۰۰۰ ستاره → قاب رزگلد
               </p>
             </div>
           </div>
@@ -347,6 +389,31 @@ export function HomeView() {
           >
             مشاهده چهره برتر
           </motion.button>
+
+          {/* ═══ مسیر جایگزین — درخواست بررسی مستقیم ادمین ═══ */}
+          {showEliteAltPath &&
+            (elitePending ? (
+              <div className="mt-2.5 flex justify-center">
+                <span className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full border border-amber-300/35 bg-amber-400/10 text-amber-100/85 text-[11.5px] font-bold">
+                  <Icon name="clock" size={13} className="text-amber-300" />
+                  درخواست بررسی مستقیم: در انتظار بررسی ادمین
+                </span>
+              </div>
+            ) : eliteApproved ? (
+              <div className="mt-2.5 flex justify-center">
+                <span className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full grad-gold text-white text-[11.5px] font-black shadow-glow-gold">
+                  <GoldCheckMark size={14} />
+                  چهره برتر — تأیید ادمین ⭐
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEliteDialogOpen(true)}
+                className="mt-2.5 w-full h-9 rounded-xl text-[12px] font-bold text-amber-100/60 hover:text-amber-100 hover:bg-amber-100/5 transition-colors"
+              >
+                استعداد برتری داری؟ درخواست بررسی مستقیم ادمین
+              </button>
+            ))}
         </div>
       </motion.section>
 
@@ -471,7 +538,169 @@ export function HomeView() {
           </div>
         )}
       </motion.section>
+
+      {/* ═══ مودال مسیر جایگزین چهره برتر ═══ */}
+      <EliteRequestDialog
+        open={eliteDialogOpen}
+        onClose={() => setEliteDialogOpen(false)}
+        onSubmitted={refreshEliteStatus}
+      />
     </div>
+  );
+}
+
+/* ── مودال «مسیر جایگزین چهره برتر» — درخواست بررسی مستقیم ادمین ──
+   الگوی RatingModal: AnimatePresence + اورلی fixed + ESC/بک‌دراپ */
+function EliteRequestDialog({
+  open,
+  onClose,
+  onSubmitted,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSubmitted: () => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setReason("");
+      setError(null);
+      setSubmitting(false);
+    }
+  }, [open]);
+
+  /* قفل اسکرول + ESC */
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !submitting && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose, submitting]);
+
+  const trimmed = reason.trim();
+  const tooShort = trimmed.length < ELITE_REASON_MIN;
+
+  async function submit() {
+    if (tooShort || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await apiPost<{ ok: boolean; message: string }>("/api/elite/request", {
+        reason: trimmed,
+      });
+      toast({ title: "درخواست بررسی مستقیم ثبت شد", description: res.message });
+      onClose();
+      onSubmitted();
+    } catch (e) {
+      const msg = (e as Error).message;
+      setError(msg);
+      toast({ title: "خطا در ثبت درخواست", description: msg, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <div
+          className="fixed inset-0 z-[75] grid place-items-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="مسیر جایگزین چهره برتر"
+        >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => !submitting && onClose()}
+            className="absolute inset-0 bg-black/55 backdrop-blur-[6px]"
+          />
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.88, y: 24 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 12, transition: { duration: 0.18 } }}
+            transition={{ type: "spring", stiffness: 480, damping: 20 }}
+            className="relative w-full max-w-md bg-card rounded-[28px] border border-border/70 shadow-float overflow-hidden"
+          >
+            <div className="h-[3px] w-full grad-gold" aria-hidden />
+
+            <div className="px-5 pt-4 pb-5">
+              <div className="flex items-start gap-3">
+                <div className="grid place-items-center size-11 rounded-2xl grad-gold shadow-glow-gold shrink-0">
+                  <GoldCheckMark size={22} />
+                </div>
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <h2 className="text-[15.5px] font-black text-foreground leading-snug">
+                    مسیر جایگزین چهره برتر
+                  </h2>
+                  <p className="text-[11.5px] text-muted-foreground mt-1 leading-5">
+                    اگر سابقه و افتخارات شما نشان می‌دهد استعدادی برتر هستید، می‌توانید به‌جای مسیر ستاره (۵٬۰۰۰ ستاره یا ۵۰۰ رأی) از ادمین بررسی مستقیم بخواهید. درخواست شما با صلاح‌دید ادمین و نظر چهره‌یاب‌ها بررسی می‌شود.
+                  </p>
+                </div>
+                <button
+                  onClick={() => !submitting && onClose()}
+                  aria-label="بستن"
+                  className="shrink-0 grid place-items-center size-9 rounded-full bg-secondary text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <Icon name="x" size={15} />
+                </button>
+              </div>
+
+              {/* متن ادعا — حداقل ۳۰ کاراکتر */}
+              <div className="mt-4">
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="سابقه، افتخارات و دلیل برتری شما…"
+                  rows={5}
+                  maxLength={2000}
+                  className="w-full min-h-[120px] rounded-2xl border-[1.5px] border-input bg-muted/60 px-4 py-3 text-[13px] leading-6 placeholder:text-muted-foreground/70 outline-none focus:border-ring focus:bg-card transition-[border-color,background-color] resize-y"
+                />
+                <p className="mt-1.5 px-1 text-[11px] font-bold nums-fa">
+                  <span className={tooShort ? "text-muted-foreground" : "text-emerald-600"}>
+                    {toFa(trimmed.length)}/{toFa(ELITE_REASON_MIN)} کاراکتر حداقل
+                  </span>
+                </p>
+              </div>
+
+              {error && (
+                <p className="mt-1.5 text-[12px] font-bold text-destructive" role="alert">
+                  {error}
+                </p>
+              )}
+
+              <motion.button
+                whileTap={submitting || tooShort ? undefined : { scale: 0.96 }}
+                onClick={submit}
+                disabled={submitting || tooShort}
+                className="mt-2.5 w-full h-11 rounded-2xl grad-gold text-white font-extrabold text-[13px] shadow-glow-gold disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-opacity"
+              >
+                {submitting ? (
+                  <Icon name="loader" size={16} className="animate-spin" />
+                ) : (
+                  <Icon name="send" size={15} />
+                )}
+                {submitting ? "در حال ارسال…" : "ارسال درخواست بررسی"}
+              </motion.button>
+              <p className="mt-2 text-center text-[10.5px] text-muted-foreground/80 leading-4">
+                نتیجه از طریق اعلان‌ها اعلام می‌شود — با تأیید ادمین، قاب طلایی بدون نیاز به ۵٬۰۰۰ ستاره فعال می‌شود.
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }
 

@@ -184,11 +184,17 @@ async function run() {
   const mahtabVotes = await rateAll(mahtabPosts, mahtab.id, 10);
   console.log(`✓ ratings: امیرحسین +${amirVotes} × 10 · مهتاب +${mahtabVotes} × 10`);
 
-  // ── 5) ویترین چهره برتر ──
+  // ── 5) ویترین چهره برتر — با featuredAt واقعی (سقف هفتگی ۱ پست) ──
+  // هر چهره برتر هفته‌ای ۱ پست: آخرین ارسال هر نفر = امروز، بقیه پخش در هفته‌های گذشته
   const featureIds = [amirPosts[0], amirPosts[3], amirPosts[7], mahtabPosts[0], mahtabPosts[5], mahtabPosts[7], mahtabPosts[14]];
-  for (const pid of featureIds) {
-    if (pid) await db.post.update({ where: { id: pid }, data: { isFeatured: true } });
-  }
+  const day = 24 * 60 * 60 * 1000;
+  featureIds.forEach((pid, i) => {
+    if (!pid) return;
+    // i%3===2 → امروز (آخرین پست هفته) · بقیه → ۲،۵،۹،۱۲ روز پیش
+    const offsets = [12, 5, 0, 9, 2, 16, 0];
+    const at = new Date(Date.now() - (offsets[i] ?? 3) * day);
+    void db.post.update({ where: { id: pid }, data: { isFeatured: true, featuredAt: at } });
+  });
   console.log(`✓ ویترین چهره برتر: ${featureIds.length} پست`);
 
   // ── 6) گزارش نهایی ──

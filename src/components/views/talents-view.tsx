@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { ScoutBadge } from "@/components/shared/scout-badge";
 import { Icon } from "@/components/shared/icon";
 import {
   FilterFab,
@@ -271,6 +272,7 @@ export function TalentCardLarge({
           <div className="flex items-center gap-1 flex-wrap">
             <h3 className="font-bold text-base truncate">{talent.name}</h3>
             {talent.isVerifiedBadge && <Icon name="badgeCheck" className="w-4 h-4 text-gold shrink-0" />}
+            {!!talent.isScout && <ScoutBadge size="sm" />}
             {!!talent.isTopTalent && (talent.totalStars ?? 0) > 0 && (
               <span
                 className="inline-flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-black nums-fa shrink-0"

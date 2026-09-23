@@ -39,6 +39,10 @@ export async function GET(req: Request) {
         isTopTalent: si.isTopTalent,
         frame: si.frame,
         totalStars: si.totalStars,
+        votes: si.votes,
+        isAdminElite: u.isAdminElite,
+        isScout: u.isScout,
+        scoutStatus: u.scoutStatus,
         avatarUrl: u.profile?.avatarUrl ?? null,
         createdAt: u.createdAt.toISOString(),
       };

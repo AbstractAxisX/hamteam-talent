@@ -17,6 +17,9 @@ export async function GET() {
     isTopTalent: si.isTopTalent,
     frame: si.frame,
     totalStars: si.totalStars,
+    isScout: user.isScout,
+    scoutStatus: user.scoutStatus,
+    isAdminElite: user.isAdminElite,
     createdAt: user.createdAt.toISOString(),
     profile: user.profile
       ? {

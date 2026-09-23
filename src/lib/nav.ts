@@ -9,6 +9,8 @@ type RouteBase =
   | { view: "post"; id: string }
   | { view: "discover" }
   | { view: "talents" }
+  | { view: "scout" }
+  | { view: "scout-apply" }
   | { view: "needs" }
   | { view: "need"; id: string }
   | { view: "create-need" }
@@ -34,6 +36,8 @@ function parseBase(path: string, rest: string[]): RouteBase {
   switch (path) {
     case "post": return { view: "post", id: rest[0] || "" };
     case "discover": return { view: "discover" };
+    case "scout": return { view: "scout" };
+    case "scout-apply": return { view: "scout-apply" };
     case "profile": return { view: "profile", id: rest[0] || "" };
     case "category": return { view: "category", id: rest[0] || "" };
     case "need": return { view: "need", id: rest[0] || "" };

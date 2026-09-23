@@ -46,6 +46,7 @@ export async function GET() {
         id: other.id,
         name: other.name,
         isVerifiedBadge: other.isVerifiedBadge,
+        isScout: other.isScout,
         avatarUrl: other.profile?.avatarUrl ?? null,
         gender: (other.profile?.gender as string | null) ?? null,
       },

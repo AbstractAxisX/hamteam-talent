@@ -12,6 +12,12 @@ export type SafeUser = {
   isTopTalent: boolean;
   frame: FrameLevel;
   totalStars: number;
+  /** چهره‌یاب فعال (استعدادیاب تأییدشده) */
+  isScout: boolean;
+  /** وضعیت درخواست چهره‌یابی: "pending" | "rejected" | null */
+  scoutStatus: string | null;
+  /** چهره برتر مستقیم (تأیید ادمین — مسیر جایگزین) */
+  isAdminElite: boolean;
   createdAt: string;
   profile: {
     id: string;
@@ -68,6 +74,7 @@ export type TalentListItem = {
   isTopTalent?: boolean;
   frame?: FrameLevel;
   totalStars?: number;
+  isScout?: boolean;
   bioShort: string;
   avatarUrl: string | null;
   gender: string | null;
@@ -106,6 +113,7 @@ export type NeedListItem = {
     id: string;
     name: string;
     isVerifiedBadge: boolean;
+    isScout?: boolean;
     avatarUrl: string | null;
   };
 };
@@ -156,6 +164,8 @@ export type ProfileDetail = {
   frame?: FrameLevel;
   totalStars?: number;
   nextAt?: number | null;
+  isScout?: boolean;
+  isAdminElite?: boolean;
   mainCategoryId?: string | null; // user's chosen main category id (for avatar color ring)
   bioShort: string;
   bioLong: string;

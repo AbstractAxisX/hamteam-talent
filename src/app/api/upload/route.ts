@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const kind = ["avatar", "banner", "ad", "image"].includes(type) ? type : "image";
+  const kind = ["avatar", "banner", "ad", "scout-card", "image"].includes(type) ? type : "image";
   const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
   const filename = `${kind}-${me.id}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
 

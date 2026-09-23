@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { navigate } from "@/lib/nav";
 import { api } from "@/lib/api-client";
+import { useUser } from "@/lib/use-user";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LogoFull } from "@/components/shared/illustrations";
 import { Icon } from "@/components/shared/icon";
@@ -69,7 +70,7 @@ export function LandingView() {
             transition={{ duration: 0.5 }}
             className="pt-6 md:pt-10 flex items-center gap-2.5"
           >
-            <LogoFull h={34} />
+            <LogoFull h={40} />
           </motion.div>
 
           {/* Center — big dramatic headline */}
@@ -284,6 +285,9 @@ export function LandingView() {
       {/* ══════ TOP TALENT — سیستم ستارهٔ چهره برتر ══════ */}
       <StarSystemSection />
 
+      {/* ══════ SCOUT — پنل چهره‌یاب (استعدادیاب‌ها) ══════ */}
+      <ScoutSection />
+
       {/* ══════ Final CTA — minimal ══════ */}
       <section className="py-10 md:py-16">
         <motion.div
@@ -449,7 +453,7 @@ function StarSystemSection() {
             چهره برتر شو.
           </h2>
           <p className="text-sm md:text-base text-amber-100/70 leading-7 max-w-xl mx-auto">
-            هر پست توسط کاربران ۱ تا ۱۰ ستاره می‌گیرد. با ۵۰۰۰ ستاره قاب طلایی می‌گیری و می‌توانی پست دلخواهت را
+            هر پست توسط کاربران ۱ تا ۱۰ ستاره می‌گیرد. با ۵۰۰۰ ستاره یا ۵۰۰ رأی قاب طلایی می‌گیری و می‌توانی هفته‌ای یک پست دلخواه را
             به صفحهٔ چهره برتر بفرستی؛ با ۱۰۰۰۰ ستاره قاب کمیاب رزگلد از آنِ تو می‌شود.
           </p>
 
@@ -460,7 +464,7 @@ function StarSystemSection() {
               style={{ background: "linear-gradient(135deg,#fef3c7,#f5c84c 45%,#e08a00)", color: "#3a2405" }}
             >
               <GoldCheckMark size={15} />
-              ۵۰۰۰ ستاره → قاب طلایی
+              ۵۰۰۰ ستاره یا ۵۰۰ رأی → قاب طلایی
             </span>
             <span
               className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-[12px] font-black shadow-[0_6px_18px_rgba(225,29,72,.25)]"
@@ -485,8 +489,95 @@ function StarSystemSection() {
             <Icon name="arrowLeft" size={17} strokeWidth={2.6} className="text-white" />
           </motion.button>
           <p className="text-[11px] text-amber-100/45 font-bold">
-            رأی مستقیم کاربران · بدون درخواست و منتظر ماندن
+            رأی مستقیم کاربران · هفته‌ای یک پست در ویترین · مسیر جایگزین با تأیید ادمین
           </p>
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+// ─── Scout Section — پنل سبز چهره‌یاب (آژانس/کانون/مرکز استعدادیابی) ───────
+function ScoutSection() {
+  function goScout() {
+    const u = useUser.getState().user;
+    navigate(
+      u
+        ? u.isScout
+          ? { view: "scout" }
+          : { view: "scout-apply" }
+        : { view: "auth", params: { mode: "scout" } }
+    );
+  }
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5 }}
+      className="py-8 md:py-12"
+      id="chehreyab"
+    >
+      <div
+        className="relative overflow-hidden rounded-3xl glass border border-emerald-600/25 p-7 md:p-10"
+        style={{ boxShadow: "0 10px 30px rgba(16,185,129,0.12)" }}
+      >
+        {/* هاله‌های سبز */}
+        <div
+          aria-hidden
+          className="absolute -top-20 -right-20 w-64 h-64 rounded-full opacity-25 blur-3xl pointer-events-none"
+          style={{ backgroundColor: "rgba(16,185,129,0.18)" }}
+        />
+        <div
+          aria-hidden
+          className="absolute -bottom-20 -left-16 w-56 h-56 rounded-full opacity-20 blur-3xl pointer-events-none"
+          style={{ backgroundColor: "rgba(16,185,129,0.18)" }}
+        />
+
+        <div className="relative space-y-5 text-center">
+          <span className="mx-auto grid place-items-center size-16 rounded-full bg-emerald-600/12 text-emerald-700 dark:text-emerald-300 border border-emerald-600/25">
+            <Icon name="compass" size={30} strokeWidth={2.2} />
+          </span>
+          <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 tracking-widest">
+            برای استعدادیاب‌ها
+          </p>
+          <h2 className="text-2xl md:text-4xl font-black tracking-tight leading-[1.15]">
+            چهره‌یاب هستی؟ استعدادها را تو کشف کن.
+          </h2>
+          <p className="text-sm md:text-base text-muted-foreground leading-7 max-w-2xl mx-auto">
+            آژانس، کانون یا مرکز استعدادیابی؟ به‌عنوان چهره‌یاب ثبت‌نام کن: چهره‌های برتر و استعدادهای در حال
+            رشد را ببین، نیازمندی ثبت کن و بهترین‌ها را مستقیم به ادمین معرفی کن.
+          </p>
+
+          {/* سه قابلیت کلیدی */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-start max-w-3xl mx-auto">
+            {[
+              { icon: "badgeCheck", label: "دیده‌شدن نیازمندی‌ها با نشان چهره‌یاب" },
+              { icon: "search", label: "جستجوی استعدادها بر اساس دسته و شهر" },
+              { icon: "award", label: "معرفی مستقیم به ادمین برای قاب چهره برتر" },
+            ].map((f) => (
+              <div
+                key={f.label}
+                className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-emerald-600/6 border border-emerald-600/15"
+              >
+                <span className="grid place-items-center size-8 rounded-xl bg-emerald-600/12 text-emerald-700 dark:text-emerald-300 shrink-0">
+                  <Icon name={f.icon} size={15} strokeWidth={2.2} />
+                </span>
+                <p className="text-[12px] font-bold leading-5">{f.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={goScout}
+            className="inline-flex items-center gap-2.5 h-12 md:h-13 px-8 rounded-2xl bg-emerald-600 text-white font-extrabold text-base shadow-[0_10px_30px_rgba(5,150,105,0.35)] hover:opacity-95 transition-opacity"
+          >
+            <Icon name="compass" size={19} strokeWidth={2.4} className="text-white" />
+            ثبت‌نام چهره‌یاب
+            <Icon name="arrowLeft" size={17} strokeWidth={2.6} className="text-white" />
+          </motion.button>
         </div>
       </div>
     </motion.section>

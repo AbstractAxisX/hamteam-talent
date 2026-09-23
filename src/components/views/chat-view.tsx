@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { ScoutBadge } from "@/components/shared/scout-badge";
 import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { timeAgoFa, toFa } from "@/lib/format";
@@ -23,6 +24,7 @@ type OtherUser = {
   name: string;
   isVerifiedBadge: boolean;
   isTopTalent?: boolean;
+  isScout?: boolean;
   avatarUrl: string | null;
   gender?: string | null;
   bioShort?: string;
@@ -1082,9 +1084,11 @@ function ChatThread({
             <div className="flex-1 min-w-0">
               <button
                 onClick={() => navigate({ view: "profile", id: other.id })}
-                className="font-bold text-sm hover:opacity-90 transition-opacity truncate block text-right w-full"
+                className="font-bold text-sm hover:opacity-90 transition-opacity text-right w-full min-w-0 flex items-center gap-1.5 h-6"
+                aria-label={`گفتگو با ${other.name}`}
               >
-                {other.name}
+                <span className="truncate">{other.name}</span>
+                {!!other.isScout && <ScoutBadge size="sm" />}
               </button>
               <div className="h-4 mt-0.5">
                 <StatusPill />
@@ -1118,7 +1122,8 @@ function ChatThread({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="font-extrabold text-[15px] text-foreground truncate">{other.name}</span>
-              {other.isTopTalent && <span className="text-[10px] font-black px-2 py-0.5 rounded-full grad-gold text-white">نخبه</span>}
+              {!!other.isScout && <ScoutBadge size="sm" />}
+              {other.isTopTalent && <span className="text-[10px] font-black px-2 py-0.5 rounded-full grad-gold text-white">چهره برتر</span>}
             </div>
             {other.bioShort && (
               <p className="text-[11.5px] text-muted-foreground mt-1 line-clamp-2 leading-5">{other.bioShort}</p>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
-import { navigate } from "@/lib/nav";
+import { navigate, useNav } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +12,13 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { toast } from "@/hooks/use-toast";
 import { LogoFull } from "@/components/shared/illustrations";
 import { Icon } from "@/components/shared/icon";
+import { cn } from "@/lib/utils";
 
 export function AuthView() {
+  // حالت چهره‌یاب — از لینک #/auth?mode=scout یا سکشن لندینگ
+  const route = useNav((s) => s.route);
+  const [scoutMode, setScoutMode] = useState(route.params?.mode === "scout");
+
   const [step, setStep] = useState<"info" | "otp">("info");
   const [demoOtp, setDemoOtp] = useState("");
   const [otp, setOtp] = useState("");
@@ -47,7 +52,8 @@ export function AuthView() {
       await apiPost("/api/auth/verify", { phone, otp });
       await fetchUser();
       toast({ title: "خوش آمدید! 🎉" });
-      navigate({ view: "feed" });
+      // چهره‌یاب → بعد از تأیید شماره، فرم استعدادیابی را تکمیل می‌کند
+      navigate(scoutMode ? { view: "scout-apply" } : { view: "feed" });
     } catch (e) {
       toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -90,7 +96,7 @@ export function AuthView() {
           className="flex items-center gap-2.5"
           aria-label="فرصتینو"
         >
-          <LogoFull h={30} />
+          <LogoFull h={34} />
         </button>
         <button
           onClick={() => navigate({ view: "feed" })}
@@ -126,18 +132,51 @@ export function AuthView() {
               >
                 {/* Accent badge */}
                 <div className="flex items-center gap-2 mb-5">
-                  <span className="grid place-items-center w-10 h-10 rounded-2xl bg-primary/15 text-primary">
-                    <Icon name="rocket" size={22} strokeWidth={2.2} className="text-primary" />
+                  <span
+                    className={cn(
+                      "grid place-items-center w-10 h-10 rounded-2xl",
+                      scoutMode
+                        ? "bg-emerald-600/15 text-emerald-700 dark:text-emerald-300"
+                        : "bg-primary/15 text-primary"
+                    )}
+                  >
+                    <Icon
+                      name={scoutMode ? "compass" : "rocket"}
+                      size={22}
+                      strokeWidth={2.2}
+                      className={scoutMode ? "text-emerald-700 dark:text-emerald-300" : "text-primary"}
+                    />
                   </span>
-                  <p className="text-xs font-bold text-primary tracking-widest">شروع کن</p>
+                  <p
+                    className={cn(
+                      "text-xs font-bold tracking-widest",
+                      scoutMode ? "text-emerald-700 dark:text-emerald-300" : "text-primary"
+                    )}
+                  >
+                    {scoutMode ? "چهره‌یاب شو" : "شروع کن"}
+                  </p>
                 </div>
 
                 <h1 className="text-3xl md:text-4xl font-black tracking-tight leading-[1.15] mb-2">
                   به <span className="text-primary">فرصتینو</span> خوش اومدی
                 </h1>
-                <p className="text-sm text-muted-foreground leading-6 mb-6">
-                  نام و شماره موبایلت رو وارد کن. اگه حساب نداری خودکار ثبت‌نام می‌شی.
+                <p className="text-sm text-muted-foreground leading-6 mb-5">
+                  {scoutMode
+                    ? "به‌عنوان چهره‌یاب ثبت‌نام می‌کنی — بعد از تأیید شماره، اطلاعات استعدادیابی‌ات را تکمیل می‌کنی."
+                    : "نام و شماره موبایلت رو وارد کن. اگه حساب نداری خودکار ثبت‌نام می‌شی."}
                 </p>
+
+                {/* انتخاب نوع عضویت — استعداد / چهره‌یاب */}
+                <div className="flex items-center gap-2 p-1.5 rounded-full bg-muted/50 border border-border/60 mb-6">
+                  <MembershipChip active={!scoutMode} onClick={() => setScoutMode(false)}>
+                    <Icon name="star" size={13} />
+                    عضو استعداد
+                  </MembershipChip>
+                  <MembershipChip active={scoutMode} onClick={() => setScoutMode(true)}>
+                    <Icon name="compass" size={13} />
+                    چهره‌یاب (استعدادیاب)
+                  </MembershipChip>
+                </div>
 
                 <InfoForm submitting={submitting} onSubmit={submitInfo} />
 
@@ -247,6 +286,35 @@ export function AuthView() {
     </div>
   );
 }
+
+function MembershipChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex-1 inline-flex items-center justify-center gap-1.5 h-11 rounded-full text-[12.5px] font-extrabold transition-colors outline-none min-w-11",
+        active
+          ? scoutChipActiveClass
+          : "text-muted-foreground hover:text-foreground"
+      )}
+      aria-pressed={active}
+    >
+      {children}
+    </button>
+  );
+}
+
+const scoutChipActiveClass =
+  "bg-card text-foreground shadow-soft border border-border/60";
 
 function InfoForm({ submitting, onSubmit }: { submitting: boolean; onSubmit: (data: { name: string; phone: string }) => void }) {
   const [name, setName] = useState("");

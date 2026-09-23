@@ -64,6 +64,7 @@ export async function GET(req: Request) {
       isTopTalent: si.isTopTalent,
       frame: si.frame,
       totalStars: si.totalStars,
+      isScout: u.isScout,
       bioShort: u.profile?.bioShort || "",
       avatarUrl: u.profile?.avatarUrl ?? null,
       gender: (u.profile?.gender as string | null) ?? null,

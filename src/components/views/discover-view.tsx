@@ -1,7 +1,7 @@
 "use client";
 
 /* ═══════════════════════════════════════════════════════════
-   DiscoverView (چهره‌یاب) — تجربه کشف بازطراحی‌شده
+   DiscoverView (کشف) — تجربه کشف بازطراحی‌شده
    · فرم فیلتر بزرگ حذف شد → دکمه شناور + پنل انیمیشنی (filter-fab)
    · تب‌ها بدون عدد · جستجوی نام/مهارت در تب کاربران
    · state فیلتر در هش URL (قابل اشتراک/ریلود)
@@ -154,9 +154,9 @@ export function DiscoverView() {
             <Icon name="compass" size={26} />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight leading-none">چهره‌یاب</h1>
+            <h1 className="text-2xl font-black tracking-tight leading-none">کشف</h1>
             <p className="text-[13px] text-muted-foreground mt-1.5 leading-6">
-              چهره‌ها و پست‌ها را جست‌وجو و کشف کن
+              پست‌ها و چهره‌ها را جست‌وجو و کشف کن
             </p>
           </div>
         </div>

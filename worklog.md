@@ -268,3 +268,67 @@ Work Log:
 
 Stage Summary:
 - http://217.114.40.93 با سیستم ستاره/چهره برتر/کراپر/بدون آیدی کاملاً بالاست.
+
+---
+Task ID: FE-2
+Agent: Z.ai Code (sub-agent FE-2)
+Task: مسیر جایگزین چهره برتر (درخواست بررسی مستقیم ادمین) + دو تب ادمین «چهره‌یاب‌ها» و «درخواست‌های چهره برتر» — فقط UI، بک‌اند از قبل زنده
+
+Work Log:
+- src/components/views/home-view.tsx (۵۵۱→۷۸۰ خط):
+  · وضعیت مسیر جایگزین: GET /api/elite/request در mount (refreshEliteStatus) → state eliteStatus {isTopTalent, frame, request}. منطق نمایش: request.status==="approved" → چیپ grad-gold «چهره برتر — تأیید ادمین ⭐» (GoldCheckMark)؛ pending → چیپ outline آمبری + آیکون clock «درخواست بررسی مستقیم: در انتظار بررسی ادمین»؛ isTopTalent (بدون درخواست تأییدشده) → مسیر جایگزین کلاً مخفی؛ rejected/هیچ → دکمهٔ متنی باریک (h-9, text-[12px], amber-100/60→hover:amber-100) «استعداد برتری داری؟ درخواست بررسی مستقیم ادمین» — همه داخل همان پنل طلایی، زیر «مشاهده چهره برتر».
+  · EliteRequestDialog جدید (در همان فایل، الگوی RatingModal: AnimatePresence + fixed z-[75] + backdrop blur + ESC + قفل اسکرول): عنوان «مسیر جایگزین چهره برتر»، متن توضیح دقیق اسپک (۵٬۰۰۰ ستاره یا ۵۰۰ رأی / صلاح‌دید ادمین + نظر چهره‌یاب‌ها)، textarea حداقل ۳۰ کاراکتر با شمارنده فارسی و گیج سبز/خاکستری، دکمهٔ h-11 grad-gold → POST /api/elite/request → toast موفق + بستن + refreshEliteStatus؛ خطای 400/409 → هم error inline داخل مودال هم toast مخرب (پیام error سرور از api-client مستقیم می‌رسد).
+- src/components/views/admin-view.tsx (۳۱۳۸→۳۸۴۹ خط):
+  · PAGES + PageKey: دو ورودی جدید بعد از «نیازمندی‌ها» — { key:"scouts", label:"چهره‌یاب‌ها", icon:CompassIcon } و { key:"eliteRequests", label:"درخواست‌های چهره برتر", icon:StarIcon } (lucide: Compass/Star/Phone/IdCard/MessageSquare ایمپورت شدند) + سوییچ رندر تب‌ها.
+  · کامپوننت‌های مشترک جدید: AdminAvatar (دایره ۳۶/۴۴px حرف-اول/عکس، الگوی جدول کاربران)، ReviewStatusChip (در انتظار آمبر / تأیید-emerald / رد-red با Clock/CheckCircle2/XCircle)، StatusFilterChips (همه/در انتظار/تأییدشده/ردشده — چیپ فعال ADMIN_PRIMARY، بج آمبر روی «در انتظار»)، EmptyCardState (کارت خالی آیکون‌دار).
+  · ScoutsTab (GET /api/admin/scouts?status=…): PageHeader + بج pendingCount آمبر + دکمهٔ به‌روزرسانی؛ کارت‌های درخواست (نه جدول): آواتار+نام+چیپ وضعیت، تلفن mono ltr، کدملی mono ltr با IdCardIcon، تاریخ formatFaDate، description در باکس خاکستری، یادداشت ادمین، thumbnail کارت ملی (۲۰×۱۴) → کلیک → لایت‌باکس Dialog تمام‌عرض (bg-gray-900, max-h-70vh, esc/backdrop بسته می‌شود، Radix)؛ اکشن pending: «تأیید و فعال‌سازی» (PrimaryButton آبی = استایل primary موجود ادمین) + «رد» → دیالوگ با textarea یادداشت اختیاری → POST {id, action:"reject", note}. سکشن «چهره‌یاب‌های فعال»: ردیف‌های فشرده (آواتار، تلفن، چیپ needsCount با Briefcase، since فارسی) + «لغو دسترسی» destructive outline → AlertDialog تأیید → POST {id, userId, action:"revoke"}. اسکلتون + empty state هر دو لیست.
+  · EliteRequestsTab (GET /api/admin/elite-requests?status=…): همان هدر/فیلتر/بج؛ کارت درخواست: آواتار+نام+بج قاب فعلی (Crown طلایی/رزگلد) + چیپ وضعیت، تلفن mono ltr، تاریخ، چیپ‌های totalStars (StarIcon آمبر) + votes + منبع: source==="scout" → چیپ emerald «معرفی چهره‌یاب: {nominator.name}» با CompassIcon / «درخواست مستقیم کاربر» خنثی با UserIcon؛ reason در باکس؛ adminNote؛ اکشن pending: «تأیید → قاب طلایی» (دکمهٔ طلایی bg-amber-500 + Crown) → POST approve → toast پیام سرور «{name} چهره برتر شد» + «رد» با دیالوگ یادداشت.
+  · هر دو تب به‌روزرسانی stateful با load() useCallback وابسته به فیلتر؛ هیچ فایل دیگری لمس نشد.
+- راستی‌آزمایی: bunx tsc --noEmit → صفر خطا در src (۵ خطای باقی‌مانده فقط examples/mini-services/scripts/skills خارج از پروژهٔ اصلی)؛ bunx eslint روی هر دو فایل → ۰ خطا/۰ هشدار (exit 0)؛ dev server: GET / → 200 و کامپایل تمیز.
+
+Stage Summary:
+- کاربر عادی از پنل طلایی خانه می‌تواند درخواست بررسی مستقیم ادمین بدهد (مودال طلایی، حداقل ۳۰ کاراکتر) و وضعیتش (در انتظار/تأیید) به‌صورت چیپ روی همان پنل دیده می‌شود؛ چهره برترهای فعلی مسیر را نمی‌بینند (جز تأیید ادمینی خودشان).
+- ادمین دو تب کامل دارد: مدیریت چهره‌یاب‌ها (تأیید/رد/لغو + لایت‌باکس کارت ملی) و درخواست‌های چهره برتر (تأیید → قاب طلایی فوری) — دقیقاً با زبان بصری ادمین موجود (کارت‌های gray-200/blue primary، بج‌ها، دیالوگ‌های shadcn).
+- انحراف کوچک: دکمهٔ «تأیید و فعال‌سازی» آبی (ADMIN_PRIMARY موجود) است نه سبز — چون پنل ادمین واقعی فعلی آبی oklch(0.5 0.15 250) است و قاعدهٔ «تطابق بصری با تب‌های موجود» اولویت دارد. درخواست ردشده → دکمهٔ متنی مسیر جایگزین دوباره ظاهر می‌شود (بک‌اند رکورد جدید مجاز می‌داند).
+
+---
+## Task ID: FE-1
+**Date:** 2026-10-27 · **Agent:** Z.ai Code (sub-agent FE-1) · **Scope:** چهره‌یاب (scout) frontend — apply/dashboard/auth/landing/badge integrations (backend live, untouched)
+
+### What was done
+
+**Routes + shell**
+- `src/lib/nav.ts`: RouteBase += `{ view: "scout" }` | `{ view: "scout-apply" }` + parseBase cases (routeToHash default already covers).
+- `src/components/app-shell.tsx`: render cases برای ScoutView/ScoutApplyView؛ "scout" در TOP_LEVEL؛ تب «چهره‌یاب» → «کشف» (discover، آیکون compass ماند) در MOBILE_TABS + DESKTOP_NAV؛ آرایه‌های تب DYNAMIC شدند: برای `user?.isScout` تب «چهره برتر» (explore) با «چهره‌یاب» (scout) جایگزین می‌شود — موبایل (mobileTabs map) و دسکتاپ (DesktopTopBar حالا prop `nav: typeof DESKTOP_NAV` می‌گیرد)؛ isActive += scout case؛ کامنت ترتیب تب‌ها آپدیت شد.
+
+**NEW `src/components/views/scout-apply-view.tsx`** (ثبت‌نام چهره‌یاب)
+- Guest → spinner سپس ریدایرکت auth?mode=scout؛ isScout → کارت موفق «حساب چهره‌یاب شما فعال است» + Btn ورود به داشبورد؛ GET /api/scout/apply روی mount: pending → کارت وضعیت (clock، تاریخ فا، توضیحات)؛ rejected → کارت رد با adminNote + فرم مجدد پیش‌پرشده.
+- فرم: کد ملی (Field، inputMode numeric، نرمال‌سازی ارقام فارسی + چک‌سام استاندارد کد ملی سمت کلاینت) · آپلود فوری کارت ملی (dropzone با imagePlus، FormData file+type=scout-card → /api/upload، پیش‌نمایش + حذف + state آپلود) · توضیحات (Textarea، شمارنده فارسی، حداقل ۲۰). Submit → POST /api/scout/apply → toast + سوییچ به کارت pending. هدر: BackButton + LogoFull h=34 + عنوان + پاراگراف توضیح «کمپانی‌های لینکدین».
+
+**NEW `src/components/views/scout-view.tsx`** (داشبورد چهره‌یاب)
+- گیت: فقط user.isScout (غیر چهره‌یاب/مهمان → فید). GET /api/scout/dashboard.
+- هدر glass با چیپ هویتی emerald (compass) + H1 «چهره‌یاب» + زیرعنوان؛ ردیف آمار ۴تایی MiniStat (چهره برتر/پست ویترین/میانگین ویترین x/۱۰/نیازمندی فعال من) + Sk؛ بنر آستانه‌ها از thresholds سرور (۵٬۰۰۰ ستاره یا ۵۰۰ رأی).
+- «چهره‌های برتر»: لیست کارت (نه گرید): UserAvatar frame lg (رزگلد محترم) + چیپ ستاره طلایی/رزگلد + دسته‌ها (max ۳) + بایو یک‌خطی + mapPin + «پروفایل» + «گفتگو» (POST /api/chat/start → navigate chat).
+- «استعدادهای در حال رشد»: همان کارت + ستاره/رأی + «معرفی به ادمین» (outline سبز، award) → NominateDialog بات‌شیتی (الگوی RatingModal: backdrop blur، قفل اسکرول، Esc، IconBtn بستن؛ sm+ وسط‌چین) با textarea «دلیل معرفی» (حداقل ۱۰) → POST /api/scout/nominate → toast + حذف آفتیو از لیست rising (AnimatePresence).
+- «نیازمندی‌های من»: لیست فشرده (عنوان، دسته، applicationCount با users، تاریخ) + Btn «ثبت نیازمندی» (sm، همیشه) + empty CTA. اسکلتون/empty برای همهٔ سکشن‌ها.
+
+**NEW `src/components/shared/scout-badge.tsx`** — ScoutBadge {size sm|md}: چیپ emerald (bg-emerald-600/10، border-emerald-600/20) + compass + «چهره‌یاب».
+
+**auth-view.tsx** — scoutMode از route.params.mode (state، قابل تاگل): سگمنت‌کنترل دوتایی «عضو استعداد»/«چهره‌یاب (استعدادیاب)»؛ زیرمتن اختصاصی چهره‌یاب؛ بج «شروع کن»→«چهره‌یاب شو» (+ آیکون compass/emerald)؛ onVerify → scout-apply (به‌جای feed) بعد از fetchUser؛ توست همان ماند.
+
+**landing-view.tsx** — LogoFull هیرو h=34→40؛ NEW ScoutSection بعد از StarSystemSection: پنل glass سبز (border-emerald-600/25 + دو blob rgba(16,185,129,0.18))، eyebrow «برای استعدادیاب‌ها»، H2 «چهره‌یاب هستی؟ استعدادها را تو کشف کن.»، پاراگراف آژانس/کانون، CTA emerald «ثبت‌نام چهره‌یاب» با مسیریابی هوشمند (useUser.getState(): isScout→scout، لاگین→scout-apply، مهمان→auth?mode=scout) + ۳ بولت قابلیت.
+
+**discover-view.tsx** — H1 «چهره‌یاب»→«کشف» + زیرعنوان «پست‌ها و چهره‌ها را جست‌وجو و کشف کن» + کامنت فایل.
+
+**Integrations** — ScoutBadge کنار نام: talents-view (TalentCardLarge، t.isScout) · profile-view (ردیف نام، profile.isScout) · needs-view (پوستر نیازمندی، need.user.isScout) · chat-view (هدر گفتگو + کارت پروفایل بالای چت، other.isScout؛ OtherUser += isScout?: boolean) · چیپ «نخبه» → «چهره برتر» (grad-gold ماند).
+
+### Verification
+- `bunx tsc --noEmit` → صفر خطا در src/ (خطاهای باقی‌مانده فقط examples/skills/scripts/mini-services — پیش‌existing و خارج از اسکوپ).
+- `bunx eslint` روی ۱۲ فایل من → ۰ خطا/۰ هشدار (exit 0).
+- Dev server (پورت 3000): GET / 200 با کامپایل کامل app-shell+هر دو ویوی جدید؛ /api/scout/apply 200؛ /api/scout/dashboard 401 بدون نشست (درست). خطای parse موقتی talents-view (تایپو `}}` حین ادیت) بلافاصله فیکس شد — لاگ انتهایی تمیز.
+- هیچ فایلی خارج از لیست مجاز لمس نشد؛ بک‌اند/ادمین/_globals.css دست‌نخورده.
+
+### Notes for next agents
+- قرارداد ScoutBadge: `<ScoutBadge size="sm"|"md" />` — برای نمایش‌های آیندهٔ نشان چهره‌یاب.
+- «چهره‌یاب» از این پس یعنی داشبورد scout (#/scout)؛ «کشف» = صفحهٔ discover. هیچ جای دیگری نباید discover را چهره‌یاب بنامد.
+- NominateDialog الگوی استاندارد بات‌شیت مودال این پروژه است (mobile bottom-sheet + sm centered) — قابل کپی برای مودال‌های متنی بعدی.

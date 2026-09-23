@@ -343,11 +343,11 @@ export function ExploreView() {
           </motion.div>
 
           <div className="text-center">
-            <h1 className="text-[22px] sm:text-2xl font-black tracking-tight leading-tight text-gold-grad">
+            <h1 className="text-[26px] sm:text-[32px] font-black tracking-tight leading-tight text-gold-grad">
               چهره برتر
             </h1>
-            <p className="text-[12.5px] text-amber-100/90 mt-1 leading-6">
-              چهره‌های برتر با ۵۰۰۰+ ستاره — پست‌های منتخبِ خودشان
+            <p className="text-[12.5px] text-amber-100/90 mt-1.5 leading-6">
+              چهره‌های برتر با ۵۰۰۰+ ستاره یا ۵۰۰+ رأی — هفته‌ای یک پست منتخب
             </p>
           </div>
 

@@ -13,6 +13,8 @@ import { AuthView } from "@/components/views/auth-view";
 import { FeedView } from "@/components/views/feed-view";
 import { DashboardView } from "@/components/views/dashboard-view";
 import { DiscoverView } from "@/components/views/discover-view";
+import { ScoutView } from "@/components/views/scout-view";
+import { ScoutApplyView } from "@/components/views/scout-apply-view";
 import { ExploreView, PostDetailView } from "@/components/views/explore-view";
 import { TalentsView } from "@/components/views/talents-view";
 import { NeedsView } from "@/components/views/needs-view";
@@ -39,6 +41,8 @@ function renderView(route: Route) {
     case "feed": return <FeedView />;
     case "dashboard": return <DashboardView />;
     case "discover": return <DiscoverView />;
+    case "scout": return <ScoutView />;
+    case "scout-apply": return <ScoutApplyView />;
     case "explore": return <ExploreView />;
     case "post": return <PostDetailView id={route.id} fromProfile={route.params?.from === "profile"} />;
     case "talents": return <TalentsView />;
@@ -68,24 +72,25 @@ function renderView(route: Route) {
 
 // Top-level views: no back button shown on detail pages
 const TOP_LEVEL = new Set([
-  "feed", "explore", "discover", "talents", "needs", "dashboard", "settings", "my-profile",
+  "feed", "explore", "discover", "talents", "needs", "dashboard", "settings", "my-profile", "scout",
 ]);
 
 // Bottom tab bar (5 tabs + more) — ترتیب بر اساس جریان طبیعی اپ اجتماعی:
-// خانه → چهره‌یاب (کشف) → چهره برتر → دایرکتوری افراد → فرصت‌ها
+// خانه → کشف → چهره برتر (برای چهره‌یاب‌ها: چهره‌یاب) → دایرکتوری افراد → فرصت‌ها
 // دکمه اول برای مهمان «عمومی» (لندینگ) و برای کاربر لاگین‌شده «خانه» (فید شخصی) است
+// چهره‌یاب‌های فعال: تب «چهره برتر» با «چهره‌یاب» (داشبورد استعدادیابی) جایگزین می‌شود
 const MOBILE_TABS = [
   { key: "feed", label: "خانه", icon: "home" as const, route: { view: "feed" } as Route },
-  { key: "discover", label: "چهره‌یاب", icon: "compass" as const, route: { view: "discover" } as Route },
+  { key: "discover", label: "کشف", icon: "compass" as const, route: { view: "discover" } as Route },
   { key: "explore", label: "چهره برتر", icon: "sparkles" as const, route: { view: "explore" } as Route },
   { key: "talents", label: "استعدادها", icon: "users" as const, route: { view: "talents" } as Route },
   { key: "needs", label: "نیازمندی", icon: "briefcase" as const, route: { view: "needs" } as Route },
 ];
 
-// Desktop top nav (center cluster)
+// Desktop top nav (center cluster) — همان منطق موبایل: کشف + جایگزینی چهره برتر برای چهره‌یاب‌ها
 const DESKTOP_NAV = [
   { key: "feed", label: "خانه", route: { view: "feed" } as Route },
-  { key: "discover", label: "چهره‌یاب", route: { view: "discover" } as Route },
+  { key: "discover", label: "کشف", route: { view: "discover" } as Route },
   { key: "explore", label: "چهره برتر", route: { view: "explore" } as Route },
   { key: "talents", label: "استعدادها", route: { view: "talents" } as Route },
   { key: "needs", label: "نیازمندی", route: { view: "needs" } as Route },
@@ -157,9 +162,21 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
   const activeView = route.view;
   const showBack = !TOP_LEVEL.has(activeView);
 
-  // تب اول برای مهمان «عمومی» (لندینگ) و برای کاربر «خانه» (فید شخصی) است
+  // تب اول برای مهمان «عمومی» (لندینگ) و برای کاربر «خانه» (فید شخصی) است؛
+  // چهره‌یاب‌های فعال: تب «چهره برتر» جای خود را به داشبورد «چهره‌یاب» می‌دهد
   const mobileTabs: typeof MOBILE_TABS = MOBILE_TABS.map((t) =>
-    t.key === "feed" ? { ...t, label: user ? "خانه" : "عمومی" } : t
+    t.key === "feed"
+      ? { ...t, label: user ? "خانه" : "عمومی" }
+      : t.key === "explore" && user?.isScout
+      ? { key: "scout", label: "چهره‌یاب", icon: "compass" as const, route: { view: "scout" } as Route }
+      : t
+  );
+
+  // دسکتاپ — همان جایگزینی برای چهره‌یاب‌ها
+  const desktopNav: typeof DESKTOP_NAV = DESKTOP_NAV.map((item) =>
+    item.key === "explore" && user?.isScout
+      ? { key: "scout", label: "چهره‌یاب", route: { view: "scout" } as Route }
+      : item
   );
 
   // Route key for transitions
@@ -171,6 +188,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
     (route.view === "chat" ? route.conversationId || "" : "");
 
   function isActive(key: string): boolean {
+    if (key === "scout") return activeView === "scout";
     if (key === "needs") return activeView === "needs" || activeView === "my-needs" || activeView === "create-need";
     if (key === "chat") return activeView === "chat";
     if (key === "profile") return activeView === "my-profile" || activeView === "profile" || activeView === "edit-profile";
@@ -202,6 +220,7 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
       {/* ═══ Desktop: clean top bar (glass, logo start, nav center, actions end) ═══ */}
       <DesktopTopBar
         isActive={isActive}
+        nav={desktopNav}
         user={user}
         loading={loading}
         unread={unread}
@@ -310,7 +329,7 @@ function MobileHeader({
             className="flex items-center gap-2 shrink-0 min-w-0"
             aria-label="فرصتینو"
           >
-            <LogoFull h={30} className="drop-shadow-sm" />
+            <LogoFull h={34} className="drop-shadow-sm" />
           </button>
         </div>
 
@@ -360,6 +379,7 @@ function MobileHeader({
 // ── Desktop top bar: clean, glass, logo start, nav center, actions end ──
 function DesktopTopBar({
   isActive,
+  nav,
   user,
   loading,
   unread,
@@ -367,6 +387,7 @@ function DesktopTopBar({
   showBack,
 }: {
   isActive: (key: string) => boolean;
+  nav: typeof DESKTOP_NAV;
   user: any;
   loading: boolean;
   unread: number;
@@ -389,7 +410,7 @@ function DesktopTopBar({
 
         {/* ── Center: nav links ── */}
         <nav className="flex items-center gap-1">
-          {DESKTOP_NAV.map((item) => {
+          {nav.map((item) => {
             const active = isActive(item.key);
             const label = item.key === "feed" ? (user ? "خانه" : "عمومی") : item.label;
             return (

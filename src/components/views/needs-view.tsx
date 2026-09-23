@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { ScoutBadge } from "@/components/shared/scout-badge";
 import { Icon } from "@/components/shared/icon";
 import {
   FilterFab,
@@ -290,6 +291,7 @@ function NeedCard({
             <span className="text-xs font-semibold truncate max-w-[100px]">
               {need.user.name}
             </span>
+            {!!need.user.isScout && <ScoutBadge size="sm" />}
           </button>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">

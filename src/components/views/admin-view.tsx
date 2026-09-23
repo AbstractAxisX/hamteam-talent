@@ -106,6 +106,11 @@ import {
   Megaphone as MegaphoneIcon,
   Flag,
   Ticket as TicketIcon,
+  Compass as CompassIcon,
+  Star as StarIcon,
+  Phone as PhoneIcon,
+  IdCard as IdCardIcon,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BannersTab } from "@/components/admin/banners-tab";
@@ -218,6 +223,55 @@ type CategoryRow = {
   createdAt: string;
   skills: { id: string; name: string; createdAt: string }[];
 };
+
+/* ── چهره‌یاب‌ها — GET /api/admin/scouts ── */
+type ScoutApplication = {
+  id: string;
+  userId: string;
+  name: string;
+  phone: string;
+  avatarUrl: string | null;
+  nationalCode: string;
+  cardImageUrl: string | null;
+  description: string;
+  status: "pending" | "approved" | "rejected";
+  adminNote: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+};
+
+type ActiveScout = {
+  id: string;
+  name: string;
+  phone: string;
+  avatarUrl: string | null;
+  isBanned: boolean;
+  needsCount: number;
+  since: string;
+};
+
+/* ── درخواست‌های چهره برتر — GET /api/admin/elite-requests ── */
+type EliteRequestRow = {
+  id: string;
+  source: "user" | "scout";
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  adminNote: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+  user: {
+    id: string;
+    name: string;
+    phone: string;
+    avatarUrl: string | null;
+    totalStars: number;
+    votes: number;
+    frame: "gold" | "rosegold" | null;
+  };
+  nominator: { id: string; name: string; avatarUrl: string | null } | null;
+};
+
+type ReviewFilter = "all" | "pending" | "approved" | "rejected";
 
 // ═══════════════════════════════════════════════════════════════════
 // Top-level AdminView
@@ -389,6 +443,8 @@ type PageKey =
   | "categories"
   | "posts"
   | "needs"
+  | "scouts"
+  | "eliteRequests"
   | "broadcast"
   | "banners"
   | "reports"
@@ -402,6 +458,8 @@ const PAGES: { key: PageKey; label: string; icon: typeof UsersIcon }[] = [
   { key: "posts", label: "پست‌ها", icon: FileText },
   { key: "categories", label: "دسته‌بندی‌ها", icon: FolderTree },
   { key: "needs", label: "نیازمندی‌ها", icon: Briefcase },
+  { key: "scouts", label: "چهره‌یاب‌ها", icon: CompassIcon },
+  { key: "eliteRequests", label: "درخواست‌های چهره برتر", icon: StarIcon },
   { key: "tickets", label: "تیکت‌های پشتیبانی", icon: TicketIcon },
   { key: "banners", label: "بنرها و تبلیغات", icon: MegaphoneIcon },
   { key: "broadcast", label: "اعلان سراسری", icon: Megaphone },
@@ -573,6 +631,8 @@ function AdminDashboard({
               {page === "categories" && <CategoriesTab />}
               {page === "posts" && <PostsTab />}
               {page === "needs" && <NeedsTab />}
+              {page === "scouts" && <ScoutsTab />}
+              {page === "eliteRequests" && <EliteRequestsTab />}
               {page === "broadcast" && <BroadcastTab />}
               {page === "banners" && <BannersTab />}
               {page === "reports" && <ReportsTab />}
@@ -1087,6 +1147,117 @@ function FeaturedStarBadge({ className }: { className?: string }) {
     >
       <Sparkles className="w-3 h-3" /> ویترین
     </Badge>
+  );
+}
+
+/* ── آواتار دایره‌ای ادمین (حرف اول یا عکس) — الگوی جدول کاربران ── */
+function AdminAvatar({
+  name,
+  avatarUrl,
+  size = 44,
+}: {
+  name: string;
+  avatarUrl?: string | null;
+  size?: number;
+}) {
+  return (
+    <div
+      className="grid place-items-center rounded-full text-xs font-bold overflow-hidden shrink-0"
+      style={{ width: size, height: size, backgroundColor: ADMIN_PRIMARY, color: ADMIN_FG }}
+    >
+      {avatarUrl ? (
+        <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
+      ) : (
+        name.slice(0, 1)
+      )}
+    </div>
+  );
+}
+
+/* ── چیپ وضعیت بررسی (در انتظار / تأیید / رد) — تب‌های چهره‌یاب و چهره برتر ── */
+function ReviewStatusChip({ status }: { status: "pending" | "approved" | "rejected" }) {
+  if (status === "approved") {
+    return (
+      <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 text-[10px] h-5 rounded gap-1">
+        <CheckCircle2 className="w-3 h-3" /> تأیید شده
+      </Badge>
+    );
+  }
+  if (status === "rejected") {
+    return (
+      <Badge className="bg-red-50 text-red-700 border border-red-200 hover:bg-red-50 text-[10px] h-5 rounded gap-1">
+        <XCircle className="w-3 h-3" /> رد شده
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50 text-[10px] h-5 rounded gap-1">
+      <Clock className="w-3 h-3" /> در انتظار
+    </Badge>
+  );
+}
+
+/* ── چیپ‌های فیلتر وضعیت ── */
+function StatusFilterChips({
+  value,
+  onChange,
+  pendingCount,
+}: {
+  value: ReviewFilter;
+  onChange: (v: ReviewFilter) => void;
+  pendingCount: number;
+}) {
+  const opts: { value: ReviewFilter; label: string }[] = [
+    { value: "all", label: "همه" },
+    { value: "pending", label: "در انتظار" },
+    { value: "approved", label: "تأییدشده" },
+    { value: "rejected", label: "ردشده" },
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {opts.map((o) => {
+        const active = value === o.value;
+        return (
+          <button
+            key={o.value}
+            onClick={() => onChange(o.value)}
+            className={cn(
+              "h-9 px-4 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1.5",
+              active
+                ? "shadow-sm"
+                : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            )}
+            style={active ? { backgroundColor: ADMIN_PRIMARY, color: ADMIN_FG } : undefined}
+          >
+            {o.label}
+            {o.value === "pending" && pendingCount > 0 && (
+              <span
+                className={cn(
+                  "nums-fa text-[10px] font-extrabold px-1.5 rounded",
+                  active ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700"
+                )}
+              >
+                {toFa(pendingCount)}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── حالت خالی برای لیست‌های کارتی ── */
+function EmptyCardState({ icon: IconC, message }: { icon: typeof UsersIcon; message: string }) {
+  return (
+    <Card className="border-gray-200 shadow-sm rounded-xl py-12">
+      <div className="flex flex-col items-center gap-2 text-gray-500">
+        <div className="grid place-items-center w-12 h-12 rounded-full bg-gray-100">
+          <IconC className="w-5 h-5 text-gray-400" />
+        </div>
+        <p className="text-sm">{message}</p>
+      </div>
+    </Card>
   );
 }
 
@@ -2912,6 +3083,672 @@ function NeedsTab() {
           onPageChange={setPage}
         />
       </TableCard>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 5b. Scouts Tab — چهره‌یاب‌ها (درخواست‌های چهره‌یابی + چهره‌یاب‌های فعال)
+// ═══════════════════════════════════════════════════════════════════
+function ScoutsTab() {
+  const [status, setStatus] = useState<ReviewFilter>("all");
+  const [applications, setApplications] = useState<ScoutApplication[]>([]);
+  const [scouts, setScouts] = useState<ActiveScout[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const [rejectDialog, setRejectDialog] = useState<{
+    open: boolean;
+    app: ScoutApplication | null;
+  }>({ open: false, app: null });
+  const [rejectNote, setRejectNote] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+
+  const [revokeDialog, setRevokeDialog] = useState<{
+    open: boolean;
+    scout: ActiveScout | null;
+  }>({ open: false, scout: null });
+  const [revoking, setRevoking] = useState(false);
+
+  const [lightbox, setLightbox] = useState<{ open: boolean; src: string; name: string }>({
+    open: false,
+    src: "",
+    name: "",
+  });
+
+  const load = useCallback(() => {
+    setLoading(true);
+    api<{ applications: ScoutApplication[]; scouts: ActiveScout[]; pendingCount: number }>(
+      `/api/admin/scouts?status=${status}`
+    )
+      .then((d) => {
+        setApplications(d.applications || []);
+        setScouts(d.scouts || []);
+        setPendingCount(d.pendingCount || 0);
+      })
+      .catch(() => toast({ title: "خطا در بارگذاری", variant: "destructive" }))
+      .finally(() => setLoading(false));
+  }, [status]);
+  useEffect(load, [load]);
+
+  async function approveApp(app: ScoutApplication) {
+    setActionLoading(app.id + "approve");
+    try {
+      const res = await apiPost<{ ok: boolean; message: string }>("/api/admin/scouts", {
+        id: app.id,
+        action: "approve",
+      });
+      toast({ title: res.message || `حساب «${app.name}» چهره‌یاب شد` });
+      load();
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function rejectApp() {
+    const app = rejectDialog.app;
+    if (!app || rejecting) return;
+    setRejecting(true);
+    try {
+      const res = await apiPost<{ ok: boolean; message: string }>("/api/admin/scouts", {
+        id: app.id,
+        action: "reject",
+        note: rejectNote.trim() || undefined,
+      });
+      toast({ title: res.message || "درخواست چهره‌یابی رد شد" });
+      setRejectDialog({ open: false, app: null });
+      setRejectNote("");
+      load();
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setRejecting(false);
+    }
+  }
+
+  async function revokeScout() {
+    const scout = revokeDialog.scout;
+    if (!scout || revoking) return;
+    setRevoking(true);
+    try {
+      const res = await apiPost<{ ok: boolean; message: string }>("/api/admin/scouts", {
+        id: scout.id,
+        userId: scout.id,
+        action: "revoke",
+      });
+      toast({ title: res.message || "دسترسی چهره‌یاب لغو شد" });
+      setRevokeDialog({ open: false, scout: null });
+      load();
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setRevoking(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        title="چهره‌یاب‌ها"
+        description="بررسی درخواست‌های چهره‌یابی و مدیریت چهره‌یاب‌های فعال"
+        actions={
+          <>
+            {pendingCount > 0 && (
+              <Badge className="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50 h-9 px-3 rounded-lg gap-1.5 text-xs">
+                <Clock className="w-3.5 h-3.5" />
+                {toFa(pendingCount)} در انتظار بررسی
+              </Badge>
+            )}
+            <OutlineButton size="sm" onClick={load} className="gap-1.5 h-9">
+              <RotateCcw className="w-3.5 h-3.5" />
+              به‌روزرسانی
+            </OutlineButton>
+          </>
+        }
+      />
+
+      <StatusFilterChips value={status} onChange={setStatus} pendingCount={pendingCount} />
+
+      {/* ═══ درخواست‌های چهره‌یابی ═══ */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <CompassIcon className="w-4 h-4 text-gray-700" />
+          <h3 className="font-bold text-sm text-gray-900">درخواست‌های چهره‌یابی</h3>
+          <Badge className="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-50 text-[10px]">
+            {toFa(applications.length)} درخواست
+          </Badge>
+        </div>
+
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-48 rounded-xl" />
+            ))}
+          </div>
+        ) : applications.length === 0 ? (
+          <EmptyCardState icon={CompassIcon} message="درخواستی در این وضعیت پیدا نشد" />
+        ) : (
+          applications.map((app) => (
+            <Card key={app.id} className="border-gray-200 shadow-sm rounded-xl p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <AdminAvatar name={app.name} avatarUrl={app.avatarUrl} size={44} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-bold text-sm text-gray-900">{app.name}</p>
+                    <ReviewStatusChip status={app.status} />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-[11px] text-gray-500">
+                    <span className="inline-flex items-center gap-1">
+                      <PhoneIcon className="w-3.5 h-3.5" />
+                      <span dir="ltr" className="font-mono">
+                        {app.phone}
+                      </span>
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <IdCardIcon className="w-3.5 h-3.5" />
+                      <span dir="ltr" className="font-mono tracking-wide">
+                        {app.nationalCode}
+                      </span>
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {formatFaDate(app.createdAt)}
+                    </span>
+                  </div>
+                </div>
+                {app.cardImageUrl && (
+                  <button
+                    onClick={() =>
+                      setLightbox({ open: true, src: app.cardImageUrl || "", name: app.name })
+                    }
+                    className="shrink-0 relative group rounded-lg overflow-hidden border border-gray-200 hover:border-blue-300 transition-colors"
+                    aria-label={`مشاهده تصویر کارت ملی ${app.name}`}
+                    title="مشاهده تصویر بزرگ"
+                  >
+                    <img
+                      src={app.cardImageUrl}
+                      alt={`کارت ملی ${app.name}`}
+                      className="w-20 h-14 object-cover"
+                    />
+                    <span className="absolute inset-0 grid place-items-center bg-black/0 group-hover:bg-black/25 transition-colors">
+                      <Eye className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              <p className="text-sm text-gray-700 leading-6 rounded-lg bg-gray-50 border border-gray-100 p-3">
+                {app.description}
+              </p>
+
+              {app.adminNote && (
+                <div className="flex items-start gap-1.5 rounded-lg bg-gray-50 border border-gray-100 p-2.5 text-xs text-gray-500">
+                  <MessageSquare className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    <strong className="text-gray-700">یادداشت ادمین:</strong> {app.adminNote}
+                  </span>
+                </div>
+              )}
+
+              {app.status === "pending" && (
+                <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-100">
+                  <PrimaryButton
+                    size="sm"
+                    onClick={() => approveApp(app)}
+                    disabled={actionLoading === app.id + "approve"}
+                    className="gap-1.5 h-9"
+                  >
+                    {actionLoading === app.id + "approve" ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    )}
+                    تأیید و فعال‌سازی
+                  </PrimaryButton>
+                  <OutlineButton
+                    size="sm"
+                    onClick={() => setRejectDialog({ open: true, app })}
+                    className="gap-1.5 h-9 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    رد
+                  </OutlineButton>
+                </div>
+              )}
+            </Card>
+          ))
+        )}
+      </section>
+
+      {/* ═══ چهره‌یاب‌های فعال ═══ */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <UsersIcon className="w-4 h-4 text-gray-700" />
+          <h3 className="font-bold text-sm text-gray-900">چهره‌یاب‌های فعال</h3>
+          <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 text-[10px]">
+            {toFa(scouts.length)} چهره‌یاب
+          </Badge>
+        </div>
+
+        {loading ? (
+          <Skeleton className="h-32 rounded-xl" />
+        ) : scouts.length === 0 ? (
+          <EmptyCardState icon={UsersIcon} message="هنوز چهره‌یاب فعالی وجود ندارد" />
+        ) : (
+          <Card className="border-gray-200 shadow-sm rounded-xl overflow-hidden divide-y divide-gray-100">
+            {scouts.map((scout) => (
+              <div
+                key={scout.id}
+                className="flex flex-wrap items-center gap-3 p-3.5 hover:bg-gray-50/50 transition-colors"
+              >
+                <AdminAvatar name={scout.name} avatarUrl={scout.avatarUrl} size={36} />
+                <div className="flex-1 min-w-[150px]">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-sm text-gray-900 truncate">{scout.name}</p>
+                    {scout.isBanned && <StatusBadge type="ban" status="yes" />}
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-0.5 font-mono" dir="ltr">
+                    {scout.phone}
+                  </p>
+                </div>
+                <Badge className="bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-50 text-[10px] h-5 rounded gap-1">
+                  <Briefcase className="w-3 h-3" />
+                  {toFa(scout.needsCount)} نیازمندی
+                </Badge>
+                <span className="hidden sm:inline text-[10px] text-gray-400">
+                  {formatFaDate(scout.since)}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setRevokeDialog({ open: true, scout })}
+                  className="h-9 gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                >
+                  <Ban className="w-3.5 h-3.5" />
+                  لغو دسترسی
+                </Button>
+              </div>
+            ))}
+          </Card>
+        )}
+      </section>
+
+      {/* ═══ دیالوگ رد درخواست چهره‌یابی ═══ */}
+      <Dialog
+        open={rejectDialog.open}
+        onOpenChange={(o) => setRejectDialog((s) => ({ ...s, open: o }))}
+      >
+        <DialogContent className="rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-red-500" />
+              رد درخواست چهره‌یابی
+            </DialogTitle>
+            <DialogDescription>
+              درخواست «{rejectDialog.app?.name}» رد می‌شود و به کاربر اطلاع داده خواهد شد.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5 py-2">
+            <Label className="text-xs font-bold text-gray-700">
+              یادداشت برای کاربر (اختیاری)
+            </Label>
+            <Textarea
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              placeholder="دلیل رد — مثلاً: تصویر کارت ملی ناخواناست..."
+              maxLength={500}
+              className={cn(
+                "rounded-lg border-gray-200 min-h-[90px] resize-y",
+                TX.ringPrimary
+              )}
+            />
+          </div>
+          <DialogFooter>
+            <OutlineButton
+              onClick={() => setRejectDialog({ open: false, app: null })}
+              className="h-9"
+            >
+              انصراف
+            </OutlineButton>
+            <Button
+              onClick={rejectApp}
+              disabled={rejecting}
+              className="rounded-lg h-9 gap-1.5 bg-red-600 hover:bg-red-700 text-white"
+            >
+              {rejecting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <XCircle className="w-4 h-4" />
+              )}
+              رد درخواست
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ تأیید لغو دسترسی چهره‌یاب ═══ */}
+      <AlertDialog
+        open={revokeDialog.open}
+        onOpenChange={(o) => setRevokeDialog((s) => ({ ...s, open: o }))}
+      >
+        <AlertDialogContent className="rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+              لغو دسترسی چهره‌یاب
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              دسترسی چهره‌یابی «{revokeDialog.scout?.name}» لغو می‌شود؛ صفحهٔ چهره‌یاب برای او
+              غیرفعال و درخواست‌هایش رد خواهند شد.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-lg h-9">انصراف</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                revokeScout();
+              }}
+              disabled={revoking}
+              className="rounded-lg h-9 bg-red-600 hover:bg-red-700 gap-1.5"
+            >
+              {revoking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+              لغو دسترسی
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ═══ نمایش تمام‌صفحهٔ تصویر کارت ملی ═══ */}
+      <Dialog
+        open={lightbox.open}
+        onOpenChange={(o) => setLightbox((s) => ({ ...s, open: o }))}
+      >
+        <DialogContent className="rounded-xl max-w-2xl p-0 gap-0 overflow-hidden bg-gray-900 border-gray-700">
+          <DialogHeader className="sr-only">
+            <DialogTitle>تصویر کارت ملی {lightbox.name}</DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <img
+              src={lightbox.src}
+              alt={`کارت ملی ${lightbox.name}`}
+              className="w-full max-h-[70vh] object-contain bg-gray-900"
+            />
+            <p className="absolute top-2 right-3 text-xs font-bold text-white/90 bg-black/50 rounded-md px-2 py-1">
+              کارت ملی {lightbox.name}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 5c. Elite Requests Tab — درخواست‌های چهره برتر (مستقیم + معرفی چهره‌یاب)
+// ═══════════════════════════════════════════════════════════════════
+function EliteRequestsTab() {
+  const [status, setStatus] = useState<ReviewFilter>("all");
+  const [requests, setRequests] = useState<EliteRequestRow[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const [rejectDialog, setRejectDialog] = useState<{
+    open: boolean;
+    req: EliteRequestRow | null;
+  }>({ open: false, req: null });
+  const [rejectNote, setRejectNote] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    api<{ requests: EliteRequestRow[]; pendingCount: number }>(
+      `/api/admin/elite-requests?status=${status}`
+    )
+      .then((d) => {
+        setRequests(d.requests || []);
+        setPendingCount(d.pendingCount || 0);
+      })
+      .catch(() => toast({ title: "خطا در بارگذاری", variant: "destructive" }))
+      .finally(() => setLoading(false));
+  }, [status]);
+  useEffect(load, [load]);
+
+  async function approveReq(r: EliteRequestRow) {
+    setActionLoading(r.id + "approve");
+    try {
+      const res = await apiPost<{ ok: boolean; message: string }>("/api/admin/elite-requests", {
+        id: r.id,
+        action: "approve",
+      });
+      toast({ title: res.message || `${r.user.name} چهره برتر شد` });
+      load();
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function rejectReq() {
+    const r = rejectDialog.req;
+    if (!r || rejecting) return;
+    setRejecting(true);
+    try {
+      const res = await apiPost<{ ok: boolean; message: string }>("/api/admin/elite-requests", {
+        id: r.id,
+        action: "reject",
+        note: rejectNote.trim() || undefined,
+      });
+      toast({ title: res.message || "درخواست رد شد" });
+      setRejectDialog({ open: false, req: null });
+      setRejectNote("");
+      load();
+    } catch (e) {
+      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setRejecting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        title="درخواست‌های چهره برتر"
+        description="درخواست‌های مستقیم کاربران و معرفی‌های چهره‌یاب‌ها — تأیید = قاب طلایی فوری"
+        actions={
+          <>
+            {pendingCount > 0 && (
+              <Badge className="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50 h-9 px-3 rounded-lg gap-1.5 text-xs">
+                <Clock className="w-3.5 h-3.5" />
+                {toFa(pendingCount)} در انتظار بررسی
+              </Badge>
+            )}
+            <OutlineButton size="sm" onClick={load} className="gap-1.5 h-9">
+              <RotateCcw className="w-3.5 h-3.5" />
+              به‌روزرسانی
+            </OutlineButton>
+          </>
+        }
+      />
+
+      <StatusFilterChips value={status} onChange={setStatus} pendingCount={pendingCount} />
+
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <StarIcon className="w-4 h-4 text-gray-700" />
+          <h3 className="font-bold text-sm text-gray-900">درخواست‌ها</h3>
+          <Badge className="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-50 text-[10px]">
+            {toFa(requests.length)} مورد
+          </Badge>
+        </div>
+
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-52 rounded-xl" />
+            ))}
+          </div>
+        ) : requests.length === 0 ? (
+          <EmptyCardState icon={StarIcon} message="درخواستی در این وضعیت پیدا نشد" />
+        ) : (
+          requests.map((r) => (
+            <Card key={r.id} className="border-gray-200 shadow-sm rounded-xl p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <AdminAvatar name={r.user.name} avatarUrl={r.user.avatarUrl} size={44} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-bold text-sm text-gray-900">{r.user.name}</p>
+                    {r.user.frame && (
+                      <Badge
+                        className={cn(
+                          "text-[10px] h-5 rounded gap-1",
+                          r.user.frame === "rosegold"
+                            ? "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-50"
+                            : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50"
+                        )}
+                      >
+                        <Crown className="w-3 h-3" />
+                        {r.user.frame === "rosegold" ? "رزگلد" : "طلایی"}
+                      </Badge>
+                    )}
+                    <ReviewStatusChip status={r.status} />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-[11px] text-gray-500">
+                    <span className="inline-flex items-center gap-1">
+                      <PhoneIcon className="w-3.5 h-3.5" />
+                      <span dir="ltr" className="font-mono">
+                        {r.user.phone}
+                      </span>
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {formatFaDate(r.createdAt)}
+                    </span>
+                  </div>
+                  {/* آمار + منبع درخواست */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <Badge className="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50 text-[10px] h-5 rounded gap-1">
+                      <StarIcon className="w-3 h-3" />
+                      {toFa(r.user.totalStars)} ستاره
+                    </Badge>
+                    <Badge className="bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-50 text-[10px] h-5 rounded gap-1">
+                      {toFa(r.user.votes)} رأی
+                    </Badge>
+                    {r.source === "scout" ? (
+                      <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 text-[10px] h-5 rounded gap-1">
+                        <CompassIcon className="w-3 h-3" />
+                        معرفی چهره‌یاب: {r.nominator?.name || "—"}
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-50 text-[10px] h-5 rounded gap-1">
+                        <UserIcon className="w-3 h-3" />
+                        درخواست مستقیم کاربر
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-700 leading-6 rounded-lg bg-gray-50 border border-gray-100 p-3">
+                {r.reason}
+              </p>
+
+              {r.adminNote && (
+                <div className="flex items-start gap-1.5 rounded-lg bg-gray-50 border border-gray-100 p-2.5 text-xs text-gray-500">
+                  <MessageSquare className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    <strong className="text-gray-700">یادداشت ادمین:</strong> {r.adminNote}
+                  </span>
+                </div>
+              )}
+
+              {r.status === "pending" && (
+                <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-100">
+                  <Button
+                    size="sm"
+                    onClick={() => approveReq(r)}
+                    disabled={actionLoading === r.id + "approve"}
+                    className="h-9 gap-1.5 bg-amber-500 hover:bg-amber-600 text-white border border-amber-400 shadow-sm"
+                  >
+                    {actionLoading === r.id + "approve" ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Crown className="w-3.5 h-3.5" />
+                    )}
+                    تأیید → قاب طلایی
+                  </Button>
+                  <OutlineButton
+                    size="sm"
+                    onClick={() => setRejectDialog({ open: true, req: r })}
+                    className="gap-1.5 h-9 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    رد
+                  </OutlineButton>
+                </div>
+              )}
+            </Card>
+          ))
+        )}
+      </section>
+
+      {/* ═══ دیالوگ رد درخواست چهره برتر ═══ */}
+      <Dialog
+        open={rejectDialog.open}
+        onOpenChange={(o) => setRejectDialog((s) => ({ ...s, open: o }))}
+      >
+        <DialogContent className="rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-red-500" />
+              رد درخواست چهره برتر
+            </DialogTitle>
+            <DialogDescription>
+              درخواست «{rejectDialog.req?.user.name}» رد می‌شود و به کاربر اطلاع داده خواهد شد.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5 py-2">
+            <Label className="text-xs font-bold text-gray-700">
+              یادداشت برای کاربر (اختیاری)
+            </Label>
+            <Textarea
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              placeholder="دلیل رد — مثلاً: سابقهٔ ارائه‌شده برای قاب طلایی کافی نیست..."
+              maxLength={500}
+              className={cn(
+                "rounded-lg border-gray-200 min-h-[90px] resize-y",
+                TX.ringPrimary
+              )}
+            />
+          </div>
+          <DialogFooter>
+            <OutlineButton
+              onClick={() => setRejectDialog({ open: false, req: null })}
+              className="h-9"
+            >
+              انصراف
+            </OutlineButton>
+            <Button
+              onClick={rejectReq}
+              disabled={rejecting}
+              className="rounded-lg h-9 gap-1.5 bg-red-600 hover:bg-red-700 text-white"
+            >
+              {rejecting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <XCircle className="w-4 h-4" />
+              )}
+              رد درخواست
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

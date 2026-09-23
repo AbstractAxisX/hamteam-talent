@@ -62,6 +62,7 @@ export async function GET(req: Request) {
       id: n.user.id,
       name: n.user.name,
       isVerifiedBadge: n.user.isVerifiedBadge,
+      isScout: n.user.isScout,
       avatarUrl: n.user.profile?.avatarUrl ?? null,
     },
   }));
