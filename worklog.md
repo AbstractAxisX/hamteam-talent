@@ -414,3 +414,20 @@ Stage Summary:
 - رزگلد در «همه‌جا» (پروفایل/چت/لیست‌ها) + انتخاب سطح در ادمین = کل چرخه تست‌شده.
 - حذف کامل شیشه/aurora/blobها → کلاسیک solid + سرعت.
 - مودال‌ها روی Sheet استاندارد کلاسیک.
+
+---
+Task ID: AUDIT-1-DEPLOY
+Agent: Z.ai Code (maintainer)
+Task: استقرار 114cfe7 روی سرور تولید 217.114.40.93
+
+Work Log:
+- git pull (415fa29→114cfe7) روی /opt/hamteam.
+- bun run db:push → ستون User.eliteLevel اعمال شد (افزایشی، دیتا دست‌نخورده؛ ۷۶ کاربر).
+- مایگریشن: prod هیچ isAdminElite نداشت → سارا از پنل با level=rosegold تأیید شد.
+- Build موفق (Turbopack) → systemd restart hamteam + hamteam-chat → Ready در ۱۸۱ms.
+- E2E تولید: login ادمین (curl) → GET elite-requests (سارا/علی pending) → POST approve level=rosegold → پیام «سارا محمدی چهره برتر رزگلد شد» → /api/profile/sara frame=rosegold ✓
+- تأیید قاب‌ها: مهتاب rosegold (۱۱۵۲۰ ستاره)، امیرحسین gold (۵۸۶۸)، سارا rosegold (ادمینی) — هر سه مسیر.
+- گیت‌وی: socket.io از طریق nginx با ?XTransformPort=3003 → 200 ✓؛ home عمومی 200 (t≈1.3s اول، بعدی ۵۶ms).
+
+Stage Summary:
+- تولید کاملاً همگام با آخرین کلاسیک/رزگلد/ادمین؛ چت‌گیت‌وی سالم.
