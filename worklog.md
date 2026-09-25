@@ -614,3 +614,22 @@ E2E (agent-browser + VLM + DOM):
 
 Stage Summary:
 - همهٔ ۱۴ خواستهٔ کاربر پیاده و تست شد؛ سیستم قاب نقره‌ای/طلایی در همهٔ نقاط اپ (پروفایل/چت/کارت‌ها/ادمین/هدر) یکدست.
+
+---
+Task ID: DEPLOY-3
+Agent: Z.ai Code (maintainer)
+Task: استقرار commit 73c6313 روی production 217.114.40.93
+
+Work Log:
+- push origin main (4875af3 → 73c6313) → سرور: git pull موفق (۵۳ فایل).
+- مهاجرت eliteLevel روی DB تولید (سارا: rosegold → gold؛ بقیه none) — قبل از بالا آمدن کد جدید.
+- build موفق (Turbopack standalone) → systemctl restart hamteam + hamteam-chat → Ready 224ms.
+- E2E تولید:
+  · عمومی: / 200 (۰.۹s) · سوکت گیت‌وی socket.io 200 ✓
+  · امیرحسین (۵۸۶۸★): frame=silver، nextAt=10000، جایگاه کل ۲/۷۴ · موسیقی ۱/۸ · خوانندگی ۱/۳ ✓
+  · مهتاب (۱۱۲۰۲★): frame=gold ✓ · سارا (ادمینی): frame=gold ✓ · مهدی: بدون قاب ✓
+  · /api/scout/talents (لاگین اسکات): رتبه‌ها #۱ مهتاب gold · #۲ امیرحسین silver ✓
+  · ویترین: ۲۰ پست منتخب ✓
+
+Stage Summary:
+- تولید کاملاً همگام با سیستم قاب جدید (۵۰۰۰=نقره‌ای / ۱۰۰۰۰=طلایی) + جایگاه‌ها + همهٔ ویژگی‌های این راند.
