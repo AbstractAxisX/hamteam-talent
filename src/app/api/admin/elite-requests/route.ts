@@ -5,7 +5,7 @@ import { usersStarInfo } from "@/lib/stars";
 
 /* GET /api/admin/elite-requests — درخواست‌های مستقیم «چهره برتر»
    (خودِ کاربر + معرفی چهره‌یاب)
-   POST /api/admin/elite-requests — { id, action: "approve"|"reject", note?, level?: "gold"|"rosegold" }
+   POST /api/admin/elite-requests — { id, action: "approve"|"reject", note?, level?: "silver"|"gold" }
    approve → user.isAdminElite=true + eliteLevel (پیش‌فرض gold) */
 export async function GET(req: Request) {
   const admin = await getCurrentAdmin();
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
   const id = String(body.id || "");
   const action = String(body.action || "");
   const note = String(body.note || "").trim();
-  const level = body.level === "rosegold" ? "rosegold" : "gold";
+  const level = body.level === "gold" ? "gold" : "silver";
 
   const reqRow = await db.eliteRequest.findUnique({ where: { id }, include: { user: true } });
   if (!reqRow) return NextResponse.json({ error: "درخواست پیدا نشد" }, { status: 404 });
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
         data: { isAdminElite: true, eliteLevel: level },
       }),
     ]);
-    const levelFa = level === "rosegold" ? "رزگلد" : "طلایی";
+    const levelFa = level === "gold" ? "طلایی" : "نقره‌ای";
     await db.notification.create({
       data: {
         userId: reqRow.userId,

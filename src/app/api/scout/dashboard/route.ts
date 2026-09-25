@@ -3,10 +3,10 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { usersStarInfo, postsRatingStats } from "@/lib/stars";
 import { categoryColorMap, resolveUserColor } from "@/lib/cat-color";
-import { GOLD_THRESHOLD, GOLD_VOTES_THRESHOLD } from "@/lib/stars";
+import { SILVER_THRESHOLD, GOLD_THRESHOLD, SILVER_VOTES_THRESHOLD, GOLD_VOTES_THRESHOLD } from "@/lib/stars";
 
 /* GET /api/scout/dashboard — صفحهٔ «چهره‌یاب» (فقط چهره‌یاب‌های فعال)
-   · چهره‌های برتر (دارای قاب طلایی/رزگلد یا تأیید ادمین)
+   · چهره‌های برتر (دارای قاب نقره‌ای/طلایی یا تأیید ادمین)
    · استعدادهای در حال رشد (مرتب بر اساس ستاره)
    · نیازمندی‌های فعال خودم
    · آمار کلی */
@@ -109,7 +109,7 @@ export async function GET() {
       showcaseAvg: ratingN > 0 ? Math.round((ratingSum / ratingN) * 10) / 10 : 0,
       myNeedsCount: myNeeds.length,
     },
-    thresholds: { stars: GOLD_THRESHOLD, votes: GOLD_VOTES_THRESHOLD },
+    thresholds: { silver: SILVER_THRESHOLD, gold: GOLD_THRESHOLD, silverVotes: SILVER_VOTES_THRESHOLD, goldVotes: GOLD_VOTES_THRESHOLD },
     elite,
     rising,
     myNeeds: myNeeds.map((n) => ({

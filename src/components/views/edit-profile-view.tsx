@@ -37,6 +37,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { CategoryIcon } from "@/components/shared/illustrations";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Icon } from "@/components/shared/icon";
+import { ScoutBadge } from "@/components/shared/scout-badge";
 import { CropDialog } from "@/components/shared/crop-dialog";
 import { toast } from "@/hooks/use-toast";
 import { PROVINCES } from "@/lib/geo";
@@ -73,8 +74,17 @@ const SECTIONS = [
   { key: "education", label: "تحصیلات" },
 ] as const;
 
+/* چهره‌یاب = سازمان/آژانس، نه چهره: بدون دسته‌بندی، مهارت، دستهٔ اصلی و رزومه */
+const SCOUT_SECTIONS = [
+  { key: "photos", label: "عکس‌ها و بیو" },
+  { key: "location", label: "موقعیت و تماس" },
+  { key: "scout-info", label: "اطلاعات چهره‌یاب" },
+] as const;
+
 export function EditProfileView() {
   const { user, loading: userLoading } = useUser();
+  /* چهره‌یاب → سکشن‌های مخصوص اعضا (دسته/مهارت/رزومه/مسیر چهره برتر) هرگز رندر نمی‌شود */
+  const isScout = !!user?.isScout;
   const route = useNav((s) => s.route);
   const [profile, setProfile] = useState<ProfileDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -125,7 +135,7 @@ export function EditProfileView() {
   if (!user) {
     return (
       <div className="max-w-3xl mx-auto">
-        <Card className="p-8 text-center space-y-3 rounded-3xl shadow-card">
+        <Card className="p-6 text-center space-y-3 rounded-2xl">
           <div className="grid place-items-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mx-auto">
             <Icon name="shield" className="w-6 h-6" />
           </div>
@@ -165,19 +175,21 @@ export function EditProfileView() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-3xl mx-auto space-y-4">
       <BackButton label="بازگشت به پروفایل" />
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.18 }}
         className="flex items-center justify-between gap-3"
       >
         <div>
           <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">ویرایش پروفایل</h1>
           <p className="text-xs text-muted-foreground mt-1">
-            پروفایل خود را کامل کنید تا شبکه‌ی حرفه‌ای شما را پیدا کنند.
+            {isScout
+              ? "اطلاعات سازمانی خود را کامل کنید تا استعدادها شما را پیدا کنند."
+              : "پروفایل خود را کامل کنید تا شبکه‌ی حرفه‌ای شما را پیدا کنند."}
           </p>
         </div>
         <Button
@@ -191,9 +203,9 @@ export function EditProfileView() {
         </Button>
       </motion.div>
 
-      {/* Section quick-nav */}
+      {/* Section quick-nav — چهره‌یاب: فقط سکشن‌های خودش */}
       <div className="flex flex-wrap gap-2">
-        {SECTIONS.map((s) => (
+        {(isScout ? SCOUT_SECTIONS : SECTIONS).map((s) => (
           <a
             key={s.key}
             href={`#section-${s.key}`}
@@ -210,53 +222,57 @@ export function EditProfileView() {
         ))}
       </div>
 
-      <SectionWrapper id="section-photos" delay={0.05}>
-        <PhotosBioSection profile={profile} onUpdated={() => load(true)} />
+      <SectionWrapper id="section-photos">
+        <PhotosBioSection profile={profile} isScout={isScout} onUpdated={() => load(true)} />
       </SectionWrapper>
-      <SectionWrapper id="section-gender" delay={0.08}>
-        <GenderSection profile={profile} onUpdated={() => load(true)} />
-      </SectionWrapper>
-      <SectionWrapper id="section-location" delay={0.1}>
-        <LocationSection profile={profile} onUpdated={() => load(true)} />
-      </SectionWrapper>
-      <SectionWrapper id="section-categories" delay={0.13}>
-        <CategoriesSection profile={profile} allCats={allCats} onUpdated={() => load(true)} />
-      </SectionWrapper>
-      {profile.categories.length > 1 && (
-        <SectionWrapper id="section-main-category" delay={0.16}>
-          <MainCategorySection
-            profile={profile}
-            allCats={allCats}
-            meta={meta}
-            onUpdated={() => load(true)}
-          />
+      {!isScout && (
+        <SectionWrapper id="section-gender">
+          <GenderSection profile={profile} onUpdated={() => load(true)} />
         </SectionWrapper>
       )}
-      <SectionWrapper id="section-experience" delay={0.18}>
-        <ExperienceSection profile={profile} allCats={allCats} onUpdated={() => load(true)} />
+      <SectionWrapper id="section-location">
+        <LocationSection profile={profile} onUpdated={() => load(true)} />
       </SectionWrapper>
-      <SectionWrapper id="section-education" delay={0.22}>
-        <EducationSection profile={profile} onUpdated={() => load(true)} />
-      </SectionWrapper>
+      {/* چهره‌یاب: اطلاعات اختصاصی (فعال / درخواست در انتظار) — pending از auth/me */}
+      {(isScout || user.scoutStatus === "pending") && (
+        <SectionWrapper id="section-scout-info">
+          <ScoutInfoSection isScout={isScout} />
+        </SectionWrapper>
+      )}
+      {!isScout && (
+        <>
+          <SectionWrapper id="section-categories">
+            <CategoriesSection profile={profile} allCats={allCats} onUpdated={() => load(true)} />
+          </SectionWrapper>
+          {profile.categories.length > 1 && (
+            <SectionWrapper id="section-main-category">
+              <MainCategorySection
+                profile={profile}
+                allCats={allCats}
+                meta={meta}
+                onUpdated={() => load(true)}
+              />
+            </SectionWrapper>
+          )}
+          <SectionWrapper id="section-experience">
+            <ExperienceSection profile={profile} allCats={allCats} onUpdated={() => load(true)} />
+          </SectionWrapper>
+          <SectionWrapper id="section-education">
+            <EducationSection profile={profile} onUpdated={() => load(true)} />
+          </SectionWrapper>
+        </>
+      )}
     </div>
   );
 }
 
-function SectionWrapper({
-  id,
-  delay,
-  children,
-}: {
-  id: string;
-  delay: number;
-  children: React.ReactNode;
-}) {
+function SectionWrapper({ id, children }: { id: string; children: React.ReactNode }) {
   return (
     <motion.div
       id={id}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18 }}
     >
       {children}
     </motion.div>
@@ -266,9 +282,11 @@ function SectionWrapper({
 /* ─── Section 1: Photos + Bio ───────────────────────────────────── */
 function PhotosBioSection({
   profile,
+  isScout,
   onUpdated,
 }: {
   profile: ProfileDetail;
+  isScout: boolean;
   onUpdated: () => void;
 }) {
   const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl ?? "");
@@ -378,7 +396,7 @@ function PhotosBioSection({
 
   return (
     <>
-    <Card className="p-5 md:p-6 space-y-5 rounded-3xl shadow-card">
+    <Card className="p-4 md:p-5 space-y-4 rounded-2xl">
       <SectionTitle icon="image" title="عکس‌ها و بیو" />
 
       {/* Banner preview + upload */}
@@ -449,6 +467,7 @@ function PhotosBioSection({
             verified={profile.isVerifiedBadge}
             gender={profile.gender}
             size="xl"
+            square={isScout}
           />
           <span className="text-[11px] text-muted-foreground">پیش‌نمایش</span>
         </div>
@@ -498,7 +517,9 @@ function PhotosBioSection({
             className="rounded-2xl"
           />
           <p className="text-[11px] text-muted-foreground leading-5">
-            برای بهترین نتیجه تصویر مربعی انتخاب کنید؛ قبل از ذخیره می‌توانید آن را برش دهید.
+            {isScout
+              ? "آواتار چهره‌یاب‌ها مربعی نمایش داده می‌شود؛ تصویر مربعی انتخاب کنید."
+              : "برای بهترین نتیجه تصویر مربعی انتخاب کنید؛ قبل از ذخیره می‌توانید آن را برش دهید."}
           </p>
         </div>
       </div>
@@ -508,7 +529,11 @@ function PhotosBioSection({
         <Label htmlFor="bio-short">معرفی کوتاه</Label>
         <Input
           id="bio-short"
-          placeholder="مثلاً: هنرمند نقاش و علاقه‌مند به هنر مفهومی"
+          placeholder={
+            isScout
+              ? "مثلاً: آژانس کشف استعداد و مدیریت هنرمندان"
+              : "مثلاً: هنرمند نقاش و علاقه‌مند به هنر مفهومی"
+          }
           value={bioShort}
           onChange={(e) => setBioShort(e.target.value.slice(0, 200))}
           maxLength={200}
@@ -524,7 +549,11 @@ function PhotosBioSection({
         <Label htmlFor="bio-long">درباره من</Label>
         <Textarea
           id="bio-long"
-          placeholder="تجربه‌ها، علاقه‌مندی‌ها و آنچه می‌خواهید دیگران بدانند..."
+          placeholder={
+            isScout
+              ? "معرفی سازمان، زمینه‌ی فعالیت و نوع همکاری‌هایی که جست‌وجو می‌کنید..."
+              : "تجربه‌ها، علاقه‌مندی‌ها و آنچه می‌خواهید دیگران بدانند..."
+          }
           value={bioLong}
           onChange={(e) => setBioLong(e.target.value.slice(0, 4000))}
           rows={6}
@@ -598,7 +627,7 @@ function GenderSection({
   ];
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
+    <Card className="p-4 md:p-5 space-y-4 rounded-2xl">
       <SectionTitle icon="user" title="جنسیت" />
       <p className="text-xs text-muted-foreground leading-5">
         جنسیت برای نمایش آواتار پیش‌فرض و در پروفایل عمومی شما استفاده می‌شود. این اطلاعات اختیاری است.
@@ -714,7 +743,7 @@ function LocationSection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
+    <Card className="p-4 md:p-5 space-y-4 rounded-2xl">
       <SectionTitle icon="mapPin" title="موقعیت و تماس" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -756,7 +785,7 @@ function LocationSection({
         </div>
       </div>
 
-      <div className="flex items-start justify-between gap-3 rounded-2xl bg-primary/8 p-4 border border-primary/15">
+      <div className="flex items-start justify-between gap-3 rounded-2xl bg-muted/40 p-3.5 border border-border">
         <div className="flex items-start gap-2.5">
           <div className="grid place-items-center w-8 h-8 rounded-xl bg-primary/10 text-primary shrink-0">
             <Icon name="chat" className="w-4 h-4" />
@@ -783,6 +812,54 @@ function LocationSection({
           ذخیره
         </Button>
       </div>
+    </Card>
+  );
+}
+
+/* ─── Section (چهره‌یاب): اطلاعات چهره‌یاب ──────────────────────── */
+function ScoutInfoSection({ isScout }: { isScout: boolean }) {
+  return (
+    <Card className="p-4 md:p-5 space-y-4 rounded-2xl">
+      <SectionTitle icon="compass" title="اطلاعات چهره‌یاب" />
+
+      {isScout ? (
+        <>
+          <div className="flex items-start gap-2.5 rounded-2xl bg-muted/40 border border-border p-3.5">
+            <ScoutBadge />
+            <p className="text-xs text-muted-foreground leading-5 min-w-0">
+              حساب شما به‌عنوان چهره‌یاب (استعدادیاب) فعال است. چهره‌یاب‌ها سازمان و
+              آژانس هستند؛ ستاره، قاب چهره برتر، دسته‌بندی مهارت و رزومهٔ چهره‌ها
+              به آن‌ها تعلق نمی‌گیرد.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <Button
+              onClick={() => navigate({ view: "scout" })}
+              className="gap-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
+            >
+              <Icon name="compass" className="w-4 h-4" />
+              داشبورد چهره‌یاب
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate({ view: "my-needs" })}
+              className="gap-1.5 rounded-xl border-primary/30 text-primary hover:bg-primary/5 font-bold"
+            >
+              <Icon name="briefcase" className="w-4 h-4" />
+              مدیریت نیازمندی‌ها
+            </Button>
+          </div>
+        </>
+      ) : (
+        <div className="flex items-start gap-2.5 rounded-2xl bg-muted/40 border border-border p-3.5">
+          <Badge className="shrink-0 h-6 px-2 text-[10.5px] font-bold rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25">
+            در انتظار بررسی
+          </Badge>
+          <p className="text-xs text-muted-foreground leading-5 min-w-0">
+            درخواست چهره‌یابی شما ثبت شده و در انتظار تأیید ادمین است.
+          </p>
+        </div>
+      )}
     </Card>
   );
 }
@@ -867,7 +944,7 @@ function CategoriesSection({
   );
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
+    <Card className="p-4 md:p-5 space-y-4 rounded-2xl">
       <div className="flex items-center justify-between gap-2">
         <SectionTitle icon="spark" title="دسته‌بندی و مهارت‌ها" />
         <Dialog open={addCatOpen} onOpenChange={setAddCatOpen}>
@@ -916,16 +993,16 @@ function CategoriesSection({
         />
       ) : (
         <div className="space-y-3">
-          {profile.categories.map((c, i) => {
+          {profile.categories.map((c) => {
             const catMeta = allCats.find((x) => x.id === c.id);
             return (
               <motion.div
                 key={c.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: i * 0.05 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.15 }}
               >
-                <Card className="p-4 rounded-2xl shadow-card hover:shadow-lift transition-shadow">
+                <Card className="p-4 rounded-2xl transition-colors hover:border-primary/30">
                   {/* Color stripe */}
                   {catMeta?.color && (
                     <div
@@ -1067,7 +1144,7 @@ function MainCategorySection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
+    <Card className="p-4 md:p-5 space-y-4 rounded-2xl">
       <SectionTitle icon="spark" title="دسته اصلی" />
       <p className="text-xs text-muted-foreground leading-5">
         دسته اصلی، رنگ حلقه‌ی دور آواتار شما را در پروفایل تعیین می‌کند. از
@@ -1248,7 +1325,7 @@ function ExperienceSection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
+    <Card className="p-4 md:p-5 space-y-4 rounded-2xl">
       <div className="flex items-center justify-between gap-2">
         <SectionTitle icon="briefcase" title="سوابق کاری" />
         <Button
@@ -1269,13 +1346,13 @@ function ExperienceSection({
         />
       ) : (
         <div className="space-y-2.5">
-          {profile.experiences.map((e, i) => (
+          {profile.experiences.map((e) => (
             <motion.div
               key={e.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: i * 0.05 }}
-              className="rounded-2xl border border-border/60 p-3.5 flex items-start justify-between gap-2 hover:shadow-card transition-shadow bg-card"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
+              className="rounded-2xl border border-border p-3.5 flex items-start justify-between gap-2 bg-card"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -1496,7 +1573,7 @@ function EducationSection({
   }
 
   return (
-    <Card className="p-5 md:p-6 space-y-4 rounded-3xl shadow-card">
+    <Card className="p-4 md:p-5 space-y-4 rounded-2xl">
       <div className="flex items-center justify-between gap-2">
         <SectionTitle icon="award" title="تحصیلات" />
         <Button
@@ -1517,13 +1594,13 @@ function EducationSection({
         />
       ) : (
         <div className="space-y-2.5">
-          {profile.educations.map((e, i) => (
+          {profile.educations.map((e) => (
             <motion.div
               key={e.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: i * 0.05 }}
-              className="rounded-2xl border border-border/60 p-3.5 flex items-start justify-between gap-2 hover:shadow-card transition-shadow bg-card"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
+              className="rounded-2xl border border-border p-3.5 flex items-start justify-between gap-2 bg-card"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -1638,12 +1715,12 @@ function SectionTitle({
 
 function EditSkeleton() {
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-3xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <Skeleton className="h-8 w-48 rounded" />
         <Skeleton className="h-8 w-32 rounded" />
       </div>
-      <Card className="p-6 space-y-4 rounded-3xl shadow-card">
+      <Card className="p-5 space-y-4 rounded-2xl">
         <Skeleton className="h-32 w-full rounded-2xl" />
         <div className="flex items-center gap-4">
           <Skeleton className="w-20 h-20 rounded-full" />
@@ -1655,7 +1732,7 @@ function EditSkeleton() {
         <Skeleton className="h-24 w-full rounded-2xl" />
         <Skeleton className="h-9 w-32 rounded-2xl" />
       </Card>
-      <Card className="p-6 space-y-3 rounded-3xl shadow-card">
+      <Card className="p-5 space-y-3 rounded-2xl">
         <Skeleton className="h-5 w-32 rounded" />
         <Skeleton className="h-9 w-full rounded-2xl" />
         <Skeleton className="h-9 w-full rounded-2xl" />

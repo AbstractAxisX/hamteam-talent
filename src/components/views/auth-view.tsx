@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { apiPost } from "@/lib/api-client";
+import { apiPost, apiPut } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate, useNav } from "@/lib/nav";
+import { toFa } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,356 +13,391 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { toast } from "@/hooks/use-toast";
 import { LogoFull } from "@/components/shared/illustrations";
 import { Icon } from "@/components/shared/icon";
-import { cn } from "@/lib/utils";
+
+/* ورود/ثبت‌نام فقط با شماره موبایل — سه گام داخل یک کارت کلاسیک:
+   ۱) شماره  ۲) کد تأیید  ۳) نام (فقط کاربر جدید — پس از ثبت‌نام، اجباری)
+   · کاربر قبلی با نام واقعی → مستقیم فید (یا scout-apply در حالت چهره‌یاب)
+   · mode=scout از #/auth?mode=scout در کل مسیر حفظ می‌شود
+   · بک‌اند ثبت‌نام «نام» می‌خواهد → جای‌نگهدار = خود شماره؛
+     نام واقعی بلافاصله بعد از تأیید پرسیده و ذخیره می‌شود */
+
+type Step = "phone" | "otp" | "name";
+
+// تبدیل ارقام فارسی/عربی به لاتین (ورودیِ شماره)
+function toEnDigits(s: string): string {
+  return s
+    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+}
 
 export function AuthView() {
-  // حالت چهره‌یاب — از لینک #/auth?mode=scout یا سکشن لندینگ
   const route = useNav((s) => s.route);
-  const [scoutMode, setScoutMode] = useState(route.params?.mode === "scout");
+  // حالت چهره‌یاب — فقط از لینک (#/auth?mode=scout)، بدون سوییچ در UI
+  const scoutMode = route.params?.mode === "scout";
 
-  const [step, setStep] = useState<"info" | "otp">("info");
-  const [demoOtp, setDemoOtp] = useState("");
-  const [otp, setOtp] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const { user, loading, fetchUser } = useUser();
+  const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
   const [name, setName] = useState("");
-  const fetchUser = useUser((s) => s.fetchUser);
+  const [isNewSignup, setIsNewSignup] = useState(false);
+  const [demoOtp, setDemoOtp] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+  const initialChecked = useRef(false);
 
-  async function submitInfo(data: { name: string; phone: string }) {
+  // ورود خودکار کاربرِ از قبل لاگین‌شده — فقط بررسی اولیهٔ مونت
+  // (بعد از تأیید OTP نباید این مسیر دوباره فعال شود؛ پس ریدایرکت با گارد ref جدا است)
+  useEffect(() => {
+    if (loading) return;
+    if (!initialChecked.current) {
+      initialChecked.current = true;
+      if (user) setRedirecting(true);
+    }
+  }, [loading, user]);
+
+  useEffect(() => {
+    if (!redirecting) return;
+    const t = setTimeout(() => {
+      navigate(scoutMode ? { view: "scout-apply" } : { view: "feed" });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [redirecting, scoutMode]);
+
+  /* ── گام ۱: شماره موبایل ── */
+  async function submitPhone(e: React.FormEvent) {
+    e.preventDefault();
+    const p = toEnDigits(phone).replace(/\D/g, "");
+    if (!/^09\d{9}$/.test(p)) {
+      toast({
+        title: "شماره موبایل معتبر نیست",
+        description: "شماره را با فرمت ۰۹۱۲۳۴۵۶۷۸۹ وارد کنید.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSubmitting(true);
     try {
-      const res = await apiPost<{ ok: boolean; otp: string; mode: "login" | "register"; error?: string }>(
-        "/api/auth/register",
-        data
-      );
-      setDemoOtp(res.otp);
-      setPhone(data.phone);
-      setName(data.name);
+      const res = await apiPost<{
+        ok: boolean;
+        otp?: string;
+        mode: "login" | "register";
+      }>("/api/auth/register", { phone: p, name: p });
+      setPhone(p);
+      setIsNewSignup(res.mode === "register");
+      setDemoOtp(res.otp || "1234");
       setStep("otp");
-    } catch (e) {
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "خطا", description: (err as Error).message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   }
 
+  /* ── گام ۲: کد تأیید ── */
   async function onVerify() {
-    if (otp.length < 4) return;
+    if (otp.length < 4 || submitting) return;
     setSubmitting(true);
     try {
       await apiPost("/api/auth/verify", { phone, otp });
       await fetchUser();
-      toast({ title: "خوش آمدید! 🎉" });
-      // چهره‌یاب → بعد از تأیید شماره، فرم استعدادیابی را تکمیل می‌کند
-      navigate(scoutMode ? { view: "scout-apply" } : { view: "feed" });
-    } catch (e) {
-      toast({ title: "خطا", description: (e as Error).message, variant: "destructive" });
+      const u = useUser.getState().user;
+      // کاربر جدید (ثبت‌نام تازه) یا نامِ خالی/جای‌نگهدار → گام نام
+      const hasRealName =
+        !!u?.name?.trim() && u.name.trim() !== u.phone && u.name.trim() !== phone;
+      if (isNewSignup || !hasRealName) {
+        setStep("name");
+      } else {
+        toast({ title: "خوش اومدی!", description: "ورود با موفقیت انجام شد." });
+        // چهره‌یاب → پس از تأیید شماره مستقیم به فرم استعدادیابی (رفتار قبلی)
+        navigate(scoutMode ? { view: "scout-apply" } : { view: "feed" });
+      }
+    } catch (err) {
+      toast({ title: "خطا", description: (err as Error).message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   }
 
+  /* ── گام ۳: نام (اجباری، فقط ثبت‌نام جدید) ── */
+  async function submitName(e: React.FormEvent) {
+    e.preventDefault();
+    const n = name.trim();
+    if (n.length < 2 || n.length > 40 || n === phone) {
+      toast({
+        title: "نام معتبر نیست",
+        description: "نام باید ۲ تا ۴۰ نویسه باشد.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await apiPut("/api/auth/profile", { name: n });
+      await fetchUser();
+      // عضو جدید → چک‌لیست تکمیل پروفایل؛ چهره‌یاب → فرم استعدادیابی
+      if (scoutMode) navigate({ view: "scout-apply" });
+      else navigate({ view: "onboarding" });
+    } catch (err) {
+      toast({ title: "خطا", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // اسپینر کوچک — هنگام بررسی ورود یا انتقال خودکار
+  if (loading || redirecting) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-5 px-4">
+        <LogoFull h={44} />
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Icon name="loader" size={18} className="animate-spin" strokeWidth={2.2} />
+          {redirecting ? "در حال ورود…" : "در حال بررسی…"}
+          <span className="sr-only">لطفاً صبر کنید</span>
+        </div>
+      </div>
+    );
+  }
+
+  const otpSlotClass =
+    "h-12 w-12 rounded-xl text-lg font-bold border first:rounded-l-xl last:rounded-r-xl";
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
-      {/* ═══ Ambient background — solid colored blobs (NO gradient fills) ═══ */}
-      <div
-        className="absolute inset-0 opacity-[0.04] pointer-events-none"
-        style={{
-          backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
-        }}
-      />
-
-      {/* ═══ Top — small wordmark ═══ */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative pt-6 md:pt-10 px-6 flex items-center justify-between"
-      >
-        <button
-          onClick={() => navigate({ view: "feed" })}
-          className="flex items-center gap-2.5"
-          aria-label="فرصتینو"
-        >
-          <LogoFull h={34} />
-        </button>
-        <button
-          onClick={() => navigate({ view: "feed" })}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="بازگشت به صفحه اصلی"
-        >
-          <Icon name="arrowLeft" size={15} strokeWidth={2.4} className="rotate-180" />
-          بازگشت
-        </button>
-        {process.env.NODE_ENV !== "production" && (
-          <button
-            onClick={() => navigate({ view: "admin" })}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-10">
+        <div className="w-full max-w-sm">
+          {/* لوگو */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center justify-center mb-6"
           >
-            ورود ادمین ←
-          </button>
-        )}
-      </motion.div>
+            <LogoFull h={44} />
+          </motion.div>
 
-      {/* ═══ Centered glass card ═══ */}
-      <div className="relative min-h-[calc(100vh-88px)] flex items-center justify-center p-4 md:p-8">
-        <div className="w-full max-w-md">
-          <AnimatePresence mode="wait">
-            {step === "info" ? (
-              <motion.div
-                key="info"
-                initial={{ opacity: 0, y: 24, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -24, scale: 0.96 }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                className="relative rounded-3xl glass-strong border border-border/60 p-7 md:p-9"
-                style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.4)" }}
-              >
-                {/* Accent badge */}
-                <div className="flex items-center gap-2 mb-5">
-                  <span
-                    className={cn(
-                      "grid place-items-center w-10 h-10 rounded-2xl",
-                      scoutMode
-                        ? "bg-emerald-600/15 text-emerald-700 dark:text-emerald-300"
-                        : "bg-primary/15 text-primary"
-                    )}
-                  >
-                    <Icon
-                      name={scoutMode ? "compass" : "rocket"}
-                      size={22}
-                      strokeWidth={2.2}
-                      className={scoutMode ? "text-emerald-700 dark:text-emerald-300" : "text-primary"}
-                    />
-                  </span>
-                  <p
-                    className={cn(
-                      "text-xs font-bold tracking-widest",
-                      scoutMode ? "text-emerald-700 dark:text-emerald-300" : "text-primary"
-                    )}
-                  >
-                    {scoutMode ? "چهره‌یاب شو" : "شروع کن"}
-                  </p>
-                </div>
+          {/* کارت اصلی — کلاسیک solid */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25 }}
+            className="bg-card border border-border rounded-2xl shadow-sm p-6"
+          >
+            <AnimatePresence mode="wait">
+              {step === "phone" && (
+                <motion.div
+                  key="phone"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="text-center mb-6">
+                    <p className="text-[11px] font-bold text-primary tracking-wide mb-2">
+                      {scoutMode ? "ثبت‌نام چهره‌یاب" : "ورود / ثبت‌نام"}
+                    </p>
+                    <h1 className="text-2xl font-extrabold leading-8 tracking-tight">
+                      {scoutMode ? "چهره‌یاب شو" : "به فرصتینو خوش اومدی"}
+                    </h1>
+                    <p className="text-sm text-muted-foreground leading-6 mt-2">
+                      {scoutMode
+                        ? "با شماره موبایل شروع کن؛ بعد از تأیید، فرم استعدادیابی را تکمیل می‌کنی."
+                        : "فقط شماره موبایلت را وارد کن؛ اگر حساب نداشته باشی، ثبت‌نام خودکار انجام می‌شود."}
+                    </p>
+                  </div>
 
-                <h1 className="text-3xl md:text-4xl font-black tracking-tight leading-[1.15] mb-2">
-                  به <span className="text-primary">فرصتینو</span> خوش اومدی
-                </h1>
-                <p className="text-sm text-muted-foreground leading-6 mb-5">
-                  {scoutMode
-                    ? "به‌عنوان چهره‌یاب ثبت‌نام می‌کنی — بعد از تأیید شماره، اطلاعات استعدادیابی‌ات را تکمیل می‌کنی."
-                    : "نام و شماره موبایلت رو وارد کن. اگه حساب نداری خودکار ثبت‌نام می‌شی."}
-                </p>
+                  <form onSubmit={submitPhone} className="space-y-4" noValidate>
+                    <div className="space-y-2">
+                      <Label htmlFor="auth-phone" className="text-sm font-bold">
+                        شماره موبایل
+                      </Label>
+                      <div className="relative">
+                        <Icon
+                          name="phone"
+                          size={18}
+                          strokeWidth={2}
+                          className="text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                        />
+                        <Input
+                          id="auth-phone"
+                          value={phone}
+                          onChange={(e) =>
+                            setPhone(toEnDigits(e.target.value).replace(/\D/g, "").slice(0, 11))
+                          }
+                          inputMode="numeric"
+                          autoComplete="tel"
+                          placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                          dir="ltr"
+                          autoFocus
+                          className="h-12 rounded-xl text-base tracking-wide pr-10 pl-4"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full h-12 rounded-xl text-base font-bold grad-brand text-primary-foreground transition-opacity hover:opacity-95"
+                    >
+                      {submitting ? (
+                        <Icon name="loader" size={18} className="animate-spin" strokeWidth={2.4} />
+                      ) : (
+                        "ادامه"
+                      )}
+                    </Button>
+                  </form>
 
-                {/* انتخاب نوع عضویت — استعداد / چهره‌یاب */}
-                <div className="flex items-center gap-2 p-1.5 rounded-full bg-muted/50 border border-border/60 mb-6">
-                  <MembershipChip active={!scoutMode} onClick={() => setScoutMode(false)}>
-                    <Icon name="star" size={13} />
-                    عضو استعداد
-                  </MembershipChip>
-                  <MembershipChip active={scoutMode} onClick={() => setScoutMode(true)}>
-                    <Icon name="compass" size={13} />
-                    چهره‌یاب (استعدادیاب)
-                  </MembershipChip>
-                </div>
+                  {process.env.NODE_ENV !== "production" && (
+                    <p className="mt-4 text-[11px] text-muted-foreground text-center leading-5">
+                      نسخه دمو — کد تأیید برای همه ۱۲۳۴ است.
+                    </p>
+                  )}
+                </motion.div>
+              )}
 
-                <InfoForm submitting={submitting} onSubmit={submitInfo} />
+              {step === "otp" && (
+                <motion.div
+                  key="otp"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="text-center mb-6">
+                    <span className="grid place-items-center w-12 h-12 rounded-xl bg-primary/10 text-primary mx-auto mb-4">
+                      <Icon name="shield" size={22} strokeWidth={2} />
+                    </span>
+                    <h1 className="text-2xl font-extrabold leading-8 tracking-tight">
+                      کد تأیید را وارد کن
+                    </h1>
+                    <p className="text-sm text-muted-foreground leading-6 mt-2">
+                      کد ۴ رقمی ارسال‌شده به{" "}
+                      <span className="font-bold text-foreground">{toFa(phone)}</span> را وارد کن.
+                    </p>
+                  </div>
 
-                {/* Demo OTP hint — فقط در توسعه */}
-                {process.env.NODE_ENV !== "production" && (
-                  <div className="mt-5 p-3.5 rounded-2xl bg-muted/40">
-                    <p className="text-xs text-foreground/70 leading-6 flex items-start gap-1.5">
-                      <Icon name="sparkles" size={14} className="text-primary shrink-0 mt-0.5" strokeWidth={2.4} />
-                      <span>
-                        کد تایید برای همه <strong>۱۲۳۴</strong> است (نسخه دمو).
+                  {process.env.NODE_ENV !== "production" && (
+                    <div className="mb-5 h-10 rounded-xl bg-muted border border-border flex items-center justify-center gap-2">
+                      <Icon name="sparkles" size={14} strokeWidth={2} className="text-primary" />
+                      <span className="text-xs text-muted-foreground">کد نمایشی:</span>
+                      <span className="text-sm font-extrabold text-primary tracking-[0.3em]">
+                        {toFa(demoOtp)}
                       </span>
-                    </p>
-                  </div>
-                )}
-              </motion.div>
-            ) : (
-              <motion.div
-                key="otp"
-                initial={{ opacity: 0, y: 24, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -24, scale: 0.96 }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                className="relative rounded-3xl glass-strong border border-border/60 p-7 md:p-9"
-                style={{ boxShadow: "0 24px 60px rgba(0,0,0,0.4)" }}
-              >
-                {/* Shield header */}
-                <div className="mb-6">
-                  <motion.div
-                    initial={{ scale: 0.6, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 380, damping: 18 }}
-                    className="grid place-items-center w-16 h-16 rounded-2xl bg-primary/12 mb-5"
-                  >
-                    <Icon name="shield" size={32} className="text-primary" strokeWidth={2.2} />
-                  </motion.div>
-                  <p className="text-xs font-bold text-primary tracking-widest mb-2">تایید شماره</p>
-                  <h1 className="text-2xl md:text-3xl font-black tracking-tight leading-tight">
-                    کد رو وارد کن
-                  </h1>
-                  <p className="text-sm text-muted-foreground mt-2 leading-6">
-                    کد ۴ رقمی ارسال شده به{" "}
-                    <span className="font-semibold text-foreground" dir="ltr">{phone}</span> رو وارد کن.
-                  </p>
-                </div>
+                    </div>
+                  )}
 
-                {/* Demo OTP box — فقط در توسعه */}
-                {demoOtp && process.env.NODE_ENV !== "production" && (
-                  <div className="mb-6 p-4 rounded-2xl bg-primary/8 text-center border border-primary/20">
-                    <p className="text-xs text-muted-foreground mb-1">کد دمو</p>
-                    <p className="font-mono text-3xl tracking-[0.5em] font-extrabold text-primary" dir="ltr">
-                      {demoOtp}
-                    </p>
-                  </div>
-                )}
-
-                {/* OTP input */}
-                <div className="mb-6">
-                  <Label className="mb-3 block text-center">کد تایید</Label>
-                  <div className="flex justify-center" dir="ltr">
+                  <div dir="ltr" className="flex justify-center mb-6">
                     <InputOTP maxLength={4} value={otp} onChange={setOtp}>
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} className="w-14 h-14 text-xl first:rounded-r-2xl last:rounded-l-2xl" />
-                        <InputOTPSlot index={1} className="w-14 h-14 text-xl" />
-                        <InputOTPSlot index={2} className="w-14 h-14 text-xl" />
-                        <InputOTPSlot index={3} className="w-14 h-14 text-xl" />
+                      <InputOTPGroup className="gap-2.5">
+                        <InputOTPSlot index={0} className={otpSlotClass} />
+                        <InputOTPSlot index={1} className={otpSlotClass} />
+                        <InputOTPSlot index={2} className={otpSlotClass} />
+                        <InputOTPSlot index={3} className={otpSlotClass} />
                       </InputOTPGroup>
                     </InputOTP>
                   </div>
-                </div>
 
-                <Button
-                  onClick={onVerify}
-                  className="w-full h-14 rounded-2xl text-base font-bold py-3.5 bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
-                  style={{ boxShadow: "0 8px 30px rgba(61, 124, 190, 0.3)" }}
-                  disabled={submitting || otp.length < 4}
-                >
-                  {submitting ? (
-                    <Icon name="loader" size={20} className="text-primary-foreground animate-spin" strokeWidth={2.4} />
-                  ) : (
-                    <Icon name="arrowLeft" size={20} strokeWidth={2.6} className="text-primary-foreground" />
-                  )}
-                  ورود به فرصتینو
-                </Button>
+                  <Button
+                    onClick={onVerify}
+                    disabled={submitting || otp.length < 4}
+                    className="w-full h-12 rounded-xl text-base font-bold grad-brand text-primary-foreground transition-opacity hover:opacity-95"
+                  >
+                    {submitting ? (
+                      <Icon name="loader" size={18} className="animate-spin" strokeWidth={2.4} />
+                    ) : (
+                      "تأیید"
+                    )}
+                  </Button>
 
-                <button
-                  type="button"
-                  onClick={() => setStep("info")}
-                  className="w-full mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep("phone");
+                      setOtp("");
+                    }}
+                    className="w-full h-11 mt-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    ویرایش شماره
+                  </button>
+                </motion.div>
+              )}
+
+              {step === "name" && (
+                <motion.div
+                  key="name"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  ← بازگشت و ویرایش
-                </button>
-              </motion.div>
+                  <div className="text-center mb-6">
+                    <span className="grid place-items-center w-12 h-12 rounded-xl bg-primary/10 text-primary mx-auto mb-4">
+                      <Icon name="user" size={22} strokeWidth={2} />
+                    </span>
+                    <h1 className="text-2xl font-extrabold leading-8 tracking-tight">اسمت چیه؟</h1>
+                    <p className="text-sm text-muted-foreground leading-6 mt-2">
+                      {scoutMode
+                        ? "نامت در فرم استعدادیابی و پروفایل چهره‌یاب نمایش داده می‌شود."
+                        : "نامت روی پروفایل فرصتینو نمایش داده می‌شود."}
+                    </p>
+                  </div>
+
+                  <form onSubmit={submitName} className="space-y-4" noValidate>
+                    <div className="space-y-2">
+                      <Label htmlFor="auth-name" className="text-sm font-bold">
+                        نام و نام خانوادگی
+                      </Label>
+                      <Input
+                        id="auth-name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="مثلاً: علی رضایی"
+                        maxLength={40}
+                        autoComplete="name"
+                        autoFocus
+                        className="h-12 rounded-xl text-base px-4"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full h-12 rounded-xl text-base font-bold grad-brand text-primary-foreground transition-opacity hover:opacity-95"
+                    >
+                      {submitting ? (
+                        <Icon name="loader" size={18} className="animate-spin" strokeWidth={2.4} />
+                      ) : (
+                        "شروع"
+                      )}
+                    </Button>
+                  </form>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* پایین کارت */}
+          <div className="mt-5 flex flex-col items-center gap-2">
+            {step === "phone" && (
+              <button
+                type="button"
+                onClick={() => navigate({ view: "feed" })}
+                className="text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+              >
+                بازگشت به فرصتینو
+              </button>
             )}
-          </AnimatePresence>
-
-          {/* Tagline at the bottom */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-center text-xs text-muted-foreground/80 font-medium mt-6"
-          >
-            فرصتینو — کاملاً رایگان
-          </motion.p>
+            <p className="text-xs text-muted-foreground/80">فرصتینو — کاملاً رایگان</p>
+            {process.env.NODE_ENV !== "production" && (
+              <button
+                type="button"
+                onClick={() => navigate({ view: "admin" })}
+                className="text-[11px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+              >
+                ورود ادمین (دمو)
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function MembershipChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex-1 inline-flex items-center justify-center gap-1.5 h-11 rounded-full text-[12.5px] font-extrabold transition-colors outline-none min-w-11",
-        active
-          ? scoutChipActiveClass
-          : "text-muted-foreground hover:text-foreground"
-      )}
-      aria-pressed={active}
-    >
-      {children}
-    </button>
-  );
-}
-
-const scoutChipActiveClass =
-  "bg-card text-foreground shadow-soft border border-border/60";
-
-function InfoForm({ submitting, onSubmit }: { submitting: boolean; onSubmit: (data: { name: string; phone: string }) => void }) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (name.trim().length < 2) {
-      toast({ title: "خطا", description: "نام را کامل وارد کنید", variant: "destructive" });
-      return;
-    }
-    if (phone.replace(/\D/g, "").length < 10) {
-      toast({ title: "خطا", description: "شماره موبایل معتبر نیست", variant: "destructive" });
-      return;
-    }
-    onSubmit({ name: name.trim(), phone });
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label className="text-sm font-bold">نام و نام خانوادگی</Label>
-        <div className="relative">
-          <Icon name="user" size={20} className="text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2" strokeWidth={2} />
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="مثلاً: علی رضایی"
-            className="h-13 rounded-2xl text-base py-3.5 pr-11"
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label className="text-sm font-bold">شماره موبایل</Label>
-        <div className="relative">
-          <Icon name="phone" size={20} className="text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2" strokeWidth={2} />
-          <Input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            inputMode="numeric"
-            placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-            className="h-13 rounded-2xl text-base py-3.5 pr-11"
-            dir="ltr"
-          />
-        </div>
-      </div>
-      <Button
-        type="submit"
-        className="w-full h-13 rounded-2xl text-base font-bold py-3.5 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-        style={{ boxShadow: "0 8px 30px rgba(61, 124, 190, 0.3)" }}
-        disabled={submitting}
-      >
-        {submitting ? (
-          <Icon name="loader" size={20} className="text-primary-foreground animate-spin" strokeWidth={2.4} />
-        ) : (
-          <Icon name="arrowLeft" size={18} strokeWidth={2.6} className="text-primary-foreground" />
-        )}
-        دریافت کد تایید
-      </Button>
-    </form>
   );
 }

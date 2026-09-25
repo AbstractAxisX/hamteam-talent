@@ -5,7 +5,7 @@ import { categoryColorMap, resolveUserColor } from "@/lib/cat-color";
 import { usersStarInfo, postsRatingStats } from "@/lib/stars";
 
 /* GET /api/explore/posts — ویترین «چهره برتر»
-   پست‌هایی که کاربرانِ دارای قاب (طلایی/رزگلد) یا ادمین فرستاده‌اند.
+   پست‌هایی که کاربرانِ دارای قاب (نقره‌ای/طلایی) یا ادمین فرستاده‌اند.
    ?categoryId=&skillId= */
 export async function GET(req: Request) {
   const url = new URL(req.url);

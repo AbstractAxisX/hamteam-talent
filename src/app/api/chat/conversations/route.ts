@@ -35,7 +35,7 @@ export async function GET() {
     },
   });
 
-  /* قاب چهره برتر (طلایی/رزگلد) برای همهٔ طرف‌های گفتگو */
+  /* قاب چهره برتر (نقره‌ای/طلایی) برای همهٔ طرف‌های گفتگو */
   const starInfo = await usersStarInfo(
     conversations.map((c) => (c.userAId === me.id ? c.userBId : c.userAId))
   );

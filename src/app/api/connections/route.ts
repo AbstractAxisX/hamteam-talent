@@ -32,7 +32,7 @@ export async function GET() {
     }),
   ]);
 
-  /* قاب چهره برتر (طلایی/رزگلد) + بج چهره‌یاب برای همهٔ طرف‌ها */
+  /* قاب چهره برتر (نقره‌ای/طلایی) + بج چهره‌یاب برای همهٔ طرف‌ها */
   const otherIds = [
     ...received.map((c) => c.requesterId),
     ...sent.map((c) => c.receiverId),

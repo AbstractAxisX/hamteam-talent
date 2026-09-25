@@ -4,7 +4,7 @@ import { getCurrentAdmin } from "@/lib/auth";
 
 /* PUT /api/admin/users/[id] — { action, level?, note? }
    actions: ban | unban | verify | unverify | elite | unelite
-   elite: level = "gold" | "rosegold" (پیش‌فرض gold) */
+   elite: level = "silver" | "gold" (پیش‌فرض silver) */
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "غیرمجاز" }, { status: 403 });
@@ -19,7 +19,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   else if (action === "verify") data.isVerifiedBadge = true;
   else if (action === "unverify") data.isVerifiedBadge = false;
   else if (action === "elite") {
-    const level = body.level === "rosegold" ? "rosegold" : "gold";
+    const level = body.level === "gold" ? "gold" : "silver";
     data.isAdminElite = true;
     data.eliteLevel = level;
   } else if (action === "unelite") {
@@ -30,7 +30,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const user = await db.user.update({ where: { id }, data });
 
   if (action === "elite") {
-    const levelFa = data.eliteLevel === "rosegold" ? "رزگلد" : "طلایی";
+    const levelFa = data.eliteLevel === "gold" ? "طلایی" : "نقره‌ای";
     await db.notification.create({
       data: {
         userId: id,

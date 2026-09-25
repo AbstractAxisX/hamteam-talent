@@ -4,28 +4,29 @@ import { Prisma } from "@prisma/client";
 /* ═══════════════════════════════════════════════════════════════
    stars.ts — منطق «چهره برتر» بر پایه ستاره و رأی
    · هر کاربر روی هر پست یک امتیاز ۱..۱۰ ثبت می‌کند (PostRating)
-   · مجموع ستاره‌های دریافتی کاربر = جمع score همهٔ رتبه‌های همهٔ پست‌هایش
+   · مجموع ستاره‌های دریافتی کاربر = جمع score همهٔ امتیازهای همهٔ پست‌هایش
    · تعداد رأی = تعداد امتیازهای دریافتی کاربر
-   · ≥ ۵۰۰۰ ستاره یا ≥ ۵۰۰ رأی → قاب طلایی (gold) + ارسال پست به چهره برتر
-   · ≥ ۱۰۰۰۰ ستاره یا ≥ ۱۰۰۰ رأی → قاب رزگلد (rosegold)
-   · isAdminElite (مسیر جایگزین: تأیید ادمین) → حداقل قاب طلایی
+   · ≥ ۵۰۰۰ ستاره یا ≥ ۵۰۰ رأی → قاب نقره‌ای (silver) + ارسال پست به چهره برتر
+   · ≥ ۱۰۰۰۰ ستاره یا ≥ ۱۰۰۰ رأی → قاب طلایی (gold)
+   · isAdminElite (مسیر جایگزین: تأیید ادمین) → حداقل قاب نقره‌ای
    · چهره برترها هفته‌ای فقط ۱ پست به ویترین می‌فرستند
    ═══════════════════════════════════════════════════════════════ */
 
-export const GOLD_THRESHOLD = 5000;
-export const ROSE_GOLD_THRESHOLD = 10000;
-/** مسیر رأی: ۵۰۰ رأی (امتیاز ثبت‌شده) هم قاب طلایی می‌آورد */
-export const GOLD_VOTES_THRESHOLD = 500;
-export const ROSE_GOLD_VOTES_THRESHOLD = 1000;
+export const SILVER_THRESHOLD = 5000;
+export const GOLD_THRESHOLD = 10000;
+/** مسیر رأی: ۵۰۰ رأی (امتیاز ثبت‌شده) هم قاب نقره‌ای می‌آورد */
+export const SILVER_VOTES_THRESHOLD = 500;
+export const GOLD_VOTES_THRESHOLD = 1000;
 /** سقف پست‌های هم‌زمان هر کاربر در ویترین چهره برتر */
 export const MAX_FEATURED_POSTS = 5;
 /** سقف هفتگی ارسال به ویترین — هر ۷ روز فقط ۱ پست */
 export const FEATURE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-export type FrameLevel = "gold" | "rosegold" | null;
+/** سطح قاب کاربر — نقره‌ای (۵۰۰۰) یا طلایی (۱۰۰۰۰) */
+export type FrameLevel = "silver" | "gold" | null;
 
 /** سطح قاب ادمینی روی User.eliteLevel */
-export type AdminEliteLevel = "none" | "gold" | "rosegold";
+export type AdminEliteLevel = "none" | "silver" | "gold";
 
 export function frameFor(
   totalStars: number,
@@ -33,10 +34,10 @@ export function frameFor(
   adminElite: AdminEliteLevel | boolean = "none"
 ): FrameLevel {
   const level: AdminEliteLevel =
-    adminElite === true ? "gold" : adminElite === false ? "none" : adminElite;
-  if (level === "rosegold") return "rosegold";
-  if (totalStars >= ROSE_GOLD_THRESHOLD || votes >= ROSE_GOLD_VOTES_THRESHOLD) return "rosegold";
-  if (totalStars >= GOLD_THRESHOLD || votes >= GOLD_VOTES_THRESHOLD || level === "gold") return "gold";
+    adminElite === true ? "silver" : adminElite === false ? "none" : adminElite;
+  if (level === "gold") return "gold";
+  if (totalStars >= GOLD_THRESHOLD || votes >= GOLD_VOTES_THRESHOLD) return "gold";
+  if (totalStars >= SILVER_THRESHOLD || votes >= SILVER_VOTES_THRESHOLD || level === "silver") return "silver";
   return null;
 }
 
@@ -47,20 +48,24 @@ export interface UserStarInfo {
   frame: FrameLevel;
   /** همان مفهوم قدیمی — مشتق از ستاره/رأی یا تأیید ادمین */
   isTopTalent: boolean;
-  /** ستارهٔ مانده تا قاب بعدی بر پایهٔ ستاره (null یعنی بیشترین سطح) */
+  /** آستانهٔ قاب بعدی (نقره‌ای، سپس طلایی) — null یعنی بیشترین سطح */
   nextAt: number | null;
+  nextFrame: "silver" | "gold" | null;
 }
 
-const ZERO: UserStarInfo = { totalStars: 0, votes: 0, frame: null, isTopTalent: false, nextAt: GOLD_THRESHOLD };
+const ZERO: UserStarInfo = { totalStars: 0, votes: 0, frame: null, isTopTalent: false, nextAt: SILVER_THRESHOLD, nextFrame: "silver" };
 
 function infoFor(total: number, votes: number, adminElite: AdminEliteLevel = "none"): UserStarInfo {
   const frame = frameFor(total, votes, adminElite);
+  const maxed = total >= GOLD_THRESHOLD || votes >= GOLD_VOTES_THRESHOLD;
+  const silvered = maxed || total >= SILVER_THRESHOLD || votes >= SILVER_VOTES_THRESHOLD;
   return {
     totalStars: total,
     votes,
     frame,
     isTopTalent: frame != null,
-    nextAt: total >= ROSE_GOLD_THRESHOLD || votes >= ROSE_GOLD_VOTES_THRESHOLD ? null : GOLD_THRESHOLD,
+    nextAt: maxed ? null : silvered ? GOLD_THRESHOLD : SILVER_THRESHOLD,
+    nextFrame: maxed ? null : "gold",
   };
 }
 
@@ -81,7 +86,7 @@ export async function usersStarInfo(userIds: string[]): Promise<Map<string, User
       select: { id: true, eliteLevel: true },
     }),
   ]);
-  const eliteMap = new Map(adminElites.map((u) => [u.id, (u.eliteLevel as AdminEliteLevel) || "gold"]));
+  const eliteMap = new Map(adminElites.map((u) => [u.id, (u.eliteLevel as AdminEliteLevel) || "silver"]));
   for (const r of rows) map.set(r.userId, infoFor(Number(r.total), Number(r.votes), eliteMap.get(r.userId) ?? "none"));
   for (const id of uniq) {
     if (!map.has(id)) map.set(id, infoFor(0, 0, eliteMap.get(id) ?? "none"));

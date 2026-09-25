@@ -9,11 +9,12 @@ import { api } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ScoutBadge } from "@/components/shared/scout-badge";
 import { Icon } from "@/components/shared/icon";
 import { RatingSummary, RatingModal } from "@/components/shared/rating-control";
-import { toFa, formatCount, formatFaDate, timeAgoFa } from "@/lib/format";
+import { toFa, formatCount, timeAgoFa } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { PostWithRelations, TalentListItem } from "@/lib/types";
+import type { PostWithRelations, TalentListItem, MyNeedsData } from "@/lib/types";
 
 type HomeData = {
   posts: PostWithRelations[];
@@ -21,10 +22,19 @@ type HomeData = {
   stats: { connectionsCount: number; postsCount: number; followersCount: number };
 };
 
+/** آمار چهره‌یاب — سازمان است، نه چهره: بدون ستاره/قاب/جایگاه */
+type ScoutData = {
+  activeNeeds: number;
+  applications: number;
+  conversations: number;
+};
+
 export function DashboardView() {
   const { user } = useUser();
+  const isScout = !!user?.isScout;
   const [data, setData] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scout, setScout] = useState<ScoutData | null>(null);
 
   useEffect(() => {
     api<HomeData>("/api/feed/home")
@@ -33,13 +43,36 @@ export function DashboardView() {
       .finally(() => setLoading(false));
   }, []);
 
+  // آمار اختصاصی چهره‌یاب: نیازمندی فعال / درخواست دریافتی / گفتگو
+  useEffect(() => {
+    if (!isScout) return;
+    let cancelled = false;
+    Promise.all([
+      api<MyNeedsData>("/api/needs/my-needs"),
+      api<{ conversations: unknown[] }>("/api/chat/conversations"),
+    ])
+      .then(([needs, chat]) => {
+        if (cancelled) return;
+        const posted = needs.posted ?? [];
+        setScout({
+          activeNeeds: posted.filter((n) => n.status === "open").length,
+          applications: posted.reduce((sum, n) => sum + (n.applicationCount ?? 0), 0),
+          conversations: chat.conversations?.length ?? 0,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isScout]);
+
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto space-y-5">
-        <Skeleton className="h-44 rounded-3xl" />
+      <div className="max-w-3xl mx-auto space-y-4">
+        <Skeleton className="h-40 rounded-2xl" />
         <Skeleton className="h-16 rounded-full" />
-        <Skeleton className="h-32 rounded-3xl" />
-        <Skeleton className="h-64 rounded-3xl" />
+        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
     );
   }
@@ -65,17 +98,16 @@ export function DashboardView() {
   const timelineItems = (data?.posts || []).filter((p) => p.user.id !== user?.id).slice(0, 5);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-7 pb-4">
+    <div className="max-w-3xl mx-auto space-y-4 pb-4">
       <BackButton label="بازگشت" />
-      {/* ══════ FULL-WIDTH HERO GREETING ══════ */}
+      {/* ═══ کارت خوش‌آمد — کلاسیک ═══ */}
       <motion.section
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl glass border border-border/60 p-6 md:p-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        className="rounded-2xl border border-border bg-card p-4 md:p-5"
       >
-        {/* Ambient blobs */}
-        <div className="relative flex items-center gap-4 md:gap-5">
+        <div className="flex items-center gap-3.5">
           <button
             onClick={() => navigate({ view: "my-profile" })}
             className="shrink-0 hover:opacity-90 transition-opacity"
@@ -88,72 +120,135 @@ export function DashboardView() {
               gender={user?.profile?.gender}
               frame={user?.frame ?? undefined}
               size="xl"
-              ringColor="var(--primary)"
+              square={isScout}
             />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="text-xs md:text-sm text-primary font-bold tracking-widest mb-1">
-              {greeting} ✦ {formatFaDate(new Date())}
+            <p className="flex items-center gap-1.5 text-[11px] text-primary font-bold tracking-wide leading-none">
+              {greeting}
+              {isScout && <ScoutBadge size="sm" />}
             </p>
-            <h1 className="text-2xl md:text-4xl font-black truncate leading-tight">
+            <h1 className="text-xl md:text-2xl font-black truncate leading-tight mt-1">
               {user?.name}
             </h1>
-            <p className="text-xs md:text-sm text-muted-foreground mt-1.5 leading-6">
-              خوش اومدی به داشبوردت — فعالیت‌های امروز رو دنبال کن.
+            <p className="text-xs text-muted-foreground mt-1.5 leading-5">
+              {isScout
+                ? "خوش اومدی — نیازمندی‌ها و درخواست‌های استعدادها رو دنبال کن."
+                : "خوش اومدی به داشبوردت — فعالیت‌های امروز رو دنبال کن."}
             </p>
           </div>
         </div>
 
-        {/* Stats row inside hero — ارتباط = دنبال‌کننده (یک عدد) */}
-        <div className="relative mt-6 md:mt-7 grid grid-cols-2 gap-2 md:gap-3">
-          <HeroStat
-            value={data ? formatCount(data.stats.connectionsCount) : "۰"}
-            label="ارتباط"
-            icon="users"
-          />
-          <HeroStat
-            value={data ? formatCount(data.stats.postsCount) : "۰"}
-            label="پست‌های من"
-            icon="image"
-          />
+        {/* آمار — چهره‌یاب: نیازمندی/درخواست/پست/گفتگو · عضو: ارتباط/پست */}
+        <div className="mt-3.5 grid grid-cols-2 border-t border-border pt-3 md:gap-x-3">
+          {isScout ? (
+            <>
+              <HeroStat
+                value={scout ? formatCount(scout.activeNeeds) : "—"}
+                label="نیازمندی فعال"
+                icon="briefcase"
+              />
+              <HeroStat
+                value={scout ? formatCount(scout.applications) : "—"}
+                label="درخواست دریافتی"
+                icon="users"
+              />
+              <HeroStat
+                value={data ? formatCount(data.stats.postsCount) : "—"}
+                label="پست"
+                icon="image"
+              />
+              <HeroStat
+                value={scout ? formatCount(scout.conversations) : "—"}
+                label="گفتگو"
+                icon="chat"
+              />
+            </>
+          ) : (
+            <>
+              <HeroStat
+                value={data ? formatCount(data.stats.connectionsCount) : "۰"}
+                label="ارتباط"
+                icon="users"
+              />
+              <HeroStat
+                value={data ? formatCount(data.stats.postsCount) : "۰"}
+                label="پست‌های من"
+                icon="image"
+              />
+            </>
+          )}
         </div>
       </motion.section>
 
-      {/* ══════ QUICK ACTIONS — pill chips, horizontal scroll ══════ */}
+      {/* ═══ CTA چهره‌یاب — کارت خنثی + چیپ کوچک emerald ═══ */}
+      {isScout && (
+        <motion.section
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="rounded-2xl border border-border bg-card p-4"
+        >
+          <div className="flex items-center gap-3">
+            <span className="shrink-0 grid place-items-center size-10 rounded-xl bg-primary/10 text-primary">
+              <Icon name="compass" size={18} strokeWidth={2.2} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-black tracking-tight leading-snug">داشبورد چهره‌یاب</h2>
+              <p className="text-[11.5px] text-muted-foreground font-medium leading-5 mt-0.5">
+                جست‌وجوی استعدادها، بررسی ویترین‌ها و مدیریت نیازمندی‌ها
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => navigate({ view: "scout" })}
+              className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground font-extrabold text-[12.5px] hover:bg-primary/90 transition-colors"
+            >
+              ورود به داشبورد چهره‌یاب
+            </button>
+            <button
+              onClick={() => navigate({ view: "create-need" })}
+              className="h-10 px-4 rounded-xl border border-border bg-card text-foreground font-bold text-[12.5px] hover:border-primary/40 transition-colors inline-flex items-center gap-1.5"
+            >
+              <Icon name="plus" size={14} />
+              ثبت نیازمندی
+            </button>
+          </div>
+        </motion.section>
+      )}
+
+      {/* ═══ QUICK ACTIONS — pill chips, horizontal scroll ═══ */}
       <motion.section
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.06 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
       >
         <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
-          {quickActions.map((action, i) => (
-            <motion.button
+          {quickActions.map((action) => (
+            <button
               key={action.label}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.08 + i * 0.03 }}
-              whileTap={{ scale: 0.95 }}
               onClick={() => navigate(action.route)}
               className={cn(
                 "shrink-0 inline-flex items-center gap-1.5 h-10 px-4 rounded-full font-bold text-sm transition-colors",
                 action.tone === "primary"
-                  ? "bg-primary text-primary-foreground"
-                  : "glass border border-border/60 text-foreground hover:bg-muted/60"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-card border border-border text-foreground hover:border-primary/40"
               )}
             >
               <Icon name={action.icon} size={16} strokeWidth={2.4} />
               <span className="whitespace-nowrap">{action.label}</span>
-            </motion.button>
+            </button>
           ))}
         </div>
       </motion.section>
 
-      {/* ══════ ACTIVITY TIMELINE — followed posts as a vertical timeline ══════ */}
+      {/* ═══ ACTIVITY TIMELINE — followed posts as a vertical timeline ═══ */}
       <section>
-        <div className="flex items-end justify-between mb-4">
+        <div className="flex items-end justify-between mb-3">
           <div>
-            <p className="text-xs font-bold text-primary tracking-widest mb-1">خط زمانی فعالیت</p>
-            <h2 className="text-xl md:text-2xl font-black tracking-tight">از ارتباط‌های متصل</h2>
+            <p className="text-[11px] font-bold text-primary tracking-widest mb-1">خط زمانی فعالیت</p>
+            <h2 className="text-lg md:text-xl font-bold tracking-tight">از ارتباط‌های متصل</h2>
           </div>
           <button
             onClick={() => navigate({ view: "feed" })}
@@ -183,34 +278,34 @@ export function DashboardView() {
         ) : (
           <div className="relative">
             {/* Vertical line (RTL: right side) */}
-            <div className="absolute top-3 bottom-3 right-[27px] w-px bg-border/60" aria-hidden />
+            <div className="absolute top-3 bottom-3 right-[27px] w-px bg-border" aria-hidden />
             <div className="space-y-3">
-              {timelineItems.map((post, i) => (
-                <TimelinePost key={post.id} post={post} index={i} />
+              {timelineItems.map((post) => (
+                <TimelinePost key={post.id} post={post} />
               ))}
             </div>
           </div>
         )}
       </section>
 
-      {/* ══════ SUGGESTIONS — horizontal tall cards ══════ */}
+      {/* ═══ SUGGESTIONS — horizontal tall cards ═══ */}
       {data && data.suggestions.length > 0 && (
         <section>
-          <div className="flex items-end justify-between mb-4">
+          <div className="flex items-end justify-between mb-3">
             <div>
-              <p className="text-xs font-bold text-primary tracking-widest mb-1">شاید بشناسی</p>
-              <h2 className="text-xl md:text-2xl font-black tracking-tight">استعدادهای مرتبط</h2>
+              <p className="text-[11px] font-bold text-primary tracking-widest mb-1">شاید بشناسی</p>
+              <h2 className="text-lg md:text-xl font-bold tracking-tight">استعدادهای مرتبط</h2>
             </div>
           </div>
           <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
-            {data.suggestions.slice(0, 8).map((t, i) => (
-              <TalentTallCard key={t.id} talent={t} index={i} />
+            {data.suggestions.slice(0, 8).map((t) => (
+              <TalentTallCard key={t.id} talent={t} />
             ))}
           </div>
         </section>
       )}
 
-      {/* ══════ FOOTER SPACER ══════ */}
+      {/* ═══ FOOTER SPACER ═══ */}
       <div className="h-4" aria-hidden />
     </div>
   );
@@ -227,20 +322,18 @@ function HeroStat({
   icon: string;
 }) {
   return (
-    <div className="rounded-2xl bg-muted/30 border border-border/40 px-3 py-3 md:py-4">
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <span className="grid place-items-center w-6 h-6 rounded-lg bg-primary/10 text-primary">
-          <Icon name={icon} size={13} strokeWidth={2.4} />
-        </span>
-        <span className="text-[10px] md:text-xs text-muted-foreground font-bold truncate">{label}</span>
-      </div>
-      <p className="text-xl md:text-2xl font-black tabular-nums">{value}</p>
+    <div className="flex items-center gap-1.5 px-2 py-1.5">
+      <span className="grid place-items-center w-6 h-6 rounded-lg bg-primary/10 text-primary shrink-0">
+        <Icon name={icon} size={13} strokeWidth={2.4} />
+      </span>
+      <span className="text-base font-black tabular-nums nums-fa leading-none">{value}</span>
+      <span className="text-[10.5px] font-bold text-muted-foreground truncate leading-none">{label}</span>
     </div>
   );
 }
 
 // ───────────────────────────── Timeline Post ─────────────────────────────
-function TimelinePost({ post, index }: { post: PostWithRelations; index: number }) {
+function TimelinePost({ post }: { post: PostWithRelations }) {
   // امتیاز ستاره‌ای ۱..۱۰ — وضعیت محلی بعد از ثبت/ویرایش به‌روز می‌شود
   const [avg, setAvg] = useState(post.ratingAvg);
   const [ratingCount, setRatingCount] = useState(post.ratingCount);
@@ -252,9 +345,9 @@ function TimelinePost({ post, index }: { post: PostWithRelations; index: number 
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -16 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay: Math.min(index * 0.06, 0.3), ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15 }}
       className="flex items-start gap-3"
     >
       {/* Timeline dot — avatar */}
@@ -273,11 +366,18 @@ function TimelinePost({ post, index }: { post: PostWithRelations; index: number 
           ringColor="var(--background)"
         />
       </button>
-      {/* Card */}
-      <motion.button
+      {/* Card — div+role تا دکمه‌های داخلی (امتیاز/کامنت) تو در تو نشوند */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => navigate({ view: "post", id: post.id })}
-        whileHover={{ y: -1 }}
-        className="flex-1 min-w-0 text-start rounded-2xl glass border border-border/60 p-3.5 overflow-hidden"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            navigate({ view: "post", id: post.id });
+          }
+        }}
+        className="flex-1 min-w-0 text-start rounded-2xl border border-border bg-card p-3.5 overflow-hidden transition-colors hover:border-primary/30 cursor-pointer"
       >
         {/* Header row */}
         <div className="flex items-center gap-2 mb-1.5">
@@ -322,7 +422,7 @@ function TimelinePost({ post, index }: { post: PostWithRelations; index: number 
             className={cn(
               "inline-flex items-center justify-center gap-1.5 h-11 px-3.5 rounded-full text-xs font-extrabold border transition-colors",
               myScore
-                ? "text-white grad-gold border-transparent shadow-glow-gold"
+                ? "bg-amber-600 text-white border-transparent hover:bg-amber-600/90"
                 : "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20"
             )}
             aria-label={myScore ? `ویرایش امتیاز ${toFa(myScore)} از ۱۰` : "ثبت امتیاز"}
@@ -344,7 +444,7 @@ function TimelinePost({ post, index }: { post: PostWithRelations; index: number 
             </span>
           )}
         </div>
-      </motion.button>
+      </div>
 
       {/* مودال امتیاز ۱ تا ۱۰ ستاره */}
       <RatingModal
@@ -363,21 +463,14 @@ function TimelinePost({ post, index }: { post: PostWithRelations; index: number 
 }
 
 // ───────────────────────────── Talent Tall Card (horizontal scroll) ─────────────────────────────
-function TalentTallCard({
-  talent,
-  index,
-}: {
-  talent: TalentListItem;
-  index: number;
-}) {
+function TalentTallCard({ talent }: { talent: TalentListItem }) {
   return (
     <motion.button
       onClick={() => navigate({ view: "profile", id: talent.id })}
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3) }}
-      whileTap={{ scale: 0.97 }}
-      className="shrink-0 w-40 md:w-44 p-3 rounded-3xl glass border border-border/60 text-right"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15 }}
+      className="shrink-0 w-40 md:w-44 p-3.5 rounded-2xl border border-border bg-card text-right transition-colors hover:border-primary/30"
     >
       <div className="flex items-center gap-2.5 mb-2.5">
         <UserAvatar
@@ -387,6 +480,7 @@ function TalentTallCard({
           gender={talent.gender}
           frame={talent.frame ?? undefined}
           size="md"
+          square={!!talent.isScout}
         />
         <div className="min-w-0 flex-1">
           <p className="font-bold text-sm truncate leading-tight">{talent.name}</p>
@@ -407,5 +501,3 @@ function TalentTallCard({
     </motion.button>
   );
 }
-
-// ───────────────────────────── Same Skill Card ─────────────────────────────

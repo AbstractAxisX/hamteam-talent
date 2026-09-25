@@ -11,7 +11,7 @@
 //   3) برای مهتاب (09121110007) پست‌های کافی + رأی همه → ~۱۰٬۴۰۰ ستاره (رزگلد)
 //   4) چند پست برترشان را ویترین می‌کند
 import { db } from "../src/lib/db";
-import { userStarInfo, GOLD_THRESHOLD, ROSE_GOLD_THRESHOLD } from "../src/lib/stars";
+import { userStarInfo, SILVER_THRESHOLD, GOLD_THRESHOLD } from "../src/lib/stars";
 
 const FIRST_F = ["زهرا", "مریم", "نرگس", "پریسا", "شیرین", "لیلا", "آیدا", "نیلوفر", "سمانه", "روا", "مهسا", "الهام", "نازنین", "شیوا", "غزاله", "ترانه", "بهاره", "مینا", "سارینا", "هستی", "آوا", "دنیا", "رها", "یاسمین", "ملیکا", "ستایش", "نگار", "فرزانه", "شقایق", "بنفشه"];
 const FIRST_M = ["محمد", "حسین", "رضا", "مهدی", "امیر", "سینا", "آرش", "بهراد", "فرزاد", "هومن", "بابک", "رامین", "سامان", "سیاوش", "مانی", "کاوه", "ایمان", "جمشید", "سهیل", "بردیا", "پویا", "میلاد", "احسان", "وحید", "بهنام", "سعید", "مسعود", "مصطفی", "حامد", "کارن"];
@@ -188,20 +188,20 @@ async function run() {
   // هر چهره برتر هفته‌ای ۱ پست: آخرین ارسال هر نفر = امروز، بقیه پخش در هفته‌های گذشته
   const featureIds = [amirPosts[0], amirPosts[3], amirPosts[7], mahtabPosts[0], mahtabPosts[5], mahtabPosts[7], mahtabPosts[14]];
   const day = 24 * 60 * 60 * 1000;
-  featureIds.forEach((pid, i) => {
-    if (!pid) return;
-    // i%3===2 → امروز (آخرین پست هفته) · بقیه → ۲،۵،۹،۱۲ روز پیش
+  for (let i = 0; i < featureIds.length; i++) {
+    const pid = featureIds[i];
+    if (!pid) continue;
     const offsets = [12, 5, 0, 9, 2, 16, 0];
     const at = new Date(Date.now() - (offsets[i] ?? 3) * day);
-    void db.post.update({ where: { id: pid }, data: { isFeatured: true, featuredAt: at } });
-  });
+    await db.post.update({ where: { id: pid }, data: { isFeatured: true, featuredAt: at } });
+  }
   console.log(`✓ ویترین چهره برتر: ${featureIds.length} پست`);
 
   // ── 6) گزارش نهایی ──
   for (const [name, id] of [["امیرحسین", amir.id], ["مهتاب", mahtab.id]] as [string, string][]) {
     const si = await userStarInfo(id);
-    const level = si.frame === "rosegold" ? "رزگلد ✨✨" : si.frame === "gold" ? "طلایی 🥇" : "بدون قاب";
-    console.log(`★ ${name}: ${si.totalStars} ستاره → ${level} (نیاز طلایی ${GOLD_THRESHOLD} / رزگلد ${ROSE_GOLD_THRESHOLD})`);
+    const level = si.frame === "gold" ? "طلایی 🥇" : si.frame === "silver" ? "نقره‌ای 🥈" : "بدون قاب";
+    console.log(`★ ${name}: ${si.totalStars} ستاره → ${level} (نقره‌ای ${SILVER_THRESHOLD} / طلایی ${GOLD_THRESHOLD})`);
     if (!si.isTopTalent) {
       console.error(`  ⚠ ${name} هنوز به آستانه نرسیده!`);
     }

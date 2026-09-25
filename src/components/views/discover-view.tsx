@@ -142,10 +142,10 @@ export function DiscoverView() {
     <div className="space-y-5 max-w-3xl mx-auto pb-28">
       {/* ═══ هدر ═══ */}
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl glass border border-border/50 p-5 shadow-float"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        className="relative overflow-hidden rounded-2xl bg-card border border-border p-4"
       >
         <div className="relative flex items-center gap-4">
           <div className="grid place-items-center w-14 h-14 rounded-3xl bg-primary text-primary-foreground shadow-glow shrink-0">
@@ -180,7 +180,7 @@ export function DiscoverView() {
       </div>
 
       {/* ═══ تب‌ها — بدون عدد ═══ */}
-      <div className="flex items-center gap-1 p-1.5 rounded-2xl glass border border-border/50">
+      <div className="flex items-center gap-1 p-1.5 rounded-xl bg-muted/60 border border-border">
         <TabButton active={tab === "posts"} onClick={() => setTab("posts")} iconName="sparkles" label="پست‌ها" />
         <TabButton active={tab === "users"} onClick={() => setTab("users")} iconName="users" label="کاربران" />
       </div>
@@ -189,12 +189,12 @@ export function DiscoverView() {
       {activeFiltersCount > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           {filters.categoryId && currentCat && (
-            <span className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full glass border border-primary/30 text-primary text-xs font-bold">
+            <span className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-card border border-primary/30 text-primary text-xs font-bold">
               {currentCat.iconUrl} {currentCat.name}
             </span>
           )}
           {filters.province && (
-            <span className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full glass border border-primary/30 text-primary text-xs font-bold">
+            <span className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-card border border-primary/30 text-primary text-xs font-bold">
               <Icon name="mapPin" size={13} />
               {getProvinceName(filters.province)}
               {filters.city ? ` · ${filters.city}` : ""}
@@ -210,18 +210,19 @@ export function DiscoverView() {
         </div>
       )}
 
-      {/* ═══ نتایج ═══ */}
+      {/* ═══ نتایج ═══ — ارتفاع پایدار برای جلوگیری از پرش هنگام تعویض تب */}
+      <div className="min-h-[320px]">
       {loading ? (
         tab === "posts" ? (
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-52 rounded-3xl" />
+              <Skeleton key={i} className="h-52 rounded-2xl" />
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-44 rounded-3xl" />
+              <Skeleton key={i} className="h-44 rounded-2xl" />
             ))}
           </div>
         )
@@ -277,6 +278,8 @@ export function DiscoverView() {
         </div>
       )}
 
+      </div>
+
       {/* ═══ دکمه شناور فیلتر ═══ */}
       <FilterFab
         cats={cats}
@@ -317,11 +320,11 @@ function TabButton({
 function TalentMiniCard({ talent, index = 0 }: { talent: TalentListItem; index?: number }) {
   return (
     <motion.button
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.3), ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2, delay: Math.min(index * 0.04, 0.15) }}
       onClick={() => navigate({ view: "profile", id: talent.id })}
-      className="flex items-start gap-3 p-4 rounded-3xl glass border border-border/50 hover:border-primary/40 hover:shadow-lift transition-all active:scale-95 text-right w-full"
+      className="flex items-start gap-3 p-4 rounded-2xl bg-card border border-border hover:border-primary/40 transition-colors active:scale-[0.98] text-right w-full"
     >
       <UserAvatar
         name={talent.name}

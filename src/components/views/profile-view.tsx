@@ -1,17 +1,16 @@
 "use client";
 
 /* ═══════════════════════════════════════════════════════════
-   ProfileView v2 — بازطراحی کامل بر اساس بنچمارک پروفایل‌های
-   اجتماعی مدرن (الگوی Z: هویت → آمار → تب‌ها)
-   · کاور aurora مشبک با ته‌رنگ دسته‌بندی + بافت نقطه‌ای
-   · آواتار با رینگ دوتایی + نشان‌ها در سطر نام
-   · نوار آمار شیشه‌ای تک‌تکه (الگوی X/اینستاگرام)
-   · رفع ریشه باگ Empty State با پرچم postsLoaded
-   · دسترسی آسان «پست جدید» (شیت کامپوزر همین‌جا باز می‌شود)
+   ProfileView v3 — کلاسیک و رسمی
+   · کاور ۳:۱ بدون دکمه‌های شناور (بنر تمیز — زیر هدر نمی‌رود)
+   · آواتار: قاب نقره‌ای/طلایی (چهره برتر) — مربعی برای چهره‌یاب
+   · پروفایل رسمی چهره‌یاب (سبک اکانت کمپانی لینکدین)
+   · دکمه پلاس شناور (پروفایل خودم): پست جدید / نمونه کار جدید
+   · تب‌ها و انیمیشن‌های کلاسیک fade — بدون spring/layoutId
    ═══════════════════════════════════════════════════════════ */
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
@@ -25,7 +24,8 @@ import { Icon } from "@/components/shared/icon";
 import { ComposerSheet } from "@/components/composer";
 import { PortfolioTab } from "@/components/portfolio/portfolio-tab";
 import { AboutTab, ResumeTab, shadeColor } from "@/components/views/profile-tabs";
-import { EliteAvatar, GoldCheckMark, RoseGoldCheckMark, TopTalentBanner } from "@/components/ui/elite";
+import { EliteAvatar, EliteCheckMark, TopTalentBanner } from "@/components/ui/elite";
+import { Sheet } from "@/components/shared/sheet";
 import { toast } from "@/hooks/use-toast";
 import { toFa, formatCount, formatFaDate } from "@/lib/format";
 import { getProvinceName } from "@/lib/geo";
@@ -41,12 +41,13 @@ export function ProfileView({ id }: { id: string }) {
   const [posts, setPosts] = useState<PostWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [postsLoading, setPostsLoading] = useState(false);
-  const [postsLoaded, setPostsLoaded] = useState(false); // ← ریشه‌یاب باگ: «لودشدهٔ خالی» ≠ «لودنشده»
+  const [postsLoaded, setPostsLoaded] = useState(false); // «لودشدهٔ خالی» ≠ «لودنشده»
   const [notFound, setNotFound] = useState(false);
   const [tab, setTab] = useState<Tab>("about");
   const [connBusy, setConnBusy] = useState(false);
   const [chatBusy, setChatBusy] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [plusOpen, setPlusOpen] = useState(false);
 
   /* ── دریافت پروفایل + متا + دسته‌ها ── */
   const load = useCallback(async () => {
@@ -75,7 +76,7 @@ export function ProfileView({ id }: { id: string }) {
 
   useEffect(() => { load(); }, [load]);
 
-  /* ── پست‌ها: فقط یک‌بار per پروفایل، با حل صریح ── */
+  /* ── پست‌ها: فقط یک‌بار per پروفایل ── */
   useEffect(() => {
     if (tab !== "posts" || !profile || postsLoaded || postsLoading) return;
     setPostsLoading(true);
@@ -84,7 +85,7 @@ export function ProfileView({ id }: { id: string }) {
       .catch(() => setPosts([]))
       .finally(() => {
         setPostsLoading(false);
-        setPostsLoaded(true); // حتی روی خطا هم حل می‌شود — بدون حلقهٔ بی‌نهایت
+        setPostsLoaded(true);
       });
   }, [tab, profile, postsLoaded, postsLoading]);
 
@@ -103,9 +104,9 @@ export function ProfileView({ id }: { id: string }) {
   }, [profile, meta, catColorMap]);
 
   const isSelf = me?.id === profile?.userId;
-  /* قاب واقعی از سرور — رزگلد (۱۰۰۰۰) بر طلایی (۵۰۰۰) اولویت دارد */
+  /* قاب واقعی از سرور — طلایی (۱۰۰۰۰) بر نقره‌ای (۵۰۰۰) اولویت دارد */
   const frame = profile?.frame ?? meta?.frame ?? null;
-  const isRose = frame === "rosegold";
+  const isGold = frame === "gold";
   const isTopTalent = frame != null;
   /* چهره‌یاب — پروفایل رسمی و حرفه‌ای (الگوی اکانت کمپانی لینکدین) */
   const isScoutProfile = !!profile?.isScout;
@@ -141,6 +142,18 @@ export function ProfileView({ id }: { id: string }) {
     }
   }
 
+  /* انتخاب از دکمهٔ پلاس: پست یا نمونه کار */
+  function choosePost() {
+    setPlusOpen(false);
+    setComposerOpen(true);
+  }
+  function choosePortfolio() {
+    setPlusOpen(false);
+    setTab("portfolio");
+    // فرم نمونه‌کار داخل تب نمونه‌کار باز می‌شود (رویداد سبک)
+    setTimeout(() => window.dispatchEvent(new Event("portfolio:new")), 60);
+  }
+
   if (loading) return <ProfileSkeleton />;
 
   if (notFound || !profile) {
@@ -153,7 +166,7 @@ export function ProfileView({ id }: { id: string }) {
           action={
             <button
               onClick={() => navigate({ view: "explore" })}
-              className="h-11 px-5 rounded-2xl grad-brand text-white font-extrabold text-sm shadow-grad"
+              className="h-11 px-5 rounded-xl grad-brand text-white font-extrabold text-sm"
             >
               کشف استعدادها
             </button>
@@ -171,23 +184,23 @@ export function ProfileView({ id }: { id: string }) {
   const totalStars = profile.totalStars ?? meta?.totalStars ?? 0;
   const showBanner = !!profile.bannerUrl && !profile.bannerUrl.startsWith("default");
 
-  /* ── کاور: رزگلد / طلایی / رسمی چهره‌یاب / زمردی عادی ── */
-  const coverStyle = isRose
+  /* ── کاور: طلایی / نقره‌ای / رسمی چهره‌یاب / زمردی عادی ── */
+  const coverStyle = isGold
     ? {
-        background: `radial-gradient(130% 150% at 88% -12%, rgba(251,113,133,.3) 0%, transparent 55%),
-                      radial-gradient(100% 120% at 8% 112%, rgba(136,19,55,.42) 0%, transparent 60%),
-                      linear-gradient(160deg, #3b0a1c 0%, #26060f 48%, #33101f 100%)`,
+        background: `radial-gradient(130% 150% at 88% -12%, rgba(245,200,76,.3) 0%, transparent 55%),
+                      radial-gradient(100% 120% at 8% 112%, rgba(146,97,14,.42) 0%, transparent 60%),
+                      linear-gradient(160deg, #2a1a04 0%, #171005 48%, #241604 100%)`,
       }
     : isTopTalent
     ? {
-        background: `radial-gradient(130% 150% at 88% -12%, rgba(245,200,76,.28) 0%, transparent 55%),
-                      radial-gradient(100% 120% at 8% 112%, rgba(146,97,14,.4) 0%, transparent 60%),
-                      linear-gradient(160deg, #2a1a04 0%, #171005 48%, #241604 100%)`,
+        background: `radial-gradient(130% 150% at 88% -12%, rgba(203,213,225,.25) 0%, transparent 55%),
+                      radial-gradient(100% 120% at 8% 112%, rgba(71,85,105,.4) 0%, transparent 60%),
+                      linear-gradient(160deg, #1e293b 0%, #0f172a 48%, #1a2433 100%)`,
       }
     : isScoutProfile
     ? {
         /* کاور رسمی چهره‌یاب — سرمه‌ای اداری با خطِ نشان */
-        background: `radial-gradient(120% 130% at 85% -8%, rgba(61,124,190,.35) 0%, transparent 52%),
+        background: `radial-gradient(120% 130% at 85% -8%, rgba(61,124,190,.32) 0%, transparent 52%),
                       linear-gradient(160deg, #162a4b 0%, #101835 55%, #0d1426 100%)`,
       }
     : {
@@ -202,7 +215,7 @@ export function ProfileView({ id }: { id: string }) {
       return (
         <button
           onClick={() => navigate({ view: "edit-profile" })}
-          className="flex-1 h-12 rounded-2xl glass-strong border border-border/70 text-foreground font-extrabold text-[13px]
+          className="flex-1 h-12 rounded-xl bg-card border border-border text-foreground font-extrabold text-[13px]
                      inline-flex items-center justify-center gap-2 hover:bg-muted transition-colors outline-none"
         >
           <Icon name="pencil" size={17} className="text-primary" />
@@ -215,8 +228,8 @@ export function ProfileView({ id }: { id: string }) {
         <button
           onClick={handleStartChat}
           disabled={chatBusy}
-          className="flex-1 h-12 rounded-2xl grad-brand text-white font-extrabold text-[13px] shadow-grad
-                     inline-flex items-center justify-center gap-2 hover:brightness-105 transition-[filter] outline-none
+          className="flex-1 h-12 rounded-xl bg-primary text-primary-foreground font-extrabold text-[13px]
+                     inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity outline-none
                      disabled:opacity-60"
         >
           <Icon name={chatBusy ? "loader" : "chat"} size={17} className={chatBusy ? "animate-spin" : ""} />
@@ -228,7 +241,7 @@ export function ProfileView({ id }: { id: string }) {
       return (
         <button
           disabled
-          className="flex-1 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300
+          className="flex-1 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300
                      font-extrabold text-[13px] inline-flex items-center justify-center gap-2 outline-none"
         >
           <Icon name="clock" size={16} />
@@ -241,8 +254,9 @@ export function ProfileView({ id }: { id: string }) {
         <button
           onClick={handleConnection}
           disabled={connBusy}
-          className="flex-1 h-12 rounded-2xl grad-gold text-white font-extrabold text-[13px] shadow-glow-gold
+          className="flex-1 h-12 rounded-xl text-white font-extrabold text-[13px]
                      inline-flex items-center justify-center gap-2 outline-none disabled:opacity-60"
+          style={{ background: "linear-gradient(135deg,#f59e0b,#d97706 60%,#b45309)" }}
         >
           <Icon name={connBusy ? "loader" : "check"} size={17} className={connBusy ? "animate-spin" : ""} />
           تأیید درخواست ارتباط
@@ -254,33 +268,32 @@ export function ProfileView({ id }: { id: string }) {
         onClick={handleConnection}
         disabled={connBusy}
         className={cn(
-          "flex-1 h-12 rounded-2xl text-white font-extrabold text-[13px] inline-flex items-center justify-center gap-2 hover:brightness-105 transition-[filter] outline-none disabled:opacity-60",
-          isRose
-            ? "text-white shadow-[0_6px_20px_rgba(190,18,60,.4)]"
-            : isTopTalent
-            ? "grad-gold shadow-glow-gold"
-            : "grad-brand shadow-grad"
+          "flex-1 h-12 rounded-xl text-white font-extrabold text-[13px] inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity outline-none disabled:opacity-60",
+          !isTopTalent && "grad-brand",
+          isGold && "shadow-[0_6px_20px_rgba(217,119,6,.35)]",
+          isTopTalent && !isGold && "shadow-[0_6px_20px_rgba(100,116,139,.35)]"
         )}
         style={
-          isRose
-            ? { background: "linear-gradient(135deg,#e11d48,#be123c 60%,#9f1239)" }
+          isGold
+            ? { background: "linear-gradient(135deg,#f59e0b,#d97706 60%,#b45309)" }
+            : isTopTalent
+            ? { background: "linear-gradient(135deg,#94a3b8,#64748b 60%,#475569)" }
             : undefined
         }
       >
         <Icon name={connBusy ? "loader" : "userPlus"} size={17} className={connBusy ? "animate-spin" : ""} />
-        {isTopTalent ? "دنبال کردن استعداد برتر" : "برقراری ارتباط"}
+        {isTopTalent ? "دنبال کردن چهره برتر" : "برقراری ارتباط"}
       </button>
     );
   })();
 
-  /* دکمهٔ ثانویه «درخواست پیام» — وقتی ارتباط برقرار نیست (جریان لینکدینی):
-     باز شدن گفتگو با پروفایل فرد + نوشتن متن درخواست → تأیید/رد توسط گیرنده */
+  /* دکمهٔ ثانویه «درخواست پیام» — وقتی ارتباط برقرار نیست (جریان لینکدینی) */
   const secondaryChatAction =
     !isSelf && conn !== "accepted" ? (
       <button
         onClick={handleStartChat}
         disabled={chatBusy}
-        className="h-12 px-4 shrink-0 rounded-2xl glass-strong border border-primary/30 text-primary font-extrabold text-[12.5px]
+        className="h-12 px-4 shrink-0 rounded-xl bg-card border border-primary/30 text-primary font-extrabold text-[12.5px]
                    inline-flex items-center justify-center gap-1.5 hover:bg-primary/5 transition-colors outline-none
                    disabled:opacity-60"
         aria-label="درخواست پیام"
@@ -290,218 +303,189 @@ export function ProfileView({ id }: { id: string }) {
       </button>
     ) : null;
 
-  const tabs: { key: Tab; label: string; count?: number }[] = [
-    { key: "about", label: "درباره" },
-    { key: "portfolio", label: "نمونه کارها" },
-    { key: "resume", label: "رزومه", count: (profile.experiences?.length || 0) + (profile.educations?.length || 0) },
-    { key: "posts", label: "پست‌ها", count: profile.postCount },
-  ];
+  const tabs: { key: Tab; label: string; count?: number }[] = isScoutProfile
+    ? [
+        { key: "about", label: "درباره" },
+        { key: "posts", label: "پست‌ها", count: profile.postCount },
+        { key: "portfolio", label: "نمونه کارها" },
+        { key: "resume", label: "رزومه", count: (profile.experiences?.length || 0) + (profile.educations?.length || 0) },
+      ]
+    : [
+        { key: "about", label: "درباره" },
+        { key: "portfolio", label: "نمونه کارها" },
+        { key: "resume", label: "رزومه", count: (profile.experiences?.length || 0) + (profile.educations?.length || 0) },
+        { key: "posts", label: "پست‌ها", count: profile.postCount },
+      ];
 
   return (
     <div className="max-w-2xl mx-auto pb-16 relative">
-      {/* ═══════ کاور aurora مشبک — هویت بصری جدید ═══════ */}
-      {/* بهینه‌سازی کارفرما: کاور تمام‌عرض لبه‌به‌لبه — بلوک با مارجین منفی (بدون flex تا عرض واقعی گرفته شود) */}
-      <div className="relative -mx-4 md:-mx-8 md:rounded-[36px] -mt-6">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="relative aspect-[3/1] max-h-56 overflow-hidden rounded-b-[36px] md:rounded-[36px]"
+      {/* ═══════ کاور ۳:۱ — بدون دکمه‌های شناور؛ کاملاً زیر هدر (بدون مارجین منفی) ═══════ */}
+      <div className="relative -mx-4 md:mx-0 md:rounded-2xl">
+        <div
+          className="relative aspect-[3/1] max-h-56 overflow-hidden rounded-b-2xl md:rounded-2xl"
           style={coverStyle}
         >
-          {/* بنر پروفایل — روی گرادیانت (گرادیانت فقط پشتیبانِ بدون‌بنر) */}
           {showBanner && (
-            <motion.img
-              initial={{ opacity: 0, scale: 1.04 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            <img
               src={profile.bannerUrl ?? undefined}
               alt="بنر پروفایل"
               className="absolute inset-0 w-full h-full object-cover"
             />
           )}
-          {/* بافت نقطه‌ای */}
+          {/* بافت نقطه‌ای ظریف */}
           <div
-            className="absolute inset-0 opacity-[0.13] pointer-events-none"
+            className="absolute inset-0 opacity-[0.1] pointer-events-none"
             style={{
-              backgroundImage: `radial-gradient(${isRose ? "rgba(251,113,133,.9)" : isTopTalent ? "rgba(245,200,76,.95)" : "rgba(255,255,255,.9)"} 1px, transparent 1px)`,
+              backgroundImage: `radial-gradient(${isGold ? "rgba(245,200,76,.9)" : isTopTalent ? "rgba(203,213,225,.9)" : "rgba(255,255,255,.9)"} 1px, transparent 1px)`,
               backgroundSize: "18px 18px",
             }}
           />
-          {/* هاله‌های نور ایستا — فقط حالت گرادیانت (روی بنرِ عکس، کاور تمیز می‌ماند) */}
-          {!showBanner && !isScoutProfile && (
-            <>
-            </>
+          {/* نشان رسمی چهره‌یاب روی کاور — سمت چپ */}
+          {isScoutProfile && (
+            <span className="absolute top-4 left-4 inline-flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/12 border border-white/25 text-white text-[11px] font-extrabold backdrop-blur-sm">
+              <Icon name="compass" size={14} className="text-blue-300" />
+              چهره‌یاب تأییدشده
+            </span>
           )}
-          {/* خط نشان پایین کاور — رزگلد/طلایی/چهره‌یاب رسمی */}
+          {/* خط نشان پایین کاور — طلایی/نقره‌ای/چهره‌یاب رسمی */}
           {(isTopTalent || isScoutProfile) && (
             <div
               aria-hidden
               className="absolute bottom-0 inset-x-0 h-[3px]"
               style={{
-                background: isRose
-                  ? "linear-gradient(90deg, transparent, #be123c, #fb7185, #fff1f2, #fb7185, #be123c, transparent)"
-                  : isTopTalent
+                background: isGold
                   ? "linear-gradient(90deg, transparent, #b45309, #f5c84c, #fef3c7, #f5c84c, #b45309, transparent)"
+                  : isTopTalent
+                  ? "linear-gradient(90deg, transparent, #475569, #cbd5e1, #f8fafc, #cbd5e1, #475569, transparent)"
                   : "linear-gradient(90deg, transparent, #162a4b, #3d7cbe, #a4e86d, #3d7cbe, #162a4b, transparent)",
               }}
             />
           )}
-          {/* نشان رسمی چهره‌یاب روی کاور — سمت مقابل اکشن‌ها */}
+        </div>
+      </div>
 
-          {/* اکشن‌های شناور بالای کاور — دکمه بازگشت به هدر موبایل منتقل شد (کاور تمیز) */}
-          <div className="absolute top-4 inset-x-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {isSelf && (
-                <button
-                  onClick={() => setComposerOpen(true)}
-                  aria-label="پست جدید"
-                  className="h-11 px-4 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-white
-                             text-[12px] font-extrabold inline-flex items-center gap-1.5 hover:bg-white/25
-                             transition-colors outline-none"
-                >
-                  <Icon name="plus" size={16} />
-                  پست جدید
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  if (isSelf) navigate({ view: "edit-profile" });
-                  else handleStartChat();
-                }}
-                aria-label={isSelf ? "ویرایش" : "گفتگو"}
-                className="grid place-items-center size-11 rounded-full bg-black/25 backdrop-blur-md text-white
-                           hover:bg-black/40 transition-colors outline-none"
-              >
-                <Icon name={isSelf ? "pencil" : "chat"} size={19} />
-              </button>
-            </div>
-            {isScoutProfile && (
-              <span className="inline-flex items-center gap-1.5 px-3 h-9 rounded-full bg-white/12 border border-white/25 text-white text-[11px] font-extrabold">
-                <Icon name="compass" size={14} className="text-secondary" />
-                چهره‌یاب تأییدشده
-              </span>
-            )}
-          </div>
-        </motion.div>
-
-        {/* ═══════ سطر هویت — آواتار با بورت طلایی (استعداد برتر) / رینگ دوتایی ═══════ */}
-        <div className="relative px-4 -mt-12 z-10">
-          <div className="flex items-end gap-3.5">
-            <motion.div
-              initial={{ scale: 0.7, opacity: 0, y: 16 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 320, damping: 24, delay: 0.08 }}
-              className="shrink-0"
-            >
-              {isTopTalent ? (
-                <EliteAvatar
+      {/* ═══════ سطر هویت — آواتار (قاب متال / مربعی چهره‌یاب) ═══════ */}
+      <div className="relative px-4 -mt-12 z-10">
+        <div className="flex items-end gap-3.5">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="shrink-0"
+          >
+            {isTopTalent ? (
+              <EliteAvatar
+                name={profile.name}
+                src={profile.avatarUrl}
+                box={124}
+                variant={frame ?? "silver"}
+                square={isScoutProfile}
+              />
+            ) : isScoutProfile ? (
+              /* چهره‌یاب — آواتار مربعی رسمی (سبک کمپانی لینکدین) */
+              <div className="rounded-[22%] p-[3px] bg-card border border-border shadow-md">
+                <UserAvatar
                   name={profile.name}
-                  src={profile.avatarUrl}
-                  box={124}
-                  variant={isRose ? "rosegold" : "gold"}
+                  avatarUrl={profile.avatarUrl}
+                  verified={profile.isVerifiedBadge}
+                  gender={profile.gender}
+                  size="2xl"
+                  square
+                  ringColor="transparent"
                 />
-              ) : (
-                <div
-                  className="rounded-full p-[3px] shadow-[0_10px_36px_rgba(6,95,70,0.5)]"
-                  style={{ background: `conic-gradient(from 210deg, ${heroTint}, #0d9488, #10b981, ${heroTint})` }}
-                >
-                  <div className="rounded-full p-[3px] bg-background">
-                    <UserAvatar
-                      name={profile.name}
-                      avatarUrl={profile.avatarUrl}
-                      verified={profile.isVerifiedBadge}
-                      gender={profile.gender}
-                      size="2xl"
-                      ringColor="transparent"
-                    />
-                  </div>
+              </div>
+            ) : (
+              <div
+                className="rounded-full p-[3px] shadow-md"
+                style={{ background: `conic-gradient(from 210deg, ${heroTint}, #0d9488, #10b981, ${heroTint})` }}
+              >
+                <div className="rounded-full p-[3px] bg-background">
+                  <UserAvatar
+                    name={profile.name}
+                    avatarUrl={profile.avatarUrl}
+                    verified={profile.isVerifiedBadge}
+                    gender={profile.gender}
+                    size="2xl"
+                    ringColor="transparent"
+                  />
                 </div>
-              )}
-            </motion.div>
+              </div>
+            )}
+          </motion.div>
 
-            <div className="flex-1 min-w-0 pb-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <h1 className="text-[21px] font-black tracking-tight text-foreground leading-tight">
-                  {profile.name}
-                </h1>
-                {profile.isScout && <ScoutBadge />}
-                {isTopTalent && (
-                  isRose ? <RoseGoldCheckMark size={22} /> : <GoldCheckMark size={22} />
-                )}
-              </div>
-              {/* سطر رسمی چهره‌یاب — عنوان حرفه‌ای */}
-              {isScoutProfile && (
-                <p className="mt-0.5 text-[12px] font-bold text-primary">
-                  استعدادیاب حرفه‌ای — کشف و معرفی استعدادهای برتر
-                </p>
-              )}
-              {isSelf && profile.scoutStatus === "pending" && (
-                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/25 rounded-full px-3 py-1">
-                  <Icon name="clock" size={12} />
-                  درخواست چهره‌یاب شما در انتظار تأیید ادمین است
-                </p>
-              )}
-              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap text-muted-foreground">
-                {province && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold">
-                    <Icon name="mapPin" size={12} className="text-primary" />
-                    {province}
-                    {profile.city ? ` · ${profile.city}` : ""}
-                  </span>
-                )}
+          <div className="flex-1 min-w-0 pb-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h1 className="text-[21px] font-black tracking-tight text-foreground leading-tight">
+                {profile.name}
+              </h1>
+              {profile.isScout && <ScoutBadge />}
+              {isTopTalent && <EliteCheckMark size={22} tint={isGold ? "gold" : "silver"} />}
+            </div>
+            {/* سطر رسمی چهره‌یاب — عنوان حرفه‌ای */}
+            {isScoutProfile && (
+              <p className="mt-0.5 text-[12px] font-bold text-primary">
+                استعدادیاب حرفه‌ای — کشف و معرفی استعدادهای برتر
+              </p>
+            )}
+            {isSelf && profile.scoutStatus === "pending" && (
+              <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/25 rounded-full px-3 py-1">
+                <Icon name="clock" size={12} />
+                درخواست چهره‌یاب شما در انتظار تأیید ادمین است
+              </p>
+            )}
+            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap text-muted-foreground">
+              {province && (
                 <span className="inline-flex items-center gap-1 text-[11px] font-bold">
-                  <Icon name="calendar" size={12} className="text-primary" />
-                  عضو از {formatFaDate(profile.createdAt)}
+                  <Icon name="mapPin" size={12} className="text-primary" />
+                  {province}
+                  {profile.city ? ` · ${profile.city}` : ""}
                 </span>
-              </div>
+              )}
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold">
+                <Icon name="calendar" size={12} className="text-primary" />
+                عضو از {formatFaDate(profile.createdAt)}
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       {/* ═══════ بدنه ═══════ */}
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.15 }}
-        className="px-4 pt-4 rounded-t-xl"
-      >
+      <div className="px-4 pt-4">
         {/* بایو */}
         {profile.bioShort && (
           <p className="text-[14px] leading-7 text-foreground/90 px-1 text-center">{profile.bioShort}</p>
         )}
 
-        {/* بنر چهره برتر — طلایی / رزگلد */}
-        {isTopTalent && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ type: "spring", stiffness: 300, damping: 24, delay: 0.2 }}
-            className="mt-4"
-          >
-            <TopTalentBanner variant={isRose ? "rosegold" : "gold"} />
-          </motion.div>
+        {/* بنر چهره برتر — طلایی / نقره‌ای (فقط اعضا؛ چهره‌یاب نیست) */}
+        {isTopTalent && !isScoutProfile && (
+          <div className="mt-4">
+            <TopTalentBanner variant={isGold ? "gold" : "silver"} />
+          </div>
         )}
 
-        {/* نوار آمار — الگوی مدرن (رزگلد/طلایی برای چهره برتر) */}
+        {/* نوار آمار — کلاسیک (چهره‌یاب: بدون تخصص/ستاره — گزینه‌های اعضا را ندارد) */}
         <div
           className={cn(
-            "mt-4 glass rounded-[22px] shadow-card grid grid-cols-4 divide-x divide-border/70 rtl:divide-x-reverse",
-            isRose && "!bg-gradient-to-br !from-rose-500/10 !to-rose-600/5 !border-rose-400/25",
-            !isRose && isTopTalent && "!bg-gradient-to-br !from-amber-500/12 !to-amber-600/5 !border-amber-400/25"
+            "mt-4 bg-card border border-border rounded-2xl grid divide-x divide-border rtl:divide-x-reverse",
+            isScoutProfile ? "grid-cols-3" : "grid-cols-4"
           )}
         >
-          <StatSeg value={formatCount(connCount)} label="ارتباطات" icon="users" gold={isTopTalent} rose={isRose} />
-          <StatSeg value={toFa(profile.postCount)} label="پست‌ها" icon="image" gold={isTopTalent} rose={isRose} />
-          <StatSeg value={toFa(profile.categories?.length || 0)} label="تخصص‌ها" icon="award" gold={isTopTalent} rose={isRose} />
-          <StatSeg
-            value={toFa(totalStars.toLocaleString("fa-IR"))}
-            label="ستاره‌ها"
-            icon="star"
-            gold={isTopTalent}
-            rose={isRose}
-          />
+          <StatSeg value={formatCount(connCount)} label="ارتباطات" icon="users" />
+          <StatSeg value={toFa(profile.postCount)} label="پست‌ها" icon="image" />
+          {isScoutProfile ? (
+            <StatSeg value={toFa(profile.categories?.length || 0)} label="حوزه‌ها" icon="compass" />
+          ) : (
+            <>
+              <StatSeg value={toFa(profile.categories?.length || 0)} label="تخصص‌ها" icon="award" />
+              <StatSeg
+                value={toFa(totalStars.toLocaleString("fa-IR"))}
+                label="ستاره‌ها"
+                icon="star"
+                tint={frame}
+              />
+            </>
+          )}
         </div>
 
         {/* اکشن اصلی + درخواست پیام + PDF */}
@@ -511,42 +495,32 @@ export function ProfileView({ id }: { id: string }) {
           <button
             onClick={() => window.open(`/api/resume/${profile.userId}`, "_blank")}
             aria-label="دانلود رزومه PDF"
-            className="size-12 shrink-0 rounded-2xl glass-strong border border-border/70 text-foreground
+            className="size-12 shrink-0 rounded-xl bg-card border border-border text-foreground
                        grid place-items-center hover:bg-muted transition-colors outline-none"
           >
             <Icon name="briefcase" size={19} className="text-primary" />
           </button>
         </div>
 
-        {/* تب‌های قرصی */}
-        <div className="relative mt-5 p-1 glass rounded-2xl flex gap-1 shadow-card">
+        {/* تب‌های کلاسیک */}
+        <div className="mt-5 p-1 bg-muted/60 rounded-xl flex gap-1">
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className="relative z-10 flex-1 h-11 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 outline-none"
-            >
-              {tab === t.key && (
-                <motion.div
-                  layoutId="profile-tab-pill"
-                  className={cn(
-                    "absolute inset-0 rounded-xl shadow-glow",
-                    isRose
-                      ? ""
-                      : isTopTalent
-                      ? "grad-gold"
-                      : "grad-brand"
-                  )}
-                  style={isRose ? { background: "linear-gradient(135deg,#e11d48,#be123c)" } : undefined}
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
+              className={cn(
+                "flex-1 h-10 rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1.5 outline-none transition-colors",
+                tab === t.key
+                  ? "bg-card text-foreground shadow-sm border border-border"
+                  : "text-muted-foreground hover:text-foreground"
               )}
-              <span className={cn("relative z-10", tab !== t.key && "text-muted-foreground")}>{t.label}</span>
+            >
+              <span>{t.label}</span>
               {t.count !== undefined && t.count > 0 && (
                 <span
                   className={cn(
-                    "relative z-10 text-[10px] px-1.5 py-0.5 rounded-full font-bold nums-fa",
-                    tab === t.key ? "bg-black/20 text-white" : "bg-muted text-muted-foreground"
+                    "text-[10px] px-1.5 py-0.5 rounded-full font-bold nums-fa",
+                    tab === t.key ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                   )}
                 >
                   {toFa(t.count)}
@@ -556,62 +530,74 @@ export function ProfileView({ id }: { id: string }) {
           ))}
         </div>
 
-        {/* محتوای تب */}
+        {/* محتوای تب — fade ساده بدون exit */}
         <div className="mt-5 min-h-[200px]">
-          <AnimatePresence mode="wait">
-            {tab === "about" && (
-              <TabPane key="about"><AboutTab profile={profile} catColorMap={catColorMap} /></TabPane>
-            )}
-            {tab === "portfolio" && (
-              <TabPane key="portfolio">
-                <PortfolioTab userId={profile.userId} isSelf={isSelf} />
-              </TabPane>
-            )}
-            {tab === "resume" && (
-              <TabPane key="resume"><ResumeTab profile={profile} isSelf={isSelf} userId={profile.userId} /></TabPane>
-            )}
-            {tab === "posts" && (
-              <TabPane key="posts" className="space-y-4">
-                {/* دسترسی آسان پست جدید — فرایند ساده‌شده */}
-                {isSelf && posts.length > 0 && (
-                  <button
-                    onClick={() => setComposerOpen(true)}
-                    className="w-full h-14 rounded-[20px] border-[1.5px] border-dashed border-primary/40
-                               text-primary font-extrabold text-[13px] inline-flex items-center justify-center gap-2
-                               hover:bg-primary/5 transition-colors outline-none"
-                  >
-                    <Icon name="plus" size={18} />
-                    پست جدید بگذار
-                  </button>
-                )}
-                {postsLoading ? (
-                  <PostsSkeleton />
-                ) : posts.length === 0 ? (
-                  <EmptyState
-                    kind="posts"
-                    title={isSelf ? "پستی ندارید، پست جدید ارسال کنید" : "این کاربر هنوز پستی ندارد"}
-                    description={isSelf ? "استعدادت را با جامعه فرصتینو به اشتراک بگذار — همین حالا شروع کن!" : ""}
-                    action={
-                      isSelf ? (
-                        <button
-                          onClick={() => setComposerOpen(true)}
-                          className="h-12 px-6 rounded-2xl grad-brand text-white font-extrabold text-sm shadow-grad
-                                     inline-flex items-center gap-2 hover:brightness-105 transition-[filter] outline-none"
-                        >
-                          <Icon name="plus" size={18} />
-                          ارسال پست جدید
-                        </button>
-                      ) : undefined
-                    }
-                  />
-                ) : (
-                  posts.map((p, i) => <PostCard key={p.id} post={p} index={i} />)
-                )}
-              </TabPane>
-            )}
-          </AnimatePresence>
+          {tab === "about" && (
+            <TabPane key="about"><AboutTab profile={profile} catColorMap={catColorMap} /></TabPane>
+          )}
+          {tab === "portfolio" && (
+            <TabPane key="portfolio">
+              <PortfolioTab userId={profile.userId} isSelf={isSelf} />
+            </TabPane>
+          )}
+          {tab === "resume" && (
+            <TabPane key="resume"><ResumeTab profile={profile} isSelf={isSelf} userId={profile.userId} /></TabPane>
+          )}
+          {tab === "posts" && (
+            <TabPane key="posts" className="space-y-4">
+              {postsLoading ? (
+                <PostsSkeleton />
+              ) : posts.length === 0 ? (
+                <EmptyState
+                  kind="posts"
+                  title={isSelf ? "پستی ندارید، پست جدید ارسال کنید" : "این کاربر هنوز پستی ندارد"}
+                  description={isSelf ? "استعدادت را با جامعه فرصتینو به اشتراک بگذار — همین حالا شروع کن!" : ""}
+                  action={
+                    isSelf ? (
+                      <button
+                        onClick={() => setComposerOpen(true)}
+                        className="h-12 px-6 rounded-xl grad-brand text-white font-extrabold text-sm
+                                   inline-flex items-center gap-2 hover:opacity-90 transition-opacity outline-none"
+                      >
+                        <Icon name="plus" size={18} />
+                        ارسال پست جدید
+                      </button>
+                    ) : undefined
+                  }
+                />
+              ) : (
+                posts.map((p, i) => <PostCard key={p.id} post={p} index={i} />)
+              )}
+            </TabPane>
+          )}
         </div>
-      </motion.div>
+      </div>
+
+      {/* ═══ دکمهٔ پلاس شناور — فقط پروفایل خودم (بالای دکمهٔ چت) ═══ */}
+      {isSelf && (
+        <button
+          onClick={() => setPlusOpen(true)}
+          className="fixed left-4 z-40 grid place-items-center rounded-full
+                     grad-brand text-white border border-black/5 shadow-[0_6px_20px_rgba(0,0,0,0.15)]
+                     hover:opacity-90 transition-opacity active:scale-95"
+          style={{
+            width: "44px",
+            height: "44px",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 136px)",
+          }}
+          aria-label="پست یا نمونه کار جدید"
+        >
+          <Icon name="plus" size={22} strokeWidth={2.4} />
+        </button>
+      )}
+
+      {/* انتخاب پست / نمونه کار */}
+      <PlusChooserSheet
+        open={plusOpen}
+        onClose={() => setPlusOpen(false)}
+        onPost={choosePost}
+        onPortfolio={choosePortfolio}
+      />
 
       {/* شیت کامپوزر — ساخت پست از دل پروفایل */}
       <ComposerSheet
@@ -625,15 +611,62 @@ export function ProfileView({ id }: { id: string }) {
   );
 }
 
+/* ── شیت انتخاب «پست جدید / نمونه کار جدید» ── */
+function PlusChooserSheet({
+  open,
+  onClose,
+  onPost,
+  onPortfolio,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onPost: () => void;
+  onPortfolio: () => void;
+}) {
+  return (
+    <Sheet open={open} onClose={onClose} title="چی می‌خوای بسازی؟" description="انتخاب کن و بارگذاری کن">
+      <div className="space-y-2.5">
+        <button
+          onClick={onPost}
+          className="w-full h-16 rounded-2xl bg-card border border-border hover:border-primary/40 hover:bg-primary/5
+                     transition-colors flex items-center gap-3 px-4 text-right outline-none"
+        >
+          <span className="grid place-items-center size-11 rounded-xl bg-primary/10 text-primary shrink-0">
+            <Icon name="image" size={22} />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[14px] font-extrabold text-foreground">پست جدید</span>
+            <span className="block text-[11.5px] text-muted-foreground mt-0.5">متن، عکس، ویدیو یا صوت — برای فید</span>
+          </span>
+          <Icon name="arrowLeft" size={16} className="text-muted-foreground shrink-0" />
+        </button>
+        <button
+          onClick={onPortfolio}
+          className="w-full h-16 rounded-2xl bg-card border border-border hover:border-primary/40 hover:bg-primary/5
+                     transition-colors flex items-center gap-3 px-4 text-right outline-none"
+        >
+          <span className="grid place-items-center size-11 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
+            <Icon name="briefcase" size={22} />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[14px] font-extrabold text-foreground">نمونه کار جدید</span>
+            <span className="block text-[11.5px] text-muted-foreground mt-0.5">به ویترین نمونه‌کارهایت اضافه کن</span>
+          </span>
+          <Icon name="arrowLeft" size={16} className="text-muted-foreground shrink-0" />
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
 /* ─────────── اجزای کوچک ─────────── */
 
 function TabPane({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: 0.25 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18 }}
       className={className}
     >
       {children}
@@ -641,24 +674,26 @@ function TabPane({ children, className }: { children: React.ReactNode; className
   );
 }
 
-function StatSeg({ value, label, icon, gold, rose }: { value: string; label: string; icon: string; gold?: boolean; rose?: boolean }) {
+function StatSeg({ value, label, icon, tint }: { value: string; label: string; icon: string; tint?: "silver" | "gold" | null }) {
   return (
     <div className="py-3.5 flex flex-col items-center gap-1">
-      <div
-        className={cn(
-          "size-7 rounded-xl grid place-items-center text-white",
-          rose ? "" : gold ? "grad-gold shadow-glow-gold" : "grad-brand"
-        )}
-        style={rose ? { background: "linear-gradient(135deg,#e11d48,#be123c)" } : undefined}
-      >
-        <Icon name={icon} size={14} />
-      </div>
+        <div
+          className={cn("size-7 rounded-lg grid place-items-center text-white", !tint && "grad-brand")}
+          style={
+            tint === "gold"
+              ? { background: "linear-gradient(135deg,#f5c84c,#d97706)" }
+              : tint === "silver"
+              ? { background: "linear-gradient(135deg,#cbd5e1,#64748b)" }
+              : undefined
+          }
+        >
+          <Icon name={icon} size={14} />
+        </div>
       <span
         className={cn(
           "font-black text-[17px] leading-none nums-fa",
-          rose
-            ? "text-rose-600 dark:text-rose-400"
-            : gold && "text-amber-600 dark:text-amber-400"
+          tint === "gold" && "text-amber-600 dark:text-amber-400",
+          tint === "silver" && "text-slate-600 dark:text-slate-300"
         )}
       >
         {value}
@@ -671,7 +706,7 @@ function StatSeg({ value, label, icon, gold, rose }: { value: string; label: str
 function ProfileSkeleton() {
   return (
     <div className="max-w-2xl mx-auto">
-      <Skeleton className="aspect-[3/1] max-h-56 rounded-b-[36px] rounded-t-none" />
+      <Skeleton className="aspect-[3/1] max-h-56 rounded-b-2xl rounded-t-none" />
       <div className="px-4 -mt-10 relative z-10">
         <div className="flex items-end gap-3.5">
           <Skeleton className="size-24 rounded-full shrink-0" />
@@ -680,9 +715,9 @@ function ProfileSkeleton() {
             <Skeleton className="h-3.5 w-24 rounded" />
           </div>
         </div>
-        <Skeleton className="h-16 rounded-[22px] mt-4" />
-        <Skeleton className="h-12 rounded-2xl mt-4" />
-        <Skeleton className="h-11 rounded-2xl mt-5" />
+        <Skeleton className="h-16 rounded-2xl mt-4" />
+        <Skeleton className="h-12 rounded-xl mt-4" />
+        <Skeleton className="h-10 rounded-xl mt-5" />
         <Skeleton className="h-32 rounded-2xl mt-5" />
       </div>
     </div>

@@ -218,6 +218,7 @@ export function NeedDetailView({ id }: { id: string }) {
                 gender={need.user.gender}
                 frame={need.user.frame}
                 size="md"
+                square={!!need.user.isScout}
               />
               <div className="text-right">
                 <p className="text-sm font-bold">{need.user.name}</p>

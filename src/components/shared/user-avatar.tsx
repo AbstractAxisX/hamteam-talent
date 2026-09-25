@@ -12,8 +12,8 @@ function DefaultAvatarSVG({ gender }: { gender?: string | null; name: string }) 
   const bg = isFemale ? "oklch(0.6 0.12 25)" : "oklch(0.4 0.05 200)";
   return (
     <div
-      className="w-full h-full rounded-full grid place-items-center"
-      style={{ backgroundColor: bg }}
+      className="w-full h-full grid place-items-center"
+      style={{ backgroundColor: bg, borderRadius: "inherit" }}
     >
       <svg viewBox="0 0 40 40" className="w-3/5 h-3/5 opacity-25" fill="white">
         <circle cx="20" cy="14" r="7" />
@@ -32,6 +32,7 @@ export function UserAvatar({
   size = "md",
   topTalent,
   frame,
+  square,
   className,
 }: {
   name: string;
@@ -41,10 +42,12 @@ export function UserAvatar({
   /** Category color for the ring around the avatar (hex or css color) */
   ringColor?: string | null;
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
-  /** چهره برتر → قاب طلایی/رزگلد چندلایه + تیک متال (سازگاری با کدهای قدیمی) */
+  /** چهره برتر → قاب نقره‌ای/طلایی چندلایه + تیک متال (سازگاری با کدهای قدیمی) */
   topTalent?: boolean;
-  /** قاب واقعی از سرور — رزگلد بر طلایی اولویت دارد */
+  /** قاب واقعی از سرور — طلایی بر نقره‌ای اولویت دارد */
   frame?: FrameLevel;
+  /** چهره‌یاب → آواتار مربعی (سبک کمپانی‌های لینکدین) */
+  square?: boolean;
   className?: string;
 }) {
   const sizeClass = {
@@ -72,9 +75,10 @@ export function UserAvatar({
     xl: "p-1.5",
     "2xl": "p-2",
   }[size];
+  const shape = square ? "rounded-[22%]" : "rounded-full";
 
-  /* چهره برتر → قاب متال چندلایه (رزگلد کمیاب‌تر از طلایی) */
-  const effectiveFrame: FrameLevel = frame ?? (topTalent ? "gold" : null);
+  /* چهره برتر → قاب متال چندلایه (طلایی ۱۰۰۰۰ کمیاب‌تر از نقره‌ای ۵۰۰۰) */
+  const effectiveFrame: FrameLevel = frame ?? (topTalent ? "silver" : null);
   if (effectiveFrame) {
     const box = {
       xs: 32,
@@ -90,7 +94,8 @@ export function UserAvatar({
         src={avatarUrl}
         box={box}
         className={className}
-        variant={effectiveFrame === "rosegold" ? "rosegold" : "gold"}
+        variant={effectiveFrame}
+        square={square}
       />
     );
   }
@@ -99,13 +104,13 @@ export function UserAvatar({
     <div className={cn("relative inline-block shrink-0", className)}>
       {/* Colored ring wrapper — div with padding + background-color = category color */}
       <div
-        className={cn("rounded-full", ringPadding, !ringColor && "bg-transparent")}
+        className={cn(shape, ringPadding, !ringColor && "bg-transparent")}
         style={ringColor ? { backgroundColor: ringColor } : undefined}
       >
-        <div className={cn("relative rounded-full overflow-hidden ring-2 ring-card bg-card", sizeClass)}>
+        <div className={cn("relative overflow-hidden ring-2 ring-card bg-card", shape, sizeClass)}>
           {avatarUrl ? (
-            <Avatar className="w-full h-full border-0">
-              <AvatarImage src={avatarUrl} />
+            <Avatar className="w-full h-full border-0" style={{ borderRadius: "inherit" }}>
+              <AvatarImage src={avatarUrl} style={{ borderRadius: "inherit" }} />
               <AvatarFallback>
                 <DefaultAvatarSVG gender={gender} name={name} />
               </AvatarFallback>

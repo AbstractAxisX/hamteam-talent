@@ -34,7 +34,7 @@ type OtherUser = {
   isVerifiedBadge: boolean;
   isScout?: boolean;
   isTopTalent?: boolean;
-  frame?: "gold" | "rosegold" | null;
+  frame?: "silver" | "gold" | null;
   avatarUrl: string | null;
   gender?: string | null;
   bioShort: string;
@@ -369,6 +369,7 @@ function PersonRow({
               gender={item.otherUser.gender}
               frame={item.otherUser.frame}
               size="lg"
+              square={!!item.otherUser.isScout}
               ringColor="rgba(61, 124, 190, 0.3)"
             />
           </button>

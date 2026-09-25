@@ -1,221 +1,239 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { api, apiPost, apiPut } from "@/lib/api-client";
+import { useCallback, useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { api } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
+import { toFa } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
 import { Icon } from "@/components/shared/icon";
-import type { CategoryWithSkills } from "@/lib/types";
-import { cn } from "@/lib/utils";
-import { Check } from "lucide-react";
 
-/* ویزارد آنبوردینگ — ۳ مرحله:
-   دسته‌بندی‌ها → دستهٔ اصلی → خوش‌آمد (مرحلهٔ نام کاربری حذف شد — سیستم آیدی از بک‌اند برداشته شد) */
-type Step = "categories" | "mainCategory" | "welcome";
+/* چک‌لیست تکمیل پروفایل — پس از گام «نام» برای کاربر تازه‌ثبت‌نام‌شده.
+   · عضو: ۶ قلم (آواتار، بنر، بیو کوتاه، دسته‌بندی، مهارت، موقعیت)
+   · چهره‌یاب فعال: ۴ قلم (آواتار، بنر، بیو، موقعیت) + CTA داشبورد چهره‌یاب
+   هر ردیف → ویرایش پروفایل با پرش به سکشن مربوطه (params.section) */
+
+interface MeProfileLite {
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  bioShort: string;
+  province: string | null;
+  city: string | null;
+  categories: { id: string; name: string; skills: { id: string; name: string }[] }[];
+}
+
+type ChecklistItem = {
+  key: string;
+  label: string;
+  hint: string;
+  icon: string;
+  section: string;
+  done: boolean;
+};
 
 export function OnboardingView() {
-  const { user, fetchUser } = useUser();
-  const [step, setStep] = useState<Step>("categories");
-  const [categories, setCategories] = useState<CategoryWithSkills[]>([]);
-  const [selectedCats, setSelectedCats] = useState<string[]>([]);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [mainCategory, setMainCategory] = useState<string>("");
-  const [submitting, setSubmitting] = useState(false);
+  const { user, loading: userLoading } = useUser();
+  const [profile, setProfile] = useState<MeProfileLite | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
-  // Load categories
+  // مهمان → صفحه ورود
   useEffect(() => {
-    api<{ categories: CategoryWithSkills[] }>("/api/categories").then((d) => setCategories(d.categories)).catch(() => {});
+    if (!userLoading && !user) navigate({ view: "auth" });
+  }, [userLoading, user]);
+
+  const loadProfile = useCallback(async () => {
+    setLoadingProfile(true);
+    setLoadError(false);
+    try {
+      const d = await api<MeProfileLite>("/api/profile/me");
+      setProfile(d);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoadingProfile(false);
+    }
   }, []);
 
-  function toggleCategory(id: string) {
-    setSelectedCats((prev) => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
-    // Clear main category if it was deselected
-    if (mainCategory === id) setMainCategory("");
+  useEffect(() => {
+    if (!user) return;
+    loadProfile();
+  }, [user, loadProfile]);
+
+  const isScout = !!user?.isScout;
+  const bioDone = !!(profile?.bioShort || "").trim();
+  const hasCats = (profile?.categories?.length ?? 0) > 0;
+  const hasSkills = (profile?.categories ?? []).some((c) => c.skills.length > 0);
+  const hasLocation = !!(profile?.province && profile?.city);
+
+  const items: ChecklistItem[] = isScout
+    ? [
+        { key: "avatar", label: "آواتار", hint: "عکس پروفایل", icon: "user", section: "photos", done: !!profile?.avatarUrl },
+        { key: "banner", label: "بنر", hint: "تصویر کاور پروفایل", icon: "image", section: "photos", done: !!profile?.bannerUrl },
+        { key: "bio", label: "بیو کوتاه", hint: "در یک خط بگو چه‌کاره‌ای", icon: "pencil", section: "photos", done: bioDone },
+        { key: "location", label: "موقعیت", hint: "استان و شهر", icon: "mapPin", section: "location", done: hasLocation },
+      ]
+    : [
+        { key: "avatar", label: "آواتار", hint: "عکس پروفایل", icon: "user", section: "photos", done: !!profile?.avatarUrl },
+        { key: "banner", label: "بنر", hint: "تصویر کاور پروفایل", icon: "image", section: "photos", done: !!profile?.bannerUrl },
+        { key: "bio", label: "بیو کوتاه", hint: "در یک خط بگو چه‌کاره‌ای", icon: "pencil", section: "photos", done: bioDone },
+        { key: "cats", label: "دسته‌بندی", hint: "حوزه استعدادت", icon: "grid", section: "categories", done: hasCats },
+        { key: "skills", label: "مهارت", hint: "حداقل یک مهارت ثبت کن", icon: "sparkles", section: "categories", done: hasSkills },
+        { key: "location", label: "موقعیت", hint: "استان و شهر", icon: "mapPin", section: "location", done: hasLocation },
+      ];
+
+  const doneCount = items.filter((i) => i.done).length;
+  const pct = items.length ? Math.round((doneCount / items.length) * 100) : 0;
+  // نام جای‌نگهدار (خود شماره) → خوش‌آمد بدون نام
+  const displayName =
+    user?.name?.trim() && user.name.trim() !== user.phone ? user.name.trim() : "";
+
+  function enterApp() {
+    navigate(isScout ? { view: "scout" } : { view: "feed" });
   }
 
-  function toggleSkill(id: string) {
-    setSelectedSkills((prev) => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+  function gotoSection(section: string) {
+    navigate({ view: "edit-profile", params: { section } });
   }
 
-  function submitCategories() {
-    if (selectedCats.length === 0) { toast({ title: "حداقل یک دسته‌بندی انتخاب کنید" }); return; }
-    if (selectedCats.length === 1) { setMainCategory(selectedCats[0]); setStep("welcome"); }
-    else setStep("mainCategory");
+  if (userLoading || !user) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-5 px-4">
+        <Icon name="loader" size={22} className="animate-spin text-muted-foreground" strokeWidth={2.2} />
+        <span className="sr-only">در حال بارگذاری</span>
+      </div>
+    );
   }
-
-  /* ذخیرهٔ دسته‌ها + مهارت‌ها + دستهٔ اصلی — رفع باگ گم‌شدن انتخاب‌های آنبوردینگ */
-  async function persistSelections() {
-    for (const catId of selectedCats) {
-      try { await apiPost("/api/profile/me/categories", { categoryId: catId }); } catch { /* idempotent */ }
-    }
-    for (const skillId of selectedSkills) {
-      try { await apiPost("/api/profile/me/skills", { skillId }); } catch { /* idempotent */ }
-    }
-    if (mainCategory) {
-      try { await apiPut("/api/profile/me", { mainCategoryId: mainCategory }); } catch { /* قبلاً ثبت شده */ }
-    }
-  }
-
-  async function submitMainCategory() {
-    setSubmitting(true);
-    try {
-      await persistSelections();
-      setStep("welcome");
-    } catch (e) { toast({ title: "خطا", description: (e as Error).message, variant: "destructive" }); }
-    finally { setSubmitting(false); }
-  }
-
-  async function finish() {
-    // تک‌دسته: انتخاب‌ها هنوز ذخیره نشده‌اند — قبل از خروج ثبت کن
-    if (selectedCats.length > 0 && mainCategory) {
-      await persistSelections();
-    }
-    await fetchUser();
-    navigate({ view: "feed" });
-  }
-
-  // بازگشت مرحله‌ای در ویزارد
-  function stepBack() {
-    if (step === "categories") { navigate({ view: "feed" }); return; }
-    if (step === "mainCategory") { setStep("categories"); return; }
-  }
-
-  const canStepBack = step !== "welcome";
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* دکمه بازگشت مرحله‌ای — بالا-چپ */}
-      {canStepBack && (
-        <button
-          onClick={stepBack}
-          className="fixed top-4 left-4 z-40 inline-flex items-center gap-1.5 h-10 px-3 rounded-xl glass-strong text-sm font-bold text-foreground hover:bg-muted/70 transition-colors"
-          aria-label="بازگشت"
-        >
-          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.4}>
-            <path d="M14 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {step === "categories" ? "خروج" : "بازگشت"}
-        </button>
-      )}
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex-1 flex items-start justify-center px-4 py-8">
+        <div className="w-full max-w-sm">
+          {/* خوش‌آمد */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25 }}
+            className="text-center mb-5"
+          >
+            <h1 className="text-2xl font-extrabold tracking-tight leading-8">
+              {displayName ? `خوش اومدی ${displayName}!` : "خوش اومدی!"}
+            </h1>
+            <p className="text-sm text-muted-foreground leading-6 mt-2">
+              پروفایلت رو کامل کن تا بیشتر دیده بشی
+            </p>
+          </motion.div>
 
-      {/* Progress bar — ۳ مرحله (۳۳ / ۶۶ / ۱۰۰) */}
-      <div className="h-1.5 bg-muted">
-        <motion.div
-          className="h-full bg-primary"
-          initial={{ width: "0%" }}
-          animate={{ width: step === "categories" ? "33%" : step === "mainCategory" ? "66%" : "100%" }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-        />
-      </div>
+          {/* پیشرفت */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25, delay: 0.05 }}
+            className="bg-card border border-border rounded-2xl shadow-sm p-4 mb-4"
+          >
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-xs font-bold text-muted-foreground">تکمیل پروفایل</span>
+              <span className="text-xs font-extrabold text-primary">
+                {toFa(doneCount)} از {toFa(items.length)}
+              </span>
+            </div>
+            <div
+              className="h-2 rounded-full bg-muted overflow-hidden"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={items.length}
+              aria-valuenow={doneCount}
+              aria-label="پیشرفت تکمیل پروفایل"
+            >
+              <motion.div
+                className="h-full rounded-full bg-primary"
+                initial={{ width: "0%" }}
+                animate={{ width: `${pct}%` }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+              />
+            </div>
+          </motion.div>
 
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <AnimatePresence mode="wait">
-            {/* Step 1: Categories */}
-            {step === "categories" && (
-              <motion.div key="categories" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3 }}>
-                <div className="text-center mb-6">
-                  <div className="grid place-items-center w-20 h-20 rounded-3xl bg-primary mx-auto mb-4">
-                    <Icon name="sparkles" className="text-primary-foreground" size={36} />
-                  </div>
-                  <h1 className="text-2xl font-extrabold">حوزه‌ی فعالیت خود را انتخاب کنید</h1>
-                  <p className="text-sm text-muted-foreground mt-2">دسته‌بندی و مهارت‌هایت رو انتخاب کن</p>
-                </div>
+          {/* ردیف‌های چک‌لیست */}
+          {loadingProfile ? (
+            <div className="space-y-2.5" aria-busy="true" aria-label="در حال بارگذاری چک‌لیست">
+              {items.map((i) => (
+                <div key={i.key} className="h-14 rounded-2xl bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : loadError ? (
+            <div className="bg-card border border-border rounded-2xl shadow-sm p-6 text-center">
+              <p className="text-sm text-muted-foreground leading-6 mb-4">
+                چک‌لیست بارگذاری نشد؛ دوباره تلاش کن.
+              </p>
+              <Button
+                onClick={loadProfile}
+                variant="outline"
+                className="h-11 rounded-xl font-bold"
+              >
+                تلاش مجدد
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {items.map((item, i) => (
+                <motion.button
+                  key={item.key}
+                  type="button"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2, delay: 0.08 + i * 0.05 }}
+                  onClick={() => gotoSection(item.section)}
+                  className="w-full h-14 flex items-center gap-3 bg-card border border-border rounded-2xl shadow-sm px-4 text-right transition-colors hover:border-primary/40 active:scale-[0.99]"
+                  aria-label={`${item.label} — ${item.done ? "انجام شده" : "تکمیل نشده"} — رفتن به ویرایش پروفایل`}
+                >
+                  <span className="grid place-items-center w-9 h-9 rounded-xl bg-muted text-muted-foreground shrink-0">
+                    <Icon name={item.icon} size={17} strokeWidth={2} />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-bold text-foreground">{item.label}</span>
+                    <span className="block text-[11px] text-muted-foreground mt-0.5">{item.hint}</span>
+                  </span>
+                  {item.done ? (
+                    <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full bg-emerald-600/10 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold shrink-0">
+                      <Icon name="check" size={13} strokeWidth={2.4} />
+                      انجام شده
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold shrink-0">
+                      <Icon name="plus" size={13} strokeWidth={2.4} />
+                      افزودن
+                    </span>
+                  )}
+                </motion.button>
+              ))}
+            </div>
+          )}
 
-                <div className="space-y-2 max-h-[40vh] overflow-y-auto slim-scroll pr-1">
-                  {categories.map((cat) => {
-                    const selected = selectedCats.includes(cat.id);
-                    return (
-                      <div key={cat.id} className={cn("rounded-2xl border-2 transition-all overflow-hidden", selected ? "border-primary bg-accent" : "border-border")}>
-                        <button onClick={() => toggleCategory(cat.id)} className="w-full p-3 flex items-center gap-3 text-right">
-                          <span className="text-2xl">{cat.iconUrl || "📁"}</span>
-                          <span className="flex-1 font-bold text-sm">{cat.name}</span>
-                          {selected && <Check className="w-5 h-5 text-primary" />}
-                        </button>
-                        <AnimatePresence>
-                          {selected && (
-                            <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
-                              <div className="p-3 pt-0 flex flex-wrap gap-1.5">
-                                {cat.skills.map((skill) => {
-                                  const sel = selectedSkills.includes(skill.id);
-                                  return (
-                                    <button key={skill.id} onClick={() => toggleSkill(skill.id)} className={cn("px-3 py-1.5 rounded-full text-xs font-medium transition-all", sel ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground")}>
-                                      {skill.name}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <Button onClick={submitCategories} className="w-full h-13 mt-6 rounded-2xl text-base font-bold" disabled={selectedCats.length === 0}>
-                  ادامه ({selectedCats.length} دسته)
-                </Button>
-              </motion.div>
+          {/* ورود به اپ — همیشه در دسترس */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25, delay: 0.35 }}
+            className="mt-6"
+          >
+            <Button
+              onClick={enterApp}
+              className="w-full h-12 rounded-xl text-base font-bold grad-brand text-primary-foreground transition-opacity hover:opacity-95"
+            >
+              {isScout ? "ورود به داشبورد چهره‌یاب" : "ورود به فرصتینو"}
+            </Button>
+            {!isScout && (
+              <button
+                type="button"
+                onClick={enterApp}
+                className="w-full h-11 mt-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+              >
+                بعداً تکمیل می‌کنم
+              </button>
             )}
-
-            {/* Step 2: Main Category */}
-            {step === "mainCategory" && (
-              <motion.div key="mainCategory" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3 }}>
-                <div className="text-center mb-6">
-                  <div className="grid place-items-center w-20 h-20 rounded-3xl bg-primary mx-auto mb-4">
-                    <Icon name="star" className="text-primary-foreground" size={36} />
-                  </div>
-                  <h1 className="text-2xl font-extrabold">دسته‌ی اصلی خود را مشخص کنید</h1>
-                  <p className="text-sm text-muted-foreground mt-2">رنگ این دسته دور آواتار شما می‌افتد</p>
-                </div>
-
-                <div className="space-y-2 max-h-[40vh] overflow-y-auto slim-scroll pr-1">
-                  {selectedCats.map((catId) => {
-                    const cat = categories.find(c => c.id === catId);
-                    if (!cat) return null;
-                    const color = cat.color || "#067647";
-                    const selected = mainCategory === catId;
-                    return (
-                      <button key={catId} onClick={() => setMainCategory(catId)} className={cn("w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-3 text-right", selected ? "border-primary bg-accent" : "border-border hover:border-foreground/15")}>
-                        <span className="w-10 h-10 rounded-full grid place-items-center" style={{ backgroundColor: color }}>
-                          <span className="text-xl">{cat.iconUrl || "📁"}</span>
-                        </span>
-                        <span className="flex-1 font-bold text-sm">{cat.name}</span>
-                        {selected && <Check className="w-5 h-5 text-primary" />}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <Button onClick={submitMainCategory} className="w-full h-13 mt-6 rounded-2xl text-base font-bold" disabled={!mainCategory || submitting}>
-                  ادامه
-                </Button>
-              </motion.div>
-            )}
-
-            {/* Step 3: Welcome */}
-            {step === "welcome" && (
-              <motion.div key="welcome" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
-                <div className="text-center">
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring", stiffness: 400, damping: 15 }} className="grid place-items-center w-24 h-24 rounded-3xl bg-primary mx-auto mb-6">
-                    <Icon name="check" className="text-primary-foreground" size={48} />
-                  </motion.div>
-                  <h1 className="text-3xl font-extrabold">خوش آمدید! 🎉</h1>
-                  <p className="text-base text-muted-foreground mt-3 leading-7">
-                    {user?.name} عزیز، حساب شما آماده شد.<br />
-                    حالا می‌توانید استعدادهایتان را نشان بدهید و با افراد مستعد ارتباط بگیرید.
-                  </p>
-                </div>
-                <Button onClick={finish} className="w-full h-13 mt-8 rounded-2xl text-base font-bold">
-                  ورود به فرصتینو
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          </motion.div>
         </div>
       </div>
     </div>

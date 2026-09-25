@@ -59,6 +59,13 @@ export function PortfolioTab({ userId, isSelf }: { userId: string; isSelf: boole
 
   React.useEffect(() => { load(); }, [load]);
 
+  /* باز کردن فرم نمونه‌کار از بیرون (دکمهٔ پلاس پروفایل) */
+  React.useEffect(() => {
+    const h = () => setFabOpen(true);
+    window.addEventListener("portfolio:new", h);
+    return () => window.removeEventListener("portfolio:new", h);
+  }, []);
+
   /* لایک بهینه بدون رفرش کل لیست */
   function toggleLike(item: PortfolioItemDto) {
     if (!user) {

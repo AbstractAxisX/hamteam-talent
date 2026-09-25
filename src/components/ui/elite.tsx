@@ -1,61 +1,80 @@
 "use client";
 
-/* ═══════════════════════════════════════════════════════════
-   Elite Design System — «چهره برتر» (Gold / Rose Gold / Obsidian)
-   زبان بصری نخبگان: قاب طلایی چندلایه (۵۰۰۰ ستاره) و
-   رزگلد کمیاب (۱۰۰۰۰ ستاره)، تیک متال، برگ غار (Laurel)،
-   بنر نخبگی — کالاف/پابجی vibes.
-   انیمیشن‌ها فقط transform/opacity (GPU-safe).
-   ═══════════════════════════════════════════════════════════ */
+/* ═════════════════════════════════════════════════════════════
+   Elite Design System — «چهره برتر» (Silver / Gold)
+   زبان بصری نخبگان: قاب نقره‌ای چندلایه (۵۰۰۰ ستاره) و
+   قاب طلایی (۱۰۰۰۰ ستاره)، تیک متال، برگ غار (Laurel)،
+   بنر نخبگی. بدون انیمیشن بی‌نهایت (کارایی).
+   ═════════════════════════════════════════════════════════════ */
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-/* ── پالت متال طلایی (رفرنس: شامپاینی → طلایی → برنز) ── */
+/* ── پالت متال طلایی (۱۰۰۰۰+ ستاره — بالاترین سطح) ── */
 const GOLD_METAL =
   "conic-gradient(from 210deg, #fef9e7 0deg, #f5c84c 50deg, #92610e 105deg, #fde68a 165deg, #d97706 225deg, #fff3c4 285deg, #9a6b0a 330deg, #fef9e7 360deg)";
 const GOLD_CHANNEL = "linear-gradient(135deg, #7c4a0c, #59330a 50%, #7c4a0c)";
 const GLOW_GOLD = "0 6px 22px rgba(217,119,6,.4), 0 0 0 1px rgba(180,83,9,.28)";
 
-/* ── پالت متال رزگلد (۵۰۰۰ → ۱۰۰۰۰ ستاره؛ کمیاب و لاکچری) ──
-   رزگلد واقعی: رز گرم + نقره کثیف — سویچ‌های نرم
-   #f43f5e → #fb7185 → #fda4af → #e11d48 و تکرار. */
-const ROSE_METAL =
-  "conic-gradient(from 210deg, #fff1f2 0deg, #fb7185 50deg, #881337 105deg, #fecdd3 165deg, #e11d48 225deg, #ffe4e6 285deg, #9f1239 330deg, #fff1f2 360deg)";
-const ROSE_CHANNEL = "linear-gradient(135deg, #9f1239, #4c0519 50%, #9f1239)";
-const GLOW_ROSE_GOLD = "0 6px 22px rgba(225,29,72,.42), 0 0 0 1px rgba(190,18,60,.3)";
+/* ── پالت متال نقره‌ای (۵۰۰۰+ ستاره) ──
+   نقرهٔ کلاسیک: سفید سرد → نقره روشن → خاکستری فولادی.
+   #f8fafc → #cbd5e1 → #94a3b8 → #64748b و تکرار. */
+const SILVER_METAL =
+  "conic-gradient(from 210deg, #ffffff 0deg, #d8dee6 50deg, #6b7684 105deg, #eef2f6 165deg, #aab4c0 225deg, #f8fafc 285deg, #59626e 330deg, #ffffff 360deg)";
+const SILVER_CHANNEL = "linear-gradient(135deg, #64748b, #3f4a57 50%, #64748b)";
+const GLOW_SILVER = "0 6px 22px rgba(100,116,139,.38), 0 0 0 1px rgba(71,85,105,.3)";
 
 /* ═══════════════════════════════════════════
-   GoldCheckMark — تیک طلایی چهره برتر
-   جایگزین تاج (درخواست کارفرما)؛ متال با ریم
-   تیره و درخشش گوشه.
+   EliteCheckMark — تیک قاب چهره برتر
+   متال با ریم تیره و درخشش گوشه؛ tint نقره یا طلایی.
    ═══════════════════════════════════════════ */
-export function GoldCheckMark({
+export function EliteCheckMark({
   size = 16,
+  tint = "gold",
   className,
 }: {
   size?: number;
+  tint?: "gold" | "silver";
   className?: string;
 }) {
   const uid = React.useId();
+  const gold = tint === "gold";
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
       role="img"
-      aria-label="چهره برتر"
-      className={cn("shrink-0 drop-shadow-[0_1px_2px_rgba(146,97,14,.45)]", className)}
+      aria-label={gold ? "چهره برتر طلایی" : "چهره برتر نقره‌ای"}
+      className={cn(
+        "shrink-0",
+        gold ? "drop-shadow-[0_1px_2px_rgba(146,97,14,.45)]" : "drop-shadow-[0_1px_2px_rgba(71,85,105,.4)]",
+        className
+      )}
     >
       <defs>
-        <linearGradient id={`gcm${uid}`} x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#fef3c7" />
-          <stop offset=".45" stopColor="#f5c84c" />
-          <stop offset="1" stopColor="#b45309" />
+        <linearGradient id={`ecm${uid}`} x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+          {gold ? (
+            <>
+              <stop offset="0" stopColor="#fef3c7" />
+              <stop offset=".45" stopColor="#f5c84c" />
+              <stop offset="1" stopColor="#b45309" />
+            </>
+          ) : (
+            <>
+              <stop offset="0" stopColor="#f8fafc" />
+              <stop offset=".45" stopColor="#cbd5e1" />
+              <stop offset="1" stopColor="#475569" />
+            </>
+          )}
         </linearGradient>
       </defs>
-      <circle cx="12" cy="12" r="11" fill={`url(#gcm${uid})`} />
-      <circle cx="12" cy="12" r="8.9" fill="none" stroke="rgba(124,45,10,.5)" strokeWidth="1.2" />
+      <circle cx="12" cy="12" r="11" fill={`url(#ecm${uid})`} />
+      <circle
+        cx="12" cy="12" r="8.9" fill="none"
+        stroke={gold ? "rgba(124,45,10,.5)" : "rgba(51,65,85,.5)"}
+        strokeWidth="1.2"
+      />
       <path
         d="M7.6 12.4l2.9 2.9 5.9-6.4"
         stroke="#fff"
@@ -64,60 +83,30 @@ export function GoldCheckMark({
         strokeLinejoin="round"
         fill="none"
       />
-      <path d="M6.2 7.2q1.8-1.6 4-1.9" stroke="rgba(255,255,255,.75)" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+      <path
+        d="M6.2 7.2q1.8-1.6 4-1.9"
+        stroke="rgba(255,255,255,.75)"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        fill="none"
+      />
     </svg>
   );
 }
 
-/* ═══════════════════════════════════════════
-   RoseGoldCheckMark — تیک رزگلد (۱۰۰۰۰+ ستاره)
-   نسخهٔ کمیاب‌تر و لاکچری‌تر از تیک طلایی؛
-   پالت رزگلد: #f43f5e → #fb7185 → #fda4af → #e11d48.
-   ═══════════════════════════════════════════ */
-export function RoseGoldCheckMark({
-  size = 16,
-  className,
-}: {
-  size?: number;
-  className?: string;
-}) {
-  const uid = React.useId();
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      role="img"
-      aria-label="چهره برتر رزگلد"
-      className={cn("shrink-0 drop-shadow-[0_1px_2px_rgba(159,18,57,.45)]", className)}
-    >
-      <defs>
-        <linearGradient id={`rgcm${uid}`} x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#fff1f2" />
-          <stop offset=".45" stopColor="#fb7185" />
-          <stop offset="1" stopColor="#be123c" />
-        </linearGradient>
-      </defs>
-      <circle cx="12" cy="12" r="11" fill={`url(#rgcm${uid})`} />
-      <circle cx="12" cy="12" r="8.9" fill="none" stroke="rgba(136,19,55,.5)" strokeWidth="1.2" />
-      <path
-        d="M7.6 12.4l2.9 2.9 5.9-6.4"
-        stroke="#fff"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      <path d="M6.2 7.2q1.8-1.6 4-1.9" stroke="rgba(255,255,255,.78)" strokeWidth="1.6" strokeLinecap="round" fill="none" />
-    </svg>
-  );
-}
+/** سازگاری با کدهای قدیمی — تیک طلایی */
+export const GoldCheckMark = (props: Omit<Parameters<typeof EliteCheckMark>[0], "tint">) => (
+  <EliteCheckMark tint="gold" {...props} />
+);
+/** تیک نقره‌ای */
+export const SilverCheckMark = (props: Omit<Parameters<typeof EliteCheckMark>[0], "tint">) => (
+  <EliteCheckMark tint="silver" {...props} />
+);
 
 /* ═══════════════════════════════════════════
    EliteAvatar — آواتار با قاب چندلایهٔ متال
-   (بورت رفرنس: بِوِل متال + کانال تیره +
-   نقطه‌های پرچی + حلقه داخلی + درخشش چرخان)
-   variant="gold" (۵۰۰۰+ ستاره) یا "rosegold" (۱۰۰۰۰+).
+   variant="silver" (۵۰۰۰+ ستاره) یا "gold" (۱۰۰۰۰+).
+   square=true → قاب مربعی (چهره‌یاب‌ها — سبک لینکدین کمپانی).
    ═══════════════════════════════════════════ */
 export function EliteAvatar({
   name,
@@ -126,30 +115,34 @@ export function EliteAvatar({
   className,
   onClick,
   variant = "gold",
+  square = false,
 }: {
   name: string;
   src?: string | null;
-  /** قطر کامل قاب بر حسب پیکسل */
+  /** قطر/ضلع کامل قاب بر حسب پیکسل */
   box?: number;
   className?: string;
   onClick?: () => void;
-  /** نوع متال قاب — رزگلد کمیاب‌تر و لاکچری‌تر است */
-  variant?: "gold" | "rosegold";
+  /** نوع متال قاب — طلایی کمیاب‌تر (۱۰۰۰۰) و نقره‌ای (۵۰۰۰) */
+  variant?: "gold" | "silver";
+  /** قاب مربعی برای چهره‌یاب‌ها (سبک کمپانی‌های لینکدین) */
+  square?: boolean;
 }) {
   const [broken, setBroken] = React.useState(false);
   const showImg = src && !broken;
   const initial = (name || "؟").trim().replace(/\u200c/g, " ").charAt(0) || "؟";
   const Tag = (onClick ? "button" : "span") as "button" | "span";
+  const radius = square ? "rounded-[22%]" : "rounded-full";
 
-  const rose = variant === "rosegold";
-  const metal = rose ? ROSE_METAL : GOLD_METAL;
-  const channel = rose ? ROSE_CHANNEL : GOLD_CHANNEL;
-  const glow = rose ? GLOW_ROSE_GOLD : GLOW_GOLD;
-  const dotColor = rose ? "#fecdd3" : "#fde68a";
-  const innerRing = rose ? "rgba(254,205,211,.85)" : "rgba(253,230,138,.85)";
-  const fallbackBg = rose
-    ? "linear-gradient(135deg, #e11d48, #650f22 55%, #be123c)"
-    : "linear-gradient(135deg, #92610e, #5c3a08 55%, #b45309)";
+  const gold = variant === "gold";
+  const metal = gold ? GOLD_METAL : SILVER_METAL;
+  const channel = gold ? GOLD_CHANNEL : SILVER_CHANNEL;
+  const glow = gold ? GLOW_GOLD : GLOW_SILVER;
+  const dotColor = gold ? "#fde68a" : "#e2e8f0";
+  const innerRing = gold ? "rgba(253,230,138,.85)" : "rgba(226,232,240,.9)";
+  const fallbackBg = gold
+    ? "linear-gradient(135deg, #92610e, #5c3a08 55%, #b45309)"
+    : "linear-gradient(135deg, #64748b, #334155 55%, #94a3b8)";
 
   return (
     <span
@@ -160,34 +153,24 @@ export function EliteAvatar({
         onClick={onClick}
         aria-label={onClick ? `پروفایل ${name}` : undefined}
         className={cn(
-          "block h-full w-full rounded-full outline-none",
+          "block h-full w-full outline-none",
+          radius,
           onClick && "cursor-pointer active:scale-95 transition-transform"
         )}
         style={{ boxShadow: glow }}
       >
         {/* ۱ — حلقه متال بیولی */}
-        <span className="absolute inset-0 rounded-full" style={{ background: metal }} />
+        <span className={cn("absolute inset-0", radius)} style={{ background: metal }} />
         <span
-          className="absolute inset-0 rounded-full"
+          className={cn("absolute inset-0", radius)}
           style={{
             background:
               "linear-gradient(135deg, rgba(255,255,255,.38), transparent 45%, rgba(0,0,0,.22))",
           }}
         />
-        {/* ۲ — درخشش چرخان (فقط transform) */}
-        <span
-          aria-hidden
-          className="absolute inset-0 rounded-full animate-elite-spin pointer-events-none"
-          style={{
-            background:
-              "conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,.95) 16deg, transparent 52deg, transparent 178deg, rgba(255,251,215,.4) 196deg, transparent 232deg)",
-            WebkitMaskImage: "radial-gradient(closest-side circle, transparent 80%, #000 86%)",
-            maskImage: "radial-gradient(closest-side circle, transparent 80%, #000 86%)",
-          }}
-        />
-        {/* ۳ — کانال تیره */}
-        <span className="absolute rounded-full" style={{ inset: "7%", background: channel }} />
-        {/* ۴ — نقطه‌های پرچی روی کانال */}
+        {/* ۲ — کانال تیره */}
+        <span className={cn("absolute", radius)} style={{ inset: "7%", background: channel }} />
+        {/* ۳ — نقطه‌های پرچی روی کانال */}
         <svg aria-hidden viewBox="0 0 100 100" className="absolute inset-0 pointer-events-none">
           <circle
             cx="50" cy="50" r="40.8" fill="none"
@@ -195,14 +178,14 @@ export function EliteAvatar({
             strokeDasharray="0.1 5.5" opacity=".75"
           />
         </svg>
-        {/* ۵ — حلقه داخلی روشن */}
+        {/* ۴ — حلقه داخلی روشن */}
         <span
-          className="absolute rounded-full"
+          className={cn("absolute", radius)}
           style={{ inset: "11.5%", boxShadow: `inset 0 0 0 1.4px ${innerRing}` }}
         />
-        {/* ۶ — چهره */}
+        {/* ۵ — چهره */}
         <span
-          className="absolute rounded-full overflow-hidden grid place-items-center"
+          className={cn("absolute overflow-hidden grid place-items-center", radius)}
           style={{ inset: "13.5%" }}
         >
           {showImg ? (
@@ -228,17 +211,13 @@ export function EliteAvatar({
   );
 }
 
-/* ═══════════════════════════════════════════
-   RoseGoldAvatar — قاب رزگلد (۱۰۰۰۰+ ستاره)
-   همان هندسهٔ EliteAvatar با متال رزِ گرم؛
-   درخشش نرم‌تر + پرچ‌های صورتی — کمیاب‌ترین سطح.
-   ═══════════════════════════════════════════ */
-export function RoseGoldAvatar(props: Omit<Parameters<typeof EliteAvatar>[0], "variant">) {
-  return <EliteAvatar {...props} variant="rosegold" />;
+/** قاب نقره‌ای (۵۰۰۰+ ستاره) */
+export function SilverAvatar(props: Omit<Parameters<typeof EliteAvatar>[0], "variant">) {
+  return <EliteAvatar {...props} variant="silver" />;
 }
 
 /* ═══════════════════════════════════════════
-   Laurel — برگ غار طلایی (نشان پیروزی کلاسیک)
+   Laurel — برگ غار (نشان پیروزی کلاسیک)
    تولید رویه‌ای برگ‌ها روی منحنی بزیه.
    ═══════════════════════════════════════════ */
 export function Laurel({
@@ -249,12 +228,12 @@ export function Laurel({
 }: {
   size?: number;
   flip?: boolean;
-  /** رنگ برگ‌ها — gold یا rose (رزگلد) */
-  tint?: "gold" | "rose";
+  /** رنگ برگ‌ها — gold یا silver */
+  tint?: "gold" | "silver";
   className?: string;
 }) {
   const uid = React.useId();
-  const rose = tint === "rose";
+  const gold = tint === "gold";
   const P0 = { x: 5, y: 43 };
   const P1 = { x: 11, y: 12 };
   const P2 = { x: 43, y: 5 };
@@ -286,24 +265,24 @@ export function Laurel({
     >
       <defs>
         <linearGradient id={`lf${uid}`} x1="0" y1="0" x2="8" y2="0" gradientUnits="userSpaceOnUse">
-          {rose ? (
-            <>
-              <stop offset="0" stopColor="#be123c" />
-              <stop offset=".55" stopColor="#fb7185" />
-              <stop offset="1" stopColor="#fff1f2" />
-            </>
-          ) : (
+          {gold ? (
             <>
               <stop offset="0" stopColor="#b45309" />
               <stop offset=".55" stopColor="#f5c84c" />
               <stop offset="1" stopColor="#fef3c7" />
+            </>
+          ) : (
+            <>
+              <stop offset="0" stopColor="#475569" />
+              <stop offset=".55" stopColor="#cbd5e1" />
+              <stop offset="1" stopColor="#f8fafc" />
             </>
           )}
         </linearGradient>
       </defs>
       <path
         d={`M${P0.x} ${P0.y} Q ${P1.x} ${P1.y} ${P2.x} ${P2.y}`}
-        fill="none" stroke={rose ? "#e11d48" : "#d97706"} strokeWidth="1.1" strokeLinecap="round" opacity=".8"
+        fill="none" stroke={gold ? "#d97706" : "#94a3b8"} strokeWidth="1.1" strokeLinecap="round" opacity=".8"
       />
       {leaves}
     </svg>
@@ -312,10 +291,10 @@ export function Laurel({
 
 /* ═══════════════════════════════════════════
    TopTalentBanner — بنر چهره برتر پروفایل
-   gold (۵۰۰۰ ستاره) / rosegold (۱۰۰۰۰ ستاره)
+   silver (۵۰۰۰ ستاره) / gold (۱۰۰۰۰ ستاره)
    ═══════════════════════════════════════════ */
-export function TopTalentBanner({ className, variant = "gold" }: { className?: string; variant?: "gold" | "rosegold" }) {
-  const rose = variant === "rosegold";
+export function TopTalentBanner({ className, variant = "gold" }: { className?: string; variant?: "gold" | "silver" }) {
+  const gold = variant === "gold";
   return (
     <div
       className={cn(
@@ -323,14 +302,14 @@ export function TopTalentBanner({ className, variant = "gold" }: { className?: s
         className
       )}
       style={
-        rose
+        gold
           ? {
-              background: "linear-gradient(120deg, #3b0a1c 0%, #26060f 45%, #33101f 100%)",
-              boxShadow: "inset 0 0 0 1px rgba(251,113,133,.4), 0 8px 24px rgba(190,18,60,.3)",
-            }
-          : {
               background: "linear-gradient(120deg, #2a1a04 0%, #171005 45%, #241604 100%)",
               boxShadow: "inset 0 0 0 1px rgba(245,200,76,.35), 0 8px 24px rgba(146,97,14,.28)",
+            }
+          : {
+              background: "linear-gradient(120deg, #1e293b 0%, #0f172a 45%, #1a2433 100%)",
+              boxShadow: "inset 0 0 0 1px rgba(203,213,225,.35), 0 8px 24px rgba(51,65,85,.28)",
             }
       }
     >
@@ -339,37 +318,44 @@ export function TopTalentBanner({ className, variant = "gold" }: { className?: s
         aria-hidden
         className="absolute inset-0 opacity-[0.16]"
         style={{
-          backgroundImage: `radial-gradient(${rose ? "rgba(251,113,133,.85)" : "rgba(245,200,76,.8)"} 1px, transparent 1px)`,
+          backgroundImage: `radial-gradient(${gold ? "rgba(245,200,76,.8)" : "rgba(203,213,225,.8)"} 1px, transparent 1px)`,
           backgroundSize: "14px 14px",
         }}
       />
-      <Laurel size={34} tint={rose ? "rose" : "gold"} />
-      {rose ? <RoseGoldCheckMark size={22} /> : <GoldCheckMark size={22} />}
+      <Laurel size={34} tint={gold ? "gold" : "silver"} />
+      <EliteCheckMark size={22} tint={gold ? "gold" : "silver"} />
       <div className="relative z-10 text-center leading-tight">
-        <p className={rose ? "text-[15px] font-black" : "text-gold-grad text-[15px] font-black"}
-           style={rose ? { background: "linear-gradient(135deg,#fff1f2 5%,#fb7185 32%,#be123c 66%,#fecdd3 100%)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" } : undefined}>
-          {rose ? "چهره برتر رزگلد" : "چهره برتر"}
+        <p
+          className={gold ? "text-gold-grad text-[15px] font-black" : "text-[15px] font-black"}
+          style={
+            gold
+              ? undefined
+              : {
+                  background: "linear-gradient(135deg,#f8fafc 5%,#cbd5e1 32%,#475569 66%,#e2e8f0 100%)",
+                  WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
+                }
+          }
+        >
+          {gold ? "چهره برتر طلایی" : "چهره برتر نقره‌ای"}
         </p>
-        <p className={cn("text-[9.5px] font-bold mt-0.5", rose ? "text-rose-200/60" : "text-amber-200/60")}>
-          {rose ? "۱۰۰۰۰+ ستاره — کمیاب‌ترین سطح فرصتینو" : "۵۰۰۰+ ستاره — منتخب جامعهٔ فرصتینو"}
+        <p className={cn("text-[9.5px] font-bold mt-0.5", gold ? "text-amber-200/60" : "text-slate-300/60")}>
+          {gold ? "۱۰۰۰۰+ ستاره — کمیاب‌ترین سطح فرصتینو" : "۵۰۰۰+ ستاره — منتخب جامعهٔ فرصتینو"}
         </p>
       </div>
-      <Laurel size={34} flip tint={rose ? "rose" : "gold"} />
+      <Laurel size={34} flip tint={gold ? "gold" : "silver"} />
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════
-   GoldSparkle — ستارهٔ چشمک‌زن تزئینی
+   GoldSparkle — ستارهٔ تزئینی (ایستا)
    ═══════════════════════════════════════════ */
 export function GoldSparkle({
   size = 14,
-  delay = 0,
   className,
   style,
 }: {
   size?: number;
-  delay?: number;
   className?: string;
   style?: React.CSSProperties;
 }) {
@@ -377,8 +363,8 @@ export function GoldSparkle({
     <svg
       aria-hidden
       width={size} height={size} viewBox="0 0 24 24"
-      className={cn("absolute pointer-events-none animate-elite-twinkle", className)}
-      style={{ ...style, animationDelay: `${delay}s` }}
+      className={cn("absolute pointer-events-none", className)}
+      style={style}
     >
       <path
         d="M12 0c.9 6.2 4.9 10.2 12 12-7.1 1.8-11.1 5.8-12 12-.9-6.2-4.9-10.2-12-12C7.1 10.2 11.1 6.2 12 0z"

@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { LogoFull } from "@/components/shared/illustrations";
 import { Icon } from "@/components/shared/icon";
 import { BannerSlider } from "@/components/shared/banner-slider";
-import { GoldCheckMark, Laurel, GoldSparkle } from "@/components/ui/elite";
+import { EliteCheckMark, Laurel, GoldSparkle } from "@/components/ui/elite";
 import { toFa } from "@/lib/format";
 import type { CategoryWithSkills } from "@/lib/types";
 
@@ -37,61 +37,59 @@ export function LandingView() {
 
   return (
     <div className="relative">
-      {/* ══════ HERO — کلاسیک، تمیز، سریع (بدون بلور/انیمیشن سنگین) ══════ */}
+      {/* ══════ HERO — کلاسیک، روشن، خنثی (بدون پس‌زمینهٔ آبی) ══════ */}
       <section className="relative -mx-4 md:-mx-8 px-4 md:px-8">
-        <div className="relative min-h-[78vh] md:min-h-[70vh] flex flex-col rounded-b-[28px] overflow-hidden"
-             style={{ background: "linear-gradient(165deg, #162a4b 0%, #101835 55%, #0d1426 100%)" }}>
-          {/* هالهٔ نور ایستا — بدون انیمیشن */}
+        <div className="relative min-h-[74vh] md:min-h-[64vh] flex flex-col rounded-b-[28px] overflow-hidden border-b border-border"
+             style={{ background: "linear-gradient(180deg, #fafbfc 0%, #f1f5f9 100%)" }}>
+          {/* بافت نقطه‌ای ظریف خنثی */}
           <div
             aria-hidden
-            className="absolute -top-24 -right-16 w-[380px] h-[380px] rounded-full pointer-events-none"
-            style={{ background: "radial-gradient(circle, rgba(61,124,190,.4) 0%, transparent 70%)", opacity: .6 }}
-          />
-          <div
-            aria-hidden
-            className="absolute -bottom-28 -left-16 w-[320px] h-[320px] rounded-full pointer-events-none"
-            style={{ background: "radial-gradient(circle, rgba(164,232,109,.22) 0%, transparent 70%)" }}
+            className="absolute inset-0 opacity-[0.5] pointer-events-none"
+            style={{
+              backgroundImage: "radial-gradient(rgba(15,23,42,.06) 1px, transparent 1px)",
+              backgroundSize: "22px 22px",
+            }}
           />
 
           {/* Content overlay */}
-          <div className="relative min-h-[78vh] md:min-h-[70vh] flex flex-col">
+          <div className="relative min-h-[74vh] md:min-h-[64vh] flex flex-col">
             {/* Top — wordmark بزرگ‌تر */}
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
               className="pt-5 md:pt-8 flex items-center gap-2.5"
             >
               <LogoFull h={48} />
             </motion.div>
 
-          {/* Center — big dramatic headline */}
+          {/* Center — big classic headline */}
           <div className="flex-1 flex flex-col justify-center py-12">
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.08 }}
-              className="text-sm md:text-base font-bold text-secondary tracking-widest mb-4 md:mb-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="text-sm md:text-base font-bold text-primary tracking-widest mb-4 md:mb-6"
             >
               ✦ شبکه‌ی کشف استعداد ✦
             </motion.p>
             <motion.h1
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
-              className="text-[42px] md:text-7xl font-black leading-[1.08] tracking-tight text-white"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.05 }}
+              className="text-[40px] md:text-6xl font-black leading-[1.12] tracking-tight text-foreground"
             >
               استعدادت
               <br />
-              <span className="text-secondary">رو به دنیا</span>
+              رو به دنیا
               <br />
               <span className="text-gold">نشون بده.</span>
             </motion.h1>
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="mt-6 md:mt-8 text-base md:text-lg text-slate-300 leading-8 max-w-xl"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.12 }}
+              className="mt-6 md:mt-8 text-base md:text-lg text-muted-foreground leading-8 max-w-xl"
             >
               پلتفرم کشف و نمایش استعداد — هنر، ورزش، آشپزی و مهارت‌های خلاقانه.
               پروفایل بساز، کارهات رو منتشر کن و با استعدادهای دیگر آشنا شو.
@@ -99,36 +97,36 @@ export function LandingView() {
 
             {/* CTA buttons */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.42 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.35, delay: 0.18 }}
               className="mt-8 md:mt-10 flex flex-wrap gap-3"
             >
               <motion.button
-                whileTap={{ scale: 0.96 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => navigate({ view: "auth" })}
-                className="inline-flex items-center gap-2 h-12 md:h-14 px-6 md:px-8 rounded-2xl text-white font-extrabold text-base hover:opacity-95 transition-opacity"
-                style={{ background: "linear-gradient(135deg,#1268bb,#0f569e 60%,#0d4680)", boxShadow: "0 8px 24px rgba(15,86,158,.45)" }}
+                className="inline-flex items-center gap-2 h-12 md:h-13 px-6 md:px-8 rounded-xl text-white font-extrabold text-base hover:opacity-95 transition-opacity"
+                style={{ background: "linear-gradient(135deg,#1268bb,#0f569e 60%,#0d4680)", boxShadow: "0 6px 18px rgba(15,86,158,.3)" }}
               >
                 شروع کنید
                 <Icon name="arrowLeft" size={18} strokeWidth={2.6} className="text-white" />
               </motion.button>
               <motion.button
-                whileTap={{ scale: 0.96 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => navigate({ view: "discover" })}
-                className="inline-flex items-center gap-2 h-12 md:h-14 px-6 md:px-8 rounded-2xl bg-white text-foreground font-bold text-base hover:bg-slate-50 transition-colors"
+                className="inline-flex items-center gap-2 h-12 md:h-13 px-6 md:px-8 rounded-xl bg-card border border-border text-foreground font-bold text-base hover:bg-muted transition-colors"
               >
                 <Icon name="compass" size={18} strokeWidth={2.4} className="text-primary" />
                 کشف استعدادها
               </motion.button>
               {/* CTA طلایی — سیستم ستارهٔ چهره برتر */}
               <motion.button
-                whileTap={{ scale: 0.96 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => navigate({ view: "explore" })}
-                className="inline-flex items-center gap-2 h-12 md:h-14 px-6 md:px-7 rounded-2xl text-white font-extrabold text-base hover:opacity-95 transition-opacity"
-                style={{ background: "linear-gradient(135deg,#f59e0b,#d97706 60%,#b45309)", boxShadow: "0 8px 24px rgba(217,119,6,.4)" }}
+                className="inline-flex items-center gap-2 h-12 md:h-13 px-6 md:px-7 rounded-xl text-white font-extrabold text-base hover:opacity-95 transition-opacity"
+                style={{ background: "linear-gradient(135deg,#f59e0b,#d97706 60%,#b45309)", boxShadow: "0 6px 18px rgba(217,119,6,.35)" }}
               >
-                <GoldCheckMark size={20} />
+                <EliteCheckMark size={20} tint="gold" />
                 چهره‌های برتر
               </motion.button>
             </motion.div>
@@ -138,13 +136,13 @@ export function LandingView() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.55 }}
+            transition={{ duration: 0.4, delay: 0.25 }}
             className="pb-6 md:pb-10 flex flex-wrap items-end gap-x-8 gap-y-3"
           >
             <HeroStat value="۱۰۰٪" label="رایگان" tone="primary" />
-            <div className="hidden md:block w-px h-12 bg-white/20" />
-            <HeroStat value="بی‌نهایت" label="مهارت" tone="gold" />
-            <div className="hidden md:block w-px h-12 bg-white/20" />
+            <div className="hidden md:block w-px h-12 bg-border" />
+            <HeroStat value="بی‌نهایت" label="مهارت" tone="silver" />
+            <div className="hidden md:block w-px h-12 bg-border" />
             <HeroStat value="لحظه‌ای" label="چت" tone="rose" />
           </motion.div>
         </div>
@@ -184,7 +182,7 @@ export function LandingView() {
                 <button
                   key={c.id}
                   onClick={() => navigate({ view: "category", id: c.id })}
-                  className="group aspect-square rounded-3xl glass border border-border/60
+                  className="group aspect-square rounded-2xl bg-card border border-border
                              flex flex-col items-center justify-center gap-1.5 px-1.5 text-center
                              hover:border-primary/45 hover:shadow-soft transition-[border-color,box-shadow] duration-200"
                   style={{ ["--cat-tint" as string]: tint }}
@@ -223,7 +221,7 @@ export function LandingView() {
           icon="compass"
           title="کشف بر اساس مهارت"
           desc="فیلترهای زنجیره‌ای: دسته ← مهارت، استان ← شهر."
-          tone="gold"
+          tone="silver"
         />
         <FeatureBlock
           icon="chat"
@@ -280,10 +278,10 @@ export function LandingView() {
       {/* ══════ Final CTA — minimal ══════ */}
       <section className="py-10 md:py-16">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="relative overflow-hidden rounded-3xl glass border border-border/60 p-8 md:p-12 text-center"
+          className="relative overflow-hidden rounded-2xl bg-card border border-border p-8 md:p-12 text-center"
         >
           <div className="relative space-y-4">
             <div className="flex justify-center">
@@ -335,18 +333,18 @@ function HeroStat({
 }: {
   value: string;
   label: string;
-  tone: "primary" | "gold" | "rose";
+  tone: "primary" | "silver" | "rose";
 }) {
-  /* هیرو تیره است — رنگ‌های روشن مخصوص پس‌زمینهٔ سرمه‌ای */
+  /* هیرو روشن است — رنگ‌های کلاسیک */
   const colorClass = {
-    primary: "text-[#7db6ea]",
+    primary: "text-primary",
     gold: "text-gold",
-    rose: "text-[#fb7185]",
+    rose: "text-rose-600",
   }[tone];
   return (
     <div className="flex flex-col">
       <span className={`text-2xl md:text-3xl font-black tabular-nums ${colorClass}`}>{value}</span>
-      <span className="text-xs text-slate-400 font-medium mt-0.5">{label}</span>
+      <span className="text-xs text-muted-foreground font-medium mt-0.5">{label}</span>
     </div>
   );
 }
@@ -361,7 +359,7 @@ function FeatureBlock({
   icon: string;
   title: string;
   desc: string;
-  tone: "primary" | "gold" | "rose";
+  tone: "primary" | "silver" | "rose";
 }) {
   const tint = {
     primary: "bg-primary/12 text-primary",
@@ -370,12 +368,11 @@ function FeatureBlock({
   }[tone];
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
-      whileHover={{ y: -3 }}
-      className="p-6 md:p-7 rounded-3xl glass border border-border/60"
+      className="p-6 md:p-7 rounded-2xl bg-card border border-border"
     >
       <span className={`grid place-items-center w-12 h-12 rounded-2xl mb-4 ${tint}`}>
         <Icon name={icon} size={22} strokeWidth={2.2} />
@@ -386,12 +383,12 @@ function FeatureBlock({
   );
 }
 
-// ─── Star System Section — چهره برتر (۵۰۰۰ طلایی / ۱۰۰۰۰ رزگلد) ─────────
+// ─── Star System Section — چهره برتر (۵۰۰۰ نقره‌ای / ۱۰۰۰۰ طلایی) ─────────
 /* ─── پنل طلایی سیستم ستاره — CTA به صفحهٔ چهره برتر (#/explore) ───────── */
 function StarSystemSection() {
   return (
     <motion.section
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
@@ -406,10 +403,10 @@ function StarSystemSection() {
         }}
       >
         {/* ستاره‌های چشمک‌زن */}
-        <GoldSparkle size={12} delay={0.2} style={{ top: "16%", left: "18%" }} />
-        <GoldSparkle size={9} delay={1.1} style={{ top: "60%", left: "7%" }} />
-        <GoldSparkle size={13} delay={0.6} style={{ top: "12%", right: "24%" }} />
-        <GoldSparkle size={8} delay={1.7} style={{ bottom: "22%", right: "10%" }} />
+        <GoldSparkle size={12} style={{ top: "16%", left: "18%" }} />
+        <GoldSparkle size={9} style={{ top: "60%", left: "7%" }} />
+        <GoldSparkle size={13} style={{ top: "12%", right: "24%" }} />
+        <GoldSparkle size={8} style={{ bottom: "22%", right: "10%" }} />
 
         {/* غارها دو طرف */}
         <span aria-hidden className="absolute -top-3 -right-3 opacity-90 pointer-events-none">
@@ -423,11 +420,11 @@ function StarSystemSection() {
           <span
             className="mx-auto grid place-items-center size-16 rounded-full"
             style={{
-              background: "linear-gradient(135deg,#fef3c7,#f5c84c 45%,#b45309)",
-              boxShadow: "0 8px 28px rgba(217,119,6,.45), inset 0 2px 8px rgba(255,255,255,.5)",
+              background: "linear-gradient(135deg,#f8fafc,#cbd5e1 45%,#64748b)",
+              boxShadow: "0 8px 28px rgba(100,116,139,.45), inset 0 2px 8px rgba(255,255,255,.5)",
             }}
           >
-            <GoldCheckMark size={30} />
+            <EliteCheckMark size={30} tint="gold" />
           </span>
           <h2 className="text-2xl md:text-4xl font-black tracking-tight leading-[1.15] text-gold-grad">
             ستاره بگیر،
@@ -435,28 +432,25 @@ function StarSystemSection() {
             چهره برتر شو.
           </h2>
           <p className="text-sm md:text-base text-amber-100/70 leading-7 max-w-xl mx-auto">
-            هر پست توسط کاربران ۱ تا ۱۰ ستاره می‌گیرد. با ۵۰۰۰ ستاره یا ۵۰۰ رأی قاب طلایی می‌گیری و می‌توانی هفته‌ای یک پست دلخواه را
-            به صفحهٔ چهره برتر بفرستی؛ با ۱۰۰۰۰ ستاره قاب کمیاب رزگلد از آنِ تو می‌شود.
+            هر پست توسط کاربران ۱ تا ۱۰ ستاره می‌گیرد. با ۵۰۰۰ ستاره یا ۵۰۰ رأی قاب نقره‌ای می‌گیری و می‌توانی هفته‌ای یک پست دلخواه را
+            به صفحهٔ چهره برتر بفرستی؛ با ۱۰۰۰۰ ستاره قاب کمیاب طلایی از آنِ تو می‌شود.
           </p>
 
           {/* دو سطح قاب */}
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <span
               className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-[12px] font-black"
-              style={{ background: "linear-gradient(135deg,#fef3c7,#f5c84c 45%,#e08a00)", color: "#3a2405" }}
+              style={{ background: "linear-gradient(135deg,#f8fafc,#cbd5e1 45%,#94a3b8)", color: "#283445" }}
             >
-              <GoldCheckMark size={15} />
-              ۵۰۰۰ ستاره یا ۵۰۰ رأی → قاب طلایی
+              <EliteCheckMark size={15} tint="silver" />
+              ۵۰۰۰ ستاره یا ۵۰۰ رأی → قاب نقره‌ای
             </span>
             <span
-              className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-[12px] font-black shadow-[0_6px_18px_rgba(225,29,72,.25)]"
-              style={{ background: "linear-gradient(135deg,#ffe4e6,#fb7185 45%,#be123c)", color: "#4c0519" }}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-full text-[12px] font-black shadow-[0_6px_18px_rgba(217,119,6,.25)]"
+              style={{ background: "linear-gradient(135deg,#fef3c7,#f5c84c 45%,#e08a00)", color: "#3a2405" }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M7.6 12.4l2.9 2.9 5.9-6.4" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                <circle cx="12" cy="12" r="11" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="1.5" />
-              </svg>
-              ۱۰۰۰۰ ستاره → قاب رزگلد
+              <EliteCheckMark size={15} tint="gold" />
+              ۱۰۰۰۰ ستاره → قاب طلایی
             </span>
           </div>
 
@@ -466,7 +460,7 @@ function StarSystemSection() {
             className="inline-flex items-center gap-2.5 h-12 md:h-13 px-8 rounded-2xl text-white font-extrabold text-base shadow-glow-gold hover:opacity-95 transition-opacity"
             style={{ background: "linear-gradient(135deg,#f59e0b,#d97706 60%,#b45309)" }}
           >
-            <GoldCheckMark size={22} />
+            <EliteCheckMark size={22} tint="gold" />
             مشاهده چهره برتر
             <Icon name="arrowLeft" size={17} strokeWidth={2.6} className="text-white" />
           </motion.button>
@@ -494,7 +488,7 @@ function ScoutSection() {
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
@@ -502,7 +496,7 @@ function ScoutSection() {
       id="chehreyab"
     >
       <div
-        className="relative overflow-hidden rounded-3xl glass border border-emerald-600/25 p-7 md:p-10"
+        className="relative overflow-hidden rounded-2xl bg-card border border-emerald-600/25 p-7 md:p-10"
         style={{ boxShadow: "0 10px 30px rgba(16,185,129,0.12)" }}
       >
         <div className="relative space-y-5 text-center">

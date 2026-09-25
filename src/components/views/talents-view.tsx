@@ -275,11 +275,11 @@ export function TalentCardLarge({
               <span
                 className="inline-flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-black nums-fa shrink-0"
                 style={
-                  talent.frame === "rosegold"
-                    ? { background: "linear-gradient(135deg,#ffe4e6,#fb7185 45%,#be123c)", color: "#4c0519" }
-                    : { background: "linear-gradient(135deg,#fef3c7,#f5c84c 45%,#e08a00)", color: "#3a2405" }
+                  talent.frame === "gold"
+                    ? { background: "linear-gradient(135deg,#fef3c7,#f5c84c 45%,#e08a00)", color: "#3a2405" }
+                    : { background: "linear-gradient(135deg,#f8fafc,#cbd5e1 45%,#94a3b8)", color: "#283445" }
                 }
-                title={talent.frame === "rosegold" ? "چهره برتر رزگلد" : "چهره برتر طلایی"}
+                title={talent.frame === "gold" ? "چهره برتر طلایی" : "چهره برتر نقره‌ای"}
               >
                 <Icon name="star" className="w-3 h-3" />
                 {formatCount(talent.totalStars ?? 0)}

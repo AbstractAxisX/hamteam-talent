@@ -77,22 +77,22 @@ export function NeedsView() {
   }, [load]);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* ═══ Hero header ═══ */}
+    <div className="space-y-4 max-w-5xl mx-auto">
+      {/* ═══ Hero header — کلاسیک ═══ */}
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-3xl glass border border-border/50 p-6 shadow-float"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        className="rounded-2xl border border-border bg-card p-4"
       >
-        <div className="relative flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div className="grid place-items-center w-16 h-16 rounded-3xl bg-primary text-primary-foreground shadow-glow shrink-0">
-              <Icon name="briefcase" className="w-7 h-7" />
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3.5">
+            <div className="grid place-items-center w-14 h-14 rounded-2xl bg-primary text-primary-foreground shrink-0">
+              <Icon name="briefcase" className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight leading-none">نیازمندی‌ها</h1>
-              <p className="text-sm text-muted-foreground mt-2 leading-6">
+              <h1 className="text-2xl font-black tracking-tight leading-none">نیازمندی‌ها</h1>
+              <p className="text-[13px] text-muted-foreground mt-1.5 leading-5">
                 همکاری، تیم‌سازی و فرصت‌های شغلی
               </p>
             </div>
@@ -100,7 +100,7 @@ export function NeedsView() {
           {user ? (
             <Button
               onClick={() => navigate({ view: "create-need" })}
-              className="gap-1.5 rounded-2xl h-11 font-bold shadow-glow"
+              className="gap-1.5 rounded-2xl h-11 font-bold"
             >
               <Icon name="plus" className="w-4 h-4" />
               <span>ثبت نیازمندی</span>
@@ -109,7 +109,7 @@ export function NeedsView() {
             <Button
               onClick={() => navigate({ view: "auth" })}
               variant="outline"
-              className="gap-1.5 rounded-2xl h-11 font-bold glass border-border/50"
+              className="gap-1.5 rounded-2xl h-11 font-bold"
             >
               <Icon name="plus" className="w-4 h-4" />
               <span>ثبت نیازمندی</span>
@@ -122,7 +122,7 @@ export function NeedsView() {
       {loading ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {[...Array(6)].map((_, i) => (
-            <Card key={i} className="p-5 space-y-3 border-border/50 rounded-3xl glass">
+            <Card key={i} className="p-4 gap-3 rounded-2xl">
               <Skeleton className="h-5 w-3/4 rounded" />
               <Skeleton className="h-12 w-full rounded" />
               <div className="flex items-center gap-2">
@@ -160,8 +160,8 @@ export function NeedsView() {
       ) : (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {needs.map((need, i) => (
-              <NeedCard key={need.id} need={need} index={i} />
+            {needs.map((need) => (
+              <NeedCard key={need.id} need={need} />
             ))}
           </div>
           <p className="text-xs text-muted-foreground text-center pt-2 nums-fa">
@@ -186,13 +186,7 @@ export function NeedsView() {
   );
 }
 
-function NeedCard({
-  need,
-  index = 0,
-}: {
-  need: NeedListItem;
-  index?: number;
-}) {
+function NeedCard({ need }: { need: NeedListItem }) {
   const locationLabel = need.city
     ? `${need.city}${need.province ? `، ${getProvinceName(need.province)}` : ""}`
     : need.province
@@ -203,18 +197,13 @@ function NeedCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.4,
-        delay: Math.min(index * 0.05, 0.3),
-        ease: [0.16, 1, 0.3, 1],
-      }}
-      whileHover={{ y: -2 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15 }}
     >
       <Card
         onClick={() => navigate({ view: "need", id: need.id })}
-        className="glass p-5 border-border/50 hover:border-primary/40 hover:shadow-lift transition-all duration-300 cursor-pointer group rounded-3xl h-full flex flex-col"
+        className="p-4 gap-0 border-border hover:border-primary/40 transition-colors cursor-pointer group rounded-2xl h-full flex flex-col"
       >
         {/* Title + status */}
         <div className="flex items-start justify-between gap-2 mb-2">
@@ -287,6 +276,7 @@ function NeedCard({
               gender={need.user.gender}
               frame={need.user.frame}
               size="sm"
+              square={!!need.user.isScout}
             />
             <span className="text-xs font-semibold truncate max-w-[100px]">
               {need.user.name}

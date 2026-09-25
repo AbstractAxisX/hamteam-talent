@@ -2,8 +2,8 @@
 
 /* ════════════════════════════════════════════════════════════════════
    ExploreView — «چهره برتر»
-   ویترین پست‌های منتخبِ کاربران دارای قاب (۵۰۰۰+ ستاره = طلایی،
-   ۱۰۰۰۰+ = رزگلد) + پست‌هایی که ادمین انتخاب کرده است.
+   ویترین پست‌های منتخبِ کاربران دارای قاب (۵۰۰۰+ ستاره = نقره‌ای،
+   ۱۰۰۰۰+ = طلایی) + پست‌هایی که ادمین انتخاب کرده است.
    Supports image / video / audio / document media, swipeable carousels,
    full-screen lightbox, star ratings 1..10, and nested multi-level
    comments in a bottom sheet.
@@ -29,7 +29,7 @@ import { toFa, formatCount, timeAgoFa, formatFaDate } from "@/lib/format";
 import { RatingModal, RatingSummary } from "@/components/shared/rating-control";
 import { FeatureButton } from "@/components/shared/feature-button";
 import { LikersSheet, commentLikersFetcher } from "@/components/shared/likers-sheet";
-import { GoldCheckMark, GoldSparkle, Laurel, RoseGoldCheckMark } from "@/components/ui/elite";
+import { EliteCheckMark, GoldSparkle, Laurel } from "@/components/ui/elite";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { CategoryWithSkills } from "@/lib/types";
@@ -92,7 +92,7 @@ type Comment = {
     gender: string | null;
     isScout?: boolean;
     isTopTalent: boolean;
-    frame?: "gold" | "rosegold" | null;
+    frame?: "silver" | "gold" | null;
   };
   likeCount: number;
   myReaction: "like" | "dislike" | null;
@@ -275,15 +275,15 @@ export function ExploreView() {
     setSkillId("");
   }
 
-  /* آمار ویترین — تعداد پست‌های منتخب + نویسندگان دارای قاب (طلایی/رزگلد) */
+  /* آمار ویترین — تعداد پست‌های منتخب + نویسندگان دارای قاب (نقره‌ای/طلایی) */
   const eliteStats = useMemo(() => {
     const framed = new Set(posts.filter((p) => p.user.frame).map((p) => p.user.id));
-    const rosegold = new Set(posts.filter((p) => p.user.frame === "rosegold").map((p) => p.user.id));
+    const goldFramed = new Set(posts.filter((p) => p.user.frame === "gold").map((p) => p.user.id));
     const totalStars = posts.reduce((s, p) => s + (p.user.totalStars || 0), 0);
     const avg = posts.length
       ? posts.reduce((s, p) => s + (p.ratingAvg || 0), 0) / posts.length
       : 0;
-    return { featured: posts.length, framed: framed.size, rosegold: rosegold.size, totalStars, avg };
+    return { featured: posts.length, framed: framed.size, goldFramed: goldFramed.size, totalStars, avg };
   }, [posts]);
 
   return (
@@ -314,10 +314,10 @@ export function ExploreView() {
         </motion.div>
 
         {/* ستاره‌های چشمک‌زن */}
-        <GoldSparkle size={13} delay={0} style={{ top: "14%", left: "18%" }} />
-        <GoldSparkle size={9} delay={0.9} style={{ top: "64%", left: "8%" }} />
-        <GoldSparkle size={11} delay={1.7} style={{ top: "22%", right: "22%" }} />
-        <GoldSparkle size={8} delay={0.4} style={{ bottom: "18%", right: "12%" }} />
+        <GoldSparkle size={13} style={{ top: "14%", left: "18%" }} />
+        <GoldSparkle size={9} style={{ top: "64%", left: "8%" }} />
+        <GoldSparkle size={11} style={{ top: "22%", right: "22%" }} />
+        <GoldSparkle size={8} style={{ bottom: "18%", right: "12%" }} />
 
         {/* نور طلایی بالا */}
 
@@ -335,7 +335,7 @@ export function ExploreView() {
             }}
           >
             <span className="-rotate-45 drop-shadow-[0_1px_2px_rgba(120,53,15,.6)]">
-              <GoldCheckMark size={34} />
+              <EliteCheckMark size={34} tint="gold" />
             </span>
           </motion.div>
 
@@ -344,7 +344,7 @@ export function ExploreView() {
               چهره برتر
             </h1>
             <p className="text-[12.5px] text-amber-100/90 mt-1.5 leading-6">
-              چهره‌های برتر با ۵۰۰۰+ ستاره یا ۵۰۰+ رأی — هفته‌ای یک پست منتخب
+              چهره‌های برتر با ۵۰۰۰+ ستاره یا ۵۰۰+ رأی (نقره‌ای) و ۱۰۰۰۰+ (طلایی) — هفته‌ای یک پست منتخب
             </p>
           </div>
 
@@ -360,13 +360,13 @@ export function ExploreView() {
               <Icon name="users" size={12} />
               {toFa(eliteStats.framed)} چهره دارای قاب
             </span>
-            {eliteStats.rosegold > 0 && (
+            {eliteStats.goldFramed > 0 && (
               <span
                 className="h-7 px-3 rounded-full border text-[10.5px] font-black inline-flex items-center gap-1.5"
-                style={{ background: "rgba(225,29,72,.14)", borderColor: "rgba(251,113,133,.3)", color: "#fda4af" }}
+                style={{ background: "rgba(217,119,6,.14)", borderColor: "rgba(245,200,76,.3)", color: "#fde68a" }}
               >
-                <RoseGoldCheckMark size={12} />
-                {toFa(eliteStats.rosegold)} رزگلد
+                <EliteCheckMark size={12} tint="gold" />
+                {toFa(eliteStats.goldFramed)} طلایی
               </span>
             )}
             <span className="h-7 px-3 rounded-full bg-amber-500/12 border border-amber-400/25 text-amber-200/90
@@ -554,7 +554,8 @@ function PostCard({
   const catColor = post.categoryColor || "oklch(0.55 0.13 160)";
   // رنگ فرد — دستهٔ اصلی کاربر؛ رینگ آواتار و نوار بالای کارت هم‌رنگ می‌شوند
   const ringColor = post.user.mainCategoryColor || catColor;
-  const roseFrame = post.user.frame === "rosegold";
+  const goldFrame = post.user.frame === "gold";
+  const silverFrame = post.user.frame === "silver";
 
   const [expanded, setExpanded] = useState(false);
   // امتیازدهی ۱..۱۰ (لایک حذف شد — سیستم ستاره)
@@ -620,10 +621,10 @@ function PostCard({
       }}
       className={cn(
         "relative bg-card rounded-[24px] overflow-hidden shadow-card border",
-        roseFrame
-          ? "border-rose-500/40 shadow-[0_10px_32px_rgba(225,29,72,.15)]"
-          : post.user.isTopTalent
-          ? "border-amber-500/35 shadow-[0_10px_32px_rgba(217,119,6,.14)]"
+        goldFrame
+          ? "border-amber-500/40 shadow-[0_10px_32px_rgba(217,119,6,.15)]"
+          : silverFrame
+          ? "border-slate-400/40 shadow-[0_10px_32px_rgba(100,116,139,.14)]"
           : "border-border/50"
       )}
     >
@@ -631,32 +632,32 @@ function PostCard({
       <div
         className="absolute top-0 inset-x-0 h-[3px] z-10"
         style={{
-          background: roseFrame
-            ? "linear-gradient(90deg, transparent, #be123c, #fb7185, #ffe4e6, #fb7185, #be123c, transparent)"
-            : post.user.isTopTalent
+          background: goldFrame
             ? "linear-gradient(90deg, transparent, #b45309, #f5c84c, #fef3c7, #f5c84c, #b45309, transparent)"
+            : silverFrame
+            ? "linear-gradient(90deg, transparent, #475569, #cbd5e1, #f8fafc, #cbd5e1, #475569, transparent)"
             : `linear-gradient(90deg, transparent, ${ringColor}, transparent)`,
           opacity: 0.75,
         }}
       />
 
-      {/* نشان «برتر» کارت — قاب طلایی/رزگلدِ نویسنده */}
+      {/* نشان «برتر» کارت — قاب نقره‌ای/طلاییِ نویسنده */}
       {post.user.isTopTalent && (
         <span
           className={cn(
             "absolute z-20 top-3 left-3 h-6 px-2.5 rounded-full text-[10px] font-black",
-            roseFrame ? "text-[#4c0519]" : "text-[#3a2405]"
+            goldFrame ? "text-[#3a2405]" : "text-[#283445]"
           )}
           style={
-            roseFrame
-              ? { background: "linear-gradient(135deg, #ffe4e6, #fb7185 45%, #be123c)" }
-              : { background: "linear-gradient(135deg, #fef3c7, #f5c84c 45%, #e08a00)" }
+            goldFrame
+              ? { background: "linear-gradient(135deg, #fef3c7, #f5c84c 45%, #e08a00)" }
+              : { background: "linear-gradient(135deg, #f8fafc, #cbd5e1 45%, #94a3b8)" }
           }
         >
           <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="inline">
             <path d="M12 0c.9 6.2 4.9 10.2 12 12-7.1 1.8-11.1 5.8-12 12-.9-6.2-4.9-10.2-12-12C7.1 10.2 11.1 6.2 12 0z" />
           </svg>
-          {roseFrame ? "چهره برتر رزگلد" : "برتر"}
+          {goldFrame ? "چهره برتر طلایی" : "چهره برتر نقره‌ای"}
         </span>
       )}
 
@@ -693,10 +694,10 @@ function PostCard({
                 className="text-gold fill-gold/15 shrink-0"
               />
             )}
-            {roseFrame ? (
-              <RoseGoldCheckMark size={16} />
-            ) : post.user.isTopTalent ? (
-              <GoldCheckMark size={16} />
+            {goldFrame ? (
+              <EliteCheckMark size={16} tint="gold" />
+            ) : silverFrame ? (
+              <EliteCheckMark size={16} tint="silver" />
             ) : null}
           </div>
           <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
@@ -2094,7 +2095,11 @@ function CommentNode({
               >
                 {comment.user.name}
               </button>
-              {comment.user.isTopTalent && <GoldCheckMark size={13} />}
+              {comment.user.frame === "gold" ? (
+                <EliteCheckMark size={13} tint="gold" />
+              ) : comment.user.frame === "silver" ? (
+                <EliteCheckMark size={13} tint="silver" />
+              ) : null}
               <span className="text-[10.5px] text-muted-foreground mr-auto">
                 {timeAgoFa(comment.createdAt)}
               </span>
@@ -2534,10 +2539,10 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
               {post.user.isVerifiedBadge && !post.user.isTopTalent && (
                 <Icon name="badgeCheck" size={15} className="text-gold fill-gold/15" />
               )}
-              {post.user.frame === "rosegold" ? (
-                <RoseGoldCheckMark size={16} />
-              ) : post.user.isTopTalent ? (
-                <GoldCheckMark size={16} />
+              {post.user.frame === "gold" ? (
+                <EliteCheckMark size={16} tint="gold" />
+              ) : post.user.frame === "silver" ? (
+                <EliteCheckMark size={16} tint="silver" />
               ) : null}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">

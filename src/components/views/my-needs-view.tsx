@@ -44,15 +44,15 @@ export function MyNeedsView() {
 
   if (!userLoading && !user) {
     return (
-      <div className="max-w-2xl mx-auto space-y-5">
+      <div className="max-w-2xl mx-auto space-y-4">
         <BackButton label="بازگشت" />
         <Header />
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.18 }}
         >
-          <Card className="glass p-8 text-center space-y-3 shadow-card rounded-3xl border-border/50">
+          <Card className="p-6 gap-3 text-center rounded-2xl">
             <div className="grid place-items-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mx-auto">
               <Icon name="lock" className="w-6 h-6" />
             </div>
@@ -77,7 +77,7 @@ export function MyNeedsView() {
   const defaultTab = postedCount > 0 || appliedCount === 0 ? "posted" : "applied";
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
+    <div className="max-w-4xl mx-auto space-y-4">
       <BackButton label="بازگشت" />
       <Header
         postedCount={loading ? null : postedCount}
@@ -85,7 +85,7 @@ export function MyNeedsView() {
       />
 
       <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className="w-full h-12 rounded-2xl glass border border-border/50 p-1">
+        <TabsList className="w-full h-12 rounded-2xl bg-muted border border-border p-1">
           <TabsTrigger
             value="posted"
             className="gap-1.5 flex-1 rounded-xl font-bold text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-soft"
@@ -130,8 +130,8 @@ export function MyNeedsView() {
             />
           ) : (
             <div className="space-y-3">
-              {data.posted.map((need, i) => (
-                <PostedNeedCard key={need.id} need={need} index={i} />
+              {data.posted.map((need) => (
+                <PostedNeedCard key={need.id} need={need} />
               ))}
             </div>
           )}
@@ -155,8 +155,8 @@ export function MyNeedsView() {
             />
           ) : (
             <div className="space-y-3">
-              {data.applied.map((a, i) => (
-                <AppliedNeedCard key={a.id} need={a.need} message={a.message} appliedAt={a.createdAt} index={i} />
+              {data.applied.map((a) => (
+                <AppliedNeedCard key={a.id} need={a.need} message={a.message} appliedAt={a.createdAt} />
               ))}
             </div>
           )}
@@ -175,28 +175,28 @@ function Header({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="relative overflow-hidden rounded-3xl glass border border-border/50 p-6 shadow-float"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+      className="rounded-2xl border border-border bg-card p-4"
     >
-      <div className="relative flex items-center gap-4">
-        <div className="grid place-items-center w-16 h-16 rounded-3xl bg-primary text-primary-foreground shadow-glow shrink-0">
-          <Icon name="briefcase" className="w-7 h-7" />
+      <div className="flex items-center gap-3.5">
+        <div className="grid place-items-center w-14 h-14 rounded-2xl bg-primary text-primary-foreground shrink-0">
+          <Icon name="briefcase" className="w-6 h-6" />
         </div>
         <div>
-          <h1 className="text-3xl font-black tracking-tight leading-none">نیازمندی‌های من</h1>
-          <p className="text-sm text-muted-foreground mt-2 leading-6">مدیریت نیازمندی‌های ارسالی و درخواست‌های شما</p>
+          <h1 className="text-2xl font-black tracking-tight leading-none">نیازمندی‌های من</h1>
+          <p className="text-[13px] text-muted-foreground mt-1.5 leading-5">مدیریت نیازمندی‌های ارسالی و درخواست‌های شما</p>
         </div>
       </div>
 
       {(postedCount !== undefined || appliedCount !== undefined) && (
         <div className="grid grid-cols-2 gap-2 mt-4">
-          <Card className="glass-strong p-3 rounded-2xl border-border/50 flex flex-col items-center text-center">
+          <Card className="p-3 gap-1 rounded-2xl flex flex-col items-center text-center">
             <span className="text-2xl font-black text-primary nums-fa">{toFa(postedCount ?? 0)}</span>
             <span className="text-[11px] text-muted-foreground mt-0.5">ارسالی</span>
           </Card>
-          <Card className="glass-strong p-3 rounded-2xl border-border/50 flex flex-col items-center text-center">
+          <Card className="p-3 gap-1 rounded-2xl flex flex-col items-center text-center">
             <span className="text-2xl font-black text-gold nums-fa">{toFa(appliedCount ?? 0)}</span>
             <span className="text-[11px] text-muted-foreground mt-0.5">درخواست ثبت‌شده</span>
           </Card>
@@ -206,17 +206,17 @@ function Header({
   );
 }
 
-function PostedNeedCard({ need, index }: { need: NeedListItem; index: number }) {
+function PostedNeedCard({ need }: { need: NeedListItem }) {
   const isClosed = need.status === "closed";
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3), ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15 }}
     >
       <Card
         onClick={() => navigate({ view: "need", id: need.id })}
-        className="glass p-5 border-border/50 hover:border-primary/40 hover:shadow-lift transition-all cursor-pointer group rounded-3xl"
+        className="p-4 gap-0 border-border hover:border-primary/40 transition-colors cursor-pointer group rounded-2xl"
       >
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="font-bold text-[15px] leading-7 line-clamp-2 group-hover:text-primary transition-colors flex-1">
@@ -265,22 +265,20 @@ function AppliedNeedCard({
   need,
   message,
   appliedAt,
-  index,
 }: {
   need: NeedListItem;
   message: string;
   appliedAt: string;
-  index: number;
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3), ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15 }}
     >
       <Card
         onClick={() => navigate({ view: "need", id: need.id })}
-        className="glass p-5 border-border/50 hover:border-primary/40 hover:shadow-lift transition-all cursor-pointer group rounded-3xl"
+        className="p-4 gap-0 border-border hover:border-primary/40 transition-colors cursor-pointer group rounded-2xl"
       >
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="font-bold text-[15px] leading-7 line-clamp-2 group-hover:text-primary transition-colors flex-1">
@@ -297,7 +295,7 @@ function AppliedNeedCard({
           {need.description}
         </p>
         {message && (
-          <div className="rounded-xl bg-background/40 border border-border/50 p-2.5 mb-3">
+          <div className="rounded-xl bg-muted/40 border border-border p-2.5 mb-3">
             <p className="text-[10px] font-bold text-muted-foreground mb-0.5">پیام شما</p>
             <p className="text-[12px] text-foreground/90 leading-5 line-clamp-2">{message}</p>
           </div>
@@ -310,7 +308,15 @@ function AppliedNeedCard({
             }}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
-            <UserAvatar name={need.user.name} avatarUrl={need.user.avatarUrl} verified={need.user.isVerifiedBadge} size="sm" />
+            <UserAvatar
+              name={need.user.name}
+              avatarUrl={need.user.avatarUrl}
+              verified={need.user.isVerifiedBadge}
+              gender={need.user.gender}
+              frame={need.user.frame}
+              size="sm"
+              square={!!need.user.isScout}
+            />
             <span className="text-xs font-semibold truncate max-w-[100px]">{need.user.name}</span>
           </button>
           <span className="text-xs text-muted-foreground inline-flex items-center gap-1 nums-fa">
@@ -327,7 +333,7 @@ function ListSkeleton() {
   return (
     <div className="space-y-3">
       {[...Array(4)].map((_, i) => (
-        <Card key={i} className="glass p-5 border-border/50 rounded-3xl space-y-3">
+        <Card key={i} className="p-4 gap-3 rounded-2xl">
           <Skeleton className="h-5 w-3/4 rounded" />
           <Skeleton className="h-12 w-full rounded" />
           <div className="flex items-center gap-2 pt-3 border-t border-border/40">

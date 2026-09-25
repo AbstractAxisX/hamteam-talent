@@ -47,6 +47,7 @@ export async function GET() {
       id: n.user.id,
       name: n.user.name,
       isVerifiedBadge: n.user.isVerifiedBadge,
+      isScout: n.user.isScout,
       avatarUrl: n.user.profile?.avatarUrl ?? null,
     },
   }));
@@ -89,6 +90,7 @@ export async function GET() {
         id: need.user.id,
         name: need.user.name,
         isVerifiedBadge: need.user.isVerifiedBadge,
+        isScout: need.user.isScout,
         avatarUrl: need.user.profile?.avatarUrl ?? null,
       },
     };

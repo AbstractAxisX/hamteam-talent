@@ -431,3 +431,186 @@ Work Log:
 
 Stage Summary:
 - تولید کاملاً همگام با آخرین کلاسیک/رزگلد/ادمین؛ چت‌گیت‌وی سالم.
+
+---
+Task ID: CORE-1
+Agent: Z.ai Code (maintainer)
+Task: تعویض سیستم قاب (۵۰۰۰=نقره‌ای، ۱۰۰۰۰=طلایی) + بک‌اند جایگاه‌ها + seed مجدد
+
+Work Log:
+- re-seed کامل: seed-full + seed-featured + seed-social + seed-stars + seed-scouts (۷۴ کاربر، ۱۳+ پست، ۲ اسکات، رأی/ویترین)
+- src/lib/stars.ts: FrameLevel = "silver"|"gold"|null؛ AdminEliteLevel = "none"|"silver"|"gold"؛ SILVER_THRESHOLD=5000/GOLD_THRESHOLD=10000 + SILVER/GOLD_VOTES (500/1000)؛ UserStarInfo += nextFrame؛ frameFor جدید
+- src/components/ui/elite.tsx: بازنویسی کامل — EliteCheckMark (tint gold|silver)، EliteAvatar (variant gold|silver + square برای چهره‌یاب)، Laurel (tint)، TopTalentBanner (silver/gold)، حذف کامل RoseGold* و انیمیشن بی‌نهایت (elite-spin حذف؛ GoldSparkle ایستا)
+- src/components/shared/user-avatar.tsx: frame logic جدید + prop square (rounded-[22%] برای چهره‌یاب‌ها؛ EliteAvatar square)
+- user-avatar: EliteAvatar variant مستقیم از frame
+- API: admin/users/[id] + admin/elite-requests: level silver|gold + متن فارسی؛ scout/dashboard: thresholds {silver, gold, silverVotes, goldVotes}
+- NEW src/lib/rankings.ts: myRank(userId) (overall/category/skill — فقط اعضا: غیر اسکات/غیر بن) + leaderboard({categoryId?, skillId?, limit}) برای چهره‌یاب
+- NEW /api/scout/talents (GET: جست‌وجوی استعداد با فیلتر دسته/مهارت/q + جایگاه؛ POST: لیست دسته‌ها/مهارت‌ها)
+- /api/feed/home: stats += votes/nextFrame + rank (overall/category/skill)
+- views: chat/connections/talents/scout/explore/home/landing/admin — تعویض مکانیکی "gold"→"silver"/"rosegold"→"gold" + متن‌ها + گرادیان‌ها (رز→خاکستری نقره) + حذف delay از GoldSparkle
+- explore-view: GoldCheckMark/RoseGoldCheckMark → EliteCheckMark tint؛ chips «رزگلد»→«طلایی»؛ کارت border amber=طلایی/slate=نقره
+- admin-view: منو «چهره برتر نقره‌ای (۵۰۰۰)»/«چهره برتر طلایی (۱۰۰۰۰)»؛ EliteRequests دکمه‌های silver/gold + بج slate/amber
+- scout-view: میانگین ویترین «x/۱۰» → «x از ۱۰»
+- DB: eliteLevel مهاجرت (همه none بود — بدون تغییر)
+
+Stage Summary:
+- سیستم قاب جدید سراسری: ۵۰۰۰=نقره‌ای (پالت slate سرد)، ۱۰۰۰۰=طلایی (پالت amber) — همه APIها + views همگام
+- EliteAvatar/EliteCheckMark پارامتریک (tint/variant/square) — چهره‌یاب‌ها مربعی از این component
+- بک‌اند جایگاه (rank) + جست‌وجوی استعداد چهره‌یاب آماده — feed/home و /api/scout/talents
+- ادامه: بازنویسی home-view/profile-view/scout-view/app-shell/auth (subagentها)
+
+---
+Task ID: FE-HOME
+Agent: Z.ai Code (subagent — views)
+Task: بازنویسی کلاسیک home-view.tsx — خوش‌آمد بدون تاریخ، آکاردئون تکمیل پروفایل، پنل «چهره برتر شو» با سیستم قاب جدید (نقره‌ای/طلایی) + جایگاه‌ها، کارت چهره‌یاب، کلاسیک‌سازی کامل
+
+Work Log:
+- فایل read کامل + مطالعه worklog (CORE-1) + elite.tsx (EliteCheckMark tint) + stars.ts (nextAt/nextFrame) + rankings.ts (myRank) + api/feed/home/route.ts (قرارداد داده) + icon.tsx (chevronDown/loader موجود)
+- خوش‌آمد: حذف formatFaDate (فقط کلمهٔ خوش‌آمد به‌عنوان لیبل primary کوچک)؛ آواتار lg + نام با line-clamp-2 break-words (بدون ellipsis)؛ MiniStatها (ارتباط/پست) به ردیف جدا grid-cols-2 با جداکننده + border-t داخل همان کارت bg-card border-border rounded-2xl p-4
+- تکمیل پروفایل → آکاردئون (تسک ۱۰): هدر دکمه‌ای (eyebrow + «پروفایلت X٪ کامله» + دایرهٔ ۴۰px + chevronDown با rotate-180 transition)؛ بدنه با AnimatePresence height+opacity (۰.۲s)؛ نوار پیشرفت bg-primary + گام‌های ناقص (حداکثر ۶، bg-muted/40 border-border/50)؛ localStorage با کلید home-completion-collapsed ("1"=بسته، پیش‌فرض باز)؛ ۱۰۰٪ کامل یا چهره‌یاب → مخفی
+- پنل «چهره برتر شو» (تسک ۱۱) فقط اعضا: بک‌گراند تیرهٔ رسمی مطابق هدف بعدی (بدون قاب → سلیت #1e293b→#0f172a؛ نقره‌ای/طلایی → طلایی تیره #2a1a04)؛ EliteCheckMark tint=myFrame??"silver" + خط قوانین «۵۰۰۰ ستاره یا ۵۰۰ رأی → قاب نقره‌ای · ۱۰۰۰۰ ستاره → قاب طلایی»؛ هدف از stats.nextAt (fallback ۱۰۰۰۰/۵۰۰۰) با faSep (۵٬۰۰۰)؛ نوار: نقره linear-gradient(90deg,#475569,#cbd5e1,#f8fafc) / طلایی (#b45309,#f5c84c,#fef3c7)؛ کاربر طلایی → badge «بالاترین سطح — طلایی ✓» + متن «در بالاترین سطح چهره برتری»؛ NEW ردیف جایگاه (فقط عدد، واژهٔ «جایگاه»): چیپ‌های h-8 rounded-lg bg-white/5 border-white/10 — کل/دسته/مهارت با toFa؛ دکمهٔ «مشاهده چهره برتر» h-11 rounded-xl گرادیان طلایی؛ مسیر جایگزین: چیپ pending خنثی / چیپ approved با grad-gold+EliteCheckMark(14,gold) / دکمهٔ درخواست؛ حذف کامل GoldSparkle و RoseGold*/GoldCheckMark و ROSE_GOLD/GOLD_THRESHOLD محلی
+- چهره‌یاب: پنل ستاره + چک‌لیست + مودال elite رندر نمی‌شوند (فچ elite-status هم skip) → کارت جمع‌وجور emerald (border-emerald-600/20 bg-emerald-600/5) «داشبورد چهره‌یاب» + دکمهٔ ورود به scout + «ثبت نیازمندی» → create-need
+- کلاسیک‌سازی: glass→bg-card+border-border همه‌جا؛ rounded-[22-26px]→rounded-2xl؛ space-y-5→space-y-4؛ هدر سکشن‌ها mb-2.5؛ SuggestionCard کلاسیک فقط fade (بدون stagger)؛ دکمه‌ها bg-primary به‌جای grad-brand؛ اسکلتون فید rounded-2xl
+- بارگذاری: اسپینر جمع‌وجور (Icon loader animate-spin) برای ناحیهٔ بالا؛ فید اسکلتون خود را نگه داشت
+- EliteRequestDialog: متن‌ها به قاب نقره‌ای/طلایی («با تأیید ادمین، قاب نقره‌ای/طلایی بدون نیاز به آستانهٔ ستاره فعال می‌شود.»)؛ دکمهٔ گرادیان طلایی ۱۳۵deg
+- انیمیشن‌ها فقط opacity ≤0.25s (پیشرفت نوارها width مجاز)؛ whileTap→active:scale CSS
+
+Stage Summary:
+- tsc --noEmit: صفر خطا در home-view؛ eslint: ۰ خطا/۰ هشدار؛ dev.log بدون خطای جدید home-view (۵۰۰ فعلی فقط از profile-view.tsx عامل دیگر — import RoseGoldCheckMark حذف‌شده)
+- قرارداد API: GET /api/feed/home → {posts, suggestions, stats(+votes,nextAt,nextFrame), rank{overall,category,skill}} و GET /api/elite/request → {isTopTalent, frame, request} مطابق سرور استفاده شد؛ nextFrame سرور برای کاربر بدون قاب "gold" برمی‌گرداند (ناسازگار با nextAt=۵۰۰۰) → تینت پنل از myFrame مشتق شد (exactly مطابق «هدف بعدی»)؛ ستارهٔ ادمینی طلایی با ستارهٔ کم → starPct/remaining گارد myFrame==="gold"
+- home-view کاملاً همگام با سیستم قاب جدید ۵۰۰۰=نقره‌ای/۱۰۰۰۰=طلایی؛ آماده برای اتصال profile-view/scout-view بقیهٔ عامل‌ها
+
+---
+Task ID: FE-SHELL
+Agent: Z.ai Code (subagent — shell)
+Task: بازطراحی کلاسیک app-shell — هدر چسبان بدون جبران padding + شیشه ظریف + قاب/عکس در آیکون پروفایل هدر + تبار کلاسیک + رفع فلیکر تغییر مسیر + توست کلاسیک
+
+Work Log:
+- مطالعه worklog (CORE-1/FE-HOME/AUDIT-1) + app-shell.tsx کامل + user-avatar.tsx (frame/square) + types.ts (SafeUser: frame/isScout/profile) + icon.tsx + toast/toaster + globals.css (pb-safe/grad-brand/tw-animate-css) + layout.tsx (dir=rtl).
+- فیکس بنیادین هدر دسکتاپ: `fixed top-0 inset-x-0` → `sticky top-0` (در جریان سند، `hidden md:flex` ماند) و حذف کامل `md:pt-[4.75rem]` از div محتوای اصلی (الان فقط `pt-1`) — محتوا دیگر هرگز زیر هدر نمی‌رود چون هدر فضای واقعی layout اشغال می‌کند؛ روت‌rapper `min-h-screen flex flex-col` با هدرها قبل از main تأیید شد.
+- شیشه ظریف هر دو هدر (h-16): `bg-card/85 backdrop-blur-md supports-[backdrop-filter]:bg-card/75 border-b border-border` — متن کاملاً خوانا (المان کوچک، بلور مجاز). لوگو h=40 موبایل / 38 دسکتاپ ماند.
+- آیکون پروفایل هدر: UserAvatar با `frame={user.frame ?? undefined}` + `square={!!user.isScout}` (چهره‌یاب‌ها مربعی همه‌جا) + عکس/verified — موبایل، دسکتاپ و کارت کاربر شیتِ «بیشتر». typing درست شد: `user: any` → `SafeUser | null` در هر ۳ کامپوننت (import type از lib/types).
+- تبار پایین کلاسیک: h-14 + pb-safe (touch ≥44px)، نشانگر `w-8 h-[3px] rounded-full bg-primary` وسطِ تب فعال (`left-1/2 -translate-x-1/2`)، آیکون 22px با strokeWidth فعال 2.4، لیبل 10px، فقط transition-colors CSS — بدون spring/motion روی اندیکاتور؛ شیت «بیشتر» spring → tween easeOut 0.2s.
+- رفع فلیکر تغییر مسیر: حذف کامل `AnimatePresence mode="wait"` (عامل گپ خالی = محو → سوار شدن → پرش)؛ الان فقط `motion.div key={routeKey}` با fade-in 0.18s بدون exit — محتوای جدید بلافاصله در همان commit سوار می‌شود؛ اسکرول به بالا (mainRef + window smooth) دست‌نخورده ماند. فیلترتب‌های داخل ویوها routeKey را عوض نمی‌کنند → بدون پرش.
+- پاکسازی انیمیشن‌های نقض‌کننده زبان طراحی در فایل‌های خودم: layoutId/spring پیلِ ناو دسکتاپ → state کلاسیک solid `bg-primary text-primary-foreground shadow-sm`؛ منوی بیشتر دسکتاپ spring → fade 0.15s + کارت solid (glass-strong حذف)؛ دکمه بازگشت whileTap → CSS active:scale-90؛ FAB چت: ظاهر دست‌نخورده (44px/سفید/آیکون آبی/بج z-40) ولی ورود spring+delay → tween 0.18s.
+- توست کلاسیک (toast.tsx + toaster.tsx): viewport موبایل `bottom-[calc(env(safe-area-inset-bottom)+76px)] left-1/2 -translate-x-1/2 w-[min(92vw,400px)]` (بالای تبار h-14) · دسکتاپ `md:bottom-4 md:right-4 md:w-[400px]`؛ توست: rounded-xl + border-border + bg-card solid + shadow-md + p-3.5 + gap-2 (RTL-safe)؛ ورود `fade-in-0 slide-in-from-bottom-2` (150ms) و خروج `fade-out-80` — حذف slide-in-from-top-full/slide-out-to-right-full؛ عنوان 13px bold، توضیح 12px muted؛ کلوز به left-1 (انتهای خوانش RTL) 14px؛ اکشن rounded-lg 12px. API (`toast({title,description,variant})` + default/destructive) و hooks/use-toast.ts کاملاً دست‌نخورده.
+- تأیید وجود همه کلاس‌ها در tw-animate-css (fade-in-*/fade-out-*/slide-in-from-bottom-*/animate-in با duration پیش‌فرض 150ms).
+
+Stage Summary:
+- tsc --noEmit (فیلتر app-shell|toast): خالی — تنها خطای src مربوط به profile-view.tsx است (ایمپورت RoseGoldCheckMark حذف‌شده — فایل عامل دیگر، طبق worklog FE-HOME هم شناخته شده). eslint روی ۳ فایل: ۰ خطا/۰ هشدار (exit 0). dev.log بدون خطای جدید برای فایل‌های من.
+- هدر موبایل+دسکتاپ: sticky در جریان سند + شیشه ظریف، صفر جبران padding؛ آیکون پروفایل با قاب نقره‌ای/طلایی + عکس + مربعی چهره‌یاب.
+- تبار کلاسیک h-14 با اندیکاتور 3px مرکز؛ تغییر مسیر بدون فلیکر/پرش؛ توست پایین وسط موبایل / پایین راست دسکتاپ با fade+rise ظریف.
+
+---
+Task ID: FE-AUTH
+Agent: Z.ai Code (subagent — auth/onboarding)
+Task: ورود/ثبت‌نام فقط با شماره + گام اجباریِ نام پس از ثبت‌نام + چک‌لیست تکمیل پروفایل (بازنویسی auth-view، بازطراحی onboarding-view، API جدید PUT /api/auth/profile)
+
+Work Log:
+- مطالعه کامل: worklog + هر ۴ روت auth (register/verify/me/logout) + lib/auth.ts (stageAuth روی globalThis) + PUT /api/profile/me (فقط فیلدهای Profile — User.name را آپدیت نمی‌کند → روت جدید لازم شد) + schema.prisma (User.name رشتهٔ غیرنال) + nav/format/icon/illustrations/app-shell + نحوهٔ خواندن params.section در edit-profile (photos/gender/location/categories/main-category/experience) و CompletionStepهای home-view (قواعد done یکسان‌سازی شد)
+- یافتهٔ کلیدی: register برای کاربر جدید name≥2 الزامی است → ثبت‌نام فقط-با-شماره با «جای‌نگهدار = خود شماره» (name=phone)؛ پاسخ register شامل mode:"login"|"register" (سیگنال ثبت‌نام تازه)؛ تشخیص بی‌نام در کلاینت: mode==="register" یا name خالی یا name===phone
+- NEW src/app/api/auth/profile/route.ts — PUT {name}: getCurrentUser → trim/slice(40) → اعتباری ۲..۴۰ → db.user.update فقط name (سطر Profile/کش دست‌نخورده) → {ok,name}؛ 401 بدون لاگین، 400 نام نامعتبر
+- auth-view.tsx بازنویسی کامل (mobile-first max-w-sm، کارت bg-card/border-border/rounded-2xl، فقط fade ≤0.25s با opacity، لوگو LogoFull h=44، grad-brand فقط روی CTA):
+  · گام ۱ «ادامه»: فقط شماره (dir=ltr، inputMode=numeric، نرمال‌سازی ارقام فارسی/عربی با toEnDigits محلی، حداکثر ۱۱ رقم)؛ حذف فیلد نام و سوییچ عضویت — scoutMode فقط از #/auth?mode=scout
+  · گام ۲ «تأیید»: InputOTP چهاررقمی h-12 + چیپ «کد نمایشی: ۱۲۳۴» (dev، از res.otp با fallback) + «ویرایش شماره»
+  · گام ۳ «شروع» (فقط کاربر جدید): «اسمت چیه؟» (۲..۴۰ نویسه) → PUT /api/auth/profile → fetchUser → onboarding (scout → scout-apply)
+  · پس از verify: نیازمند نام؟ گام ۳؛ وگرنه toast «خوش اومدی!» + feed (رفتار قبلی: mode=scout → scout-apply — حفظ شد)
+  · ورود خودکارِ لاگین‌شده در مونت: اسپینر «در حال ورود…» → feed/scout-apply؛ گارد useRef (فقط بررسی اولیه) + تایمر در افکت جدا تا بعد از fetchUserِ پس از OTP دوباره فعال نشود (StrictMode-safe)
+- onboarding-view.tsx بازطراحی کامل → چک‌لیست تکمیل پروفایل پس از گام نام:
+  · داده: GET /api/profile/me (avatarUrl/bannerUrl/bioShort/province/city/categories[].skills)
+  · عضو ۶ قلم (آواتار، بنر، بیو، دسته‌بندی، مهارت، موقعیت → سکشن photos/photos/photos/categories/categories/location) · چهره‌یاب فعال (user.isScout) ۴ قلم + CTA «ورود به داشبورد چهره‌یاب» → scout
+  · کارت پیشرفت + «X از ۶» (toFa) با نوار bg-primary · ردیف‌های h-14 (هدف لمسی) bg-card rounded-2xl: آیکون + لیبل + hint + چیپ وضعیت (✓ emerald «انجام شده» / «+» primary «افزودن») · stagger 0.05 فقط fade
+  · کلیک ردیف → edit-profile با params.section (پرش به سکشن موجود) · پایین: «ورود به فرصتینو» همیشه فعال + «بعداً تکمیل می‌کنم» → feed · مهمان → auth · اسکلتون h-14 + کارت خطا با تلاش مجدد
+- dev server محیط در میانهٔ کار کرش کرده بود (خطای RoseGoldCheckMark در profile-view — عامل دیگر، ثبت‌شده در FE-HOME) → برای E2E با setsid موقتاً بالا آوردم؛ سرور سیستم سپس خودش بازگشت (Ready در 738ms)
+
+E2E (curl):
+- جدید 09129990000 (name=phone): register → {"ok":true,"otp":"1234","mode":"register","message":"کد تایید ارسال شد"} · verify → {"ok":true,"userId":"cmuh5ruea0000n32kj6cu9s4a"} + کوکی · me → name="09129990000" (جای‌نگهدار) · PUT name → {"ok":true,"name":"تست کاربر فرصتینو"} · me → نام واقعی ✓ · PUT نام کوتاه → 400 · بدون کوکی → 401 · GET /api/profile/me → ProfileDetail کامل (categories:[] برای تازه‌کار)
+- موجود 09121110001: register → mode="login" (نام نادیده گرفته شد) · verify/me → name="امیرحسین رستمی" (isTopTalent/silver/5755 ستاره) → مستقیم فید — لاگین کاربر فعلی نشکست ✓
+- بازورود 09129990011 (بی‌نام): register → mode="login" اما name===phone → گام نام در کلاینت ✓
+
+Stage Summary:
+- جریان جدید فقط-با-شماره کامل و تست‌شده: شماره → OTP → نامِ اجباری (فقط ثبت‌نام جدید) → چک‌لیست ۶/۴ قلمی → اپ؛ کاربر قدیمی مستقیم اپ؛ mode=scout در کل مسیر حفظ و به scout-apply ختم می‌شود
+- شکل پاسخ APIها مستند شد؛ PUT /api/auth/profile مینیمال ساخته شد چون هیچ روت موجودی User.name را آپدیت نمی‌کرد
+- tsc: صفر خطا در فایل‌های من (تنها خطای باقی‌ماندهٔ پروژه: profile-view.tsx از عامل دیگر) · eslint: ۰ خطا/۰ هشدار · dev.log: فقط 200/400/401 مورد انتظار از روت‌های من
+- رکورد عامل: agent-ctx/FE-AUTH-zai-code.md
+
+---
+Task ID: FE-SCOUT
+Agent: Z.ai Code (subagent — views)
+Task: ارتقای کامل scout-view — ابزار کامل کشف استعداد (جست‌وجوی دسته/مهارت/متنی + جدول جایگاه) + کلاسیک‌سازی کامل
+
+Work Log:
+- مطالعه worklog (CORE-1/SCOUT-1/FE-HOME) + scout-view قدیمی + rankings.ts + /api/scout/talents (GET/POST موجود از CORE-1) + dashboard route (thresholds جدید) + user-avatar (prop square) + ScoutBadge + atoms/icon/format + home-view برای زبان دیزاین کلاسیک
+- بازنویسی کامل scout-view.tsx (~۸۳۰ خط) — ساختار بالا→پایین:
+  · هدر کلاسیک فشرده: bg-card border rounded-2xl p-4 — آواتار مربعی خود چهره‌یاب (lg + square) + «چهره‌یاب» + ScoutBadge (تنها emerald) + نام + «ابزار کشف استعداد» — بدون هیرو سبز/شیشه
+  · آمار: ۴ MiniStat کلاسیک (h-16 rounded-xl bg-card) grid-cols-2 sm:grid-cols-4 — چهره برتر/پست ویترین/میانگین ویترین «X از ۱۰»/نیازمندی فعال من
+  · NEW سکشن «جست‌وجوی استعداد» (TalentSearch): کارت فیلتر p-3 با اینپوت dir=auto + دکمه پاک‌کردن + ریل چیپ دسته‌ها («همه» + ۱۲ دسته از POST /api/scout/talents، active=bg-primary) + ریل دوم مهارت‌ها بعد از انتخاب دسته («همهٔ مهارت‌ها»)
+  · جدول جایگاه از GET /api/scout/talents با debounce ۴۰۰ms: سربرگ «جایگاه‌ها بر پایهٔ مجموع ستاره‌ها» + چیپ «{total} نفر»/اسپینر؛ ردیف‌ها: بج مدال جایگاه (۱ amber-500 / ۲ slate / ۳ amber-700 / بقیه muted) + آواتار گرد قاب‌دار + نام بولد ۱۴px + چیپ «{N} ستاره» رنگ قاب (gold=amber-600/10 border-amber-500/25 / silver=slate / none=muted) + چیپ دستهٔ اصلی + بایو truncate + اکشن‌های «پروفایل»/«گفتگو»
+  · خالی «استعدادی پیدا نشد» + اسپینر جست‌وجو + «نمایش بیشتر» صفحه‌بندی (page+1, dedupe) + 401/error states
+  · چهره‌های برتر: ردیف‌های کلاسیک با چیپ «چهره برتر طلایی/نقره‌ای» (crown) + StarsChip + دسته‌ها(max 3) + بایو + mapPin + پروفایل/گفتگو
+  · در حال رشد: همان ردیف + چیپ رأی + «معرفی به ادمین» (emerald کوچک) → NominateDialog دست‌نخورده (exit fade 0.15s حذف ردیف بعد از معرفی)
+  · نیازمندی‌های من: لیست divide-y کلاسیک + «ثبت نیازمندی» دکمهٔ primary → create-need
+  · کارت آستانه‌ها (پایین): «آستانه‌های چهره برتر: ۵٬۰۰۰ ستاره یا ۵۰۰ رأی → نقره‌ای · ۱۰٬۰۰۰ ستاره یا ۱۰۰۰ رأی → طلایی» از thresholds سرور (faSep)
+- اجزای مشترک جدید: useStartChat (POST /api/chat/start → navigate chat)، StarsChip، FilterChip (h-8)، medalClass، faSep، searchParams بیرون کامپوننت (exhaustive-deps)
+- کلاسیک‌سازی: glass→bg-card+border-border همه‌جا؛ rounded-3xl→rounded-2xl؛ انیمیشن فقط fade ≤0.2s بدون stagger؛ max-w-2xl موبایل-فرست
+- dashboard route و scout-badge بدون تغییر (نیازی نبود)
+- نوشتن رکورد در agent-ctx/FE-SCOUT-zai-code.md
+
+Stage Summary:
+- tsc: صفر خطای scout (تنها خطای باقی‌مانده profile-view.tsx ← RoseGoldCheckMark — فایل عامل دیگر)؛ eslint scout-view + api/scout/talents: ۰ خطا
+- E2E curl (لاگین 09121110021/OTP 1234): GET /api/scout/talents → لیست رتبه‌بندی‌شده (مهتاب ۱۱۲۰۰ gold #۱، امیرحسین ۵۷۵۵ silver #۲…) · ?categoryId=موسیقی → total 6 با جایگاه درون‌دسته · ?categoryId&skillId → فیلتر · q=مهتاب → total 1 · POST → ۱۲ دسته با مهارت · dashboard 200 (thresholds 5000/500/10000/1000, elite 2, rising 12, myNeeds 2) · بدون کوکی → 401
+- dev.log: بدون خطای جدید از فایل‌های scout (کرم‌های OOM کامپایل `/` و خطای import پروفایل‌ویو مربوط به محیط/عامل دیگر)
+- نکته برای عامل‌های بعد: پروسه‌های پس‌زمینه با پایان دستور Bash کشته می‌شوند — E2E باید سرور+curl را در یک دستور اجرا کند؛ کامپایل `/` ~۲٫۲GB حافظه می‌خواهد (روی این باکس ۴GB ممکن است OOM شود — مستقیم API را تست کنید)
+
+---
+Task ID: FE-ACCOUNT
+Agent: Z.ai Code (subagent — account/dashboard/needs views)
+Task: تسک ۶ — اکانت/داشبورد/ویرایش پروفایل چهره‌یاب هرگز آپشن‌های چهره‌ها را نداشته باشد + کلاسیک‌سازی کامل ۴ فایل (edit-profile, dashboard, needs, my-needs)
+
+Work Log:
+- مطالعه worklog (CORE-1/FE-HOME/FE-SHELL/FE-AUTH/FE-SCOUT) + ۴ فایل خودم + use-user/types/nav/user-avatar/scout-badge/icon/globals + روت‌های feed/home و needs/my-needs و chat/conversations و scout/dashboard
+- edit-profile-view: isScout از useUser() → سکشن‌های جنسیت/دسته‌بندی/دستهٔ اصلی/سوابق/تحصیلات فقط اعضا؛ ناوبری سریع چهره‌یاب = SCOUT_SECTIONS (عکس‌ها/موقعیت/اطلاعات چهره‌یاب)؛ NEW ScoutInfoSection (#section-scout-info): بج فعال ScoutBadge + CTA «داشبورد چهره‌یاب» (navigate scout) + «مدیریت نیازمندی‌ها» (my-needs) + حالت pending (چیپ کهربایی «در انتظار بررسی»)؛ آواتار پیش‌نمایش مربعی (square=isScout) + placeholderهای سازمانی
+- یافتهٔ کلیدی: /api/profile/me اصلاً scoutStatus/isScout نمی‌فرستد → pending از user.scoutStatus (auth/me که برمی‌گرداند) خوانده شد
+- dashboard-view: هیرو کلاسیک (bg-card border rounded-2xl p-4، بدون تاریخ — همگام FE-HOME)؛ عضو: ارتباط/پست‌های من (دست‌نخورده)؛ چهره‌یاب: ۴ آمار اختصاصی (نیازمندی فعال، درخواست دریافتی، پست، گفتگو) از my-needs + conversations + feed/home؛ کارت CTA «داشبورد چهره‌یاب» خنثی با چیپ کوچک emerald (بدون پنل سبز)؛ آواتار چهره‌یاب مربعی + ScoutBadge کنار خوش‌آمد
+- فیکس بونوس: کارت TimelinePost از motion.button با دکمه‌های تو در تو (هیدریشن‌ارر <button> در <button> در هر رفرش) → div role=button + onKeyDown؛ h-11 برای اهداف لمسی ۴۴px
+- needs/my-needs (لمس سبک): needs-view بج square={!!need.user.isScout} از قبل موجود بود (تأیید شد)؛ my-needs به AppliedNeedCard اضافه شد + gender/frame
+- کلاسیک‌سازی هر ۴ فایل: همهٔ انیمیشن‌ها فقط opacity ≤0.2s بدون stagger/whileHover/scale؛ glass/glass-strong→bg-card+border؛ rounded-3xl→rounded-2xl؛ حذف shadow-card/-float/-lift/-glow* و grad-gold (دکمهٔ امتیاز→amber-600 sólido)؛ gap-6 پیش‌فرض Card→gap-0/1/3؛ p-5/6→p-4/5؛ space-y→4
+- E2E مرورگر (agent-browser): چهره‌یاب → داشبورد ۲/۰/۰/۱ + CTA و ویرایش پروفایل فقط ۳ سکشن (صفر سکشن عضوی) ✓؛ عضو → هر ۷ لینک سکشن + آمار عضو بدون CTA ✓؛ نیازمندی‌ها ۹ کارت با آواتار مربعی پست‌کنندگان چهره‌یاب (rounded-[22%] اثبات‌شده) ✓؛ کاربر pending → همهٔ سکشن‌های عضو + چیپ «در انتظار بررسی» ✓؛ کنسول: صفر ارر بعد از فیکس nested-button؛ درخواست تست حذف شد از DB
+
+Stage Summary:
+- چهره‌یاب‌ها در اکانت/داشبورد/ویرایش پروفایل فقط چیزهای خودشان را می‌بینند: عکس/بنر/بیو/موقعیت/تماس + «اطلاعات چهره‌یاب» + آمار نیازمندی/درخواست/گفتگو + CTA داشبورد چهره‌یاب — بدون دسته/مهارت/رزومه/جنسیت/ستاره/قاب
+- جریان عضو ۱۰۰٪ دست‌نخورده (هر ۷ سکشن ویرایش + آمار ارتباط/پست + تایم‌لاین/امتیازدهی)
+- tsc: صفر خطا (کل src) · eslint ۴ فایل: ۰ خطا/۰ هشدار · dev.log بدون خطای جدید · ارر هیدریشن nested-button داشبورد رفع شد
+- گپ بک‌اند برای عامل بعدی: my-needs روت isScout پست‌کننده را نمی‌فرستد (آواتار applied گرد می‌ماند) — ۱ خط در route.ts؛ همچنین profile/me فیلدهای isScout/scoutStatus را ندارد (کلاینت از auth/me می‌خواند)
+- رکورد: agent-ctx/FE-ACCOUNT-zai-code.md
+
+---
+Task ID: FE-PROFILE + FE-PERF (maintainer)
+Agent: Z.ai Code (maintainer)
+Task: بازنویسی profile-view + هیرو لندینگ + کشف پرش‌ها + رفع گپ‌های بک‌اند
+
+Work Log:
+- profile-view.tsx بازنویسی کامل: کاور ۳:۱ بدون -mt-6 (رفع رفتن زیر هدر)؛ حذف کامل دکمه‌های شناور «پست جدید/ادیت/چت» از بنر؛ NEW دکمهٔ پلاس شناور (fixed left-4، بالای FAB چت: bottom=136px) → PlusChooserSheet (پست جدید → ComposerInline / نمونه کار جدید → tab portfolio + رویداد portfolio:new → PortfolioFormSheet)؛ آواتار چهره‌یاب مربعی (EliteAvatar square / UserAvatar square در قاب border)؛ TopTalentBanner gold/silver؛ StatSeg با tint؛ تب‌های کلاسیک بدون layoutId؛ stats چهره‌یاب: grid-cols-3 بدون ستاره/تخصص؛ fade-only.
+- portfolio-tab.tsx: listener رویداد «portfolio:new» → باز شدن فرم نمونه‌کار از بیرون.
+- landing-view.tsx: هیرو کاملاً روشن خنثی (حذف بک آبی) — گرادیان #fafbfc→#f1f5f9 + بافت نقطه‌ای ظریف؛ تیتر ۲ رنگ (foreground + gold accent)؛ CTAها rounded-xl؛ HeroStat رنگ‌های روشن؛ glass→bg-card همه‌جا؛ rounded-3xl→rounded-2xl؛ انیمیشن‌ها fade-only.
+- discover-view.tsx: رفع پرش تب (results در min-h-[320px] ثابت + اسکلتون‌های هم‌شکل)؛ هدر/جستجو/تب/چیپ‌ها کلاسیک bg-card؛ TalentMiniCard fade-only.
+- بک‌اند: my-needs += isScout پوستر (هر دو لیست)؛ profile/me += isScout/scoutStatus (تأمین گپ FE-ACCOUNT)؛ کامنت‌های rosegold همه پاک شدند (۰ رفرنس).
+- toast.tsx: w-[min(92vw,400px)] صحیح (کلاس قبلاً سالم بود — آرتیفکت نمایشی).
+- seed-stars.ts: آپدیت await واقعی برای ویترین + نام‌های آستانهٔ جدید؛ seed-featured-fix.ts: ۷ پست ویترین با featuredAt واقعی (۷-پست منتخب در چهره برتر).
+- chat/connections/needs/need-detail views: square={!!isScout} روی همهٔ UserAvatarهای مرتبط.
+
+E2E (agent-browser + VLM + DOM):
+- لاگین 09121110001: خانه = خوش‌آرد بدون تاریخ + نام کامل + آکاردئون ۶۳٪ + پنل «هدف ۱۰٬۰۰۰ (قاب طلایی)» (امیرحسین ۵۷۵۵ = نقره‌ای) + جایگاه‌ها (کل ۲/۷۴، موسیقی ۱/۶، خوانندگی ۱/۱) ✓
+- explore: ۷ پست ویترین؛ مهتاب = قاب طلایی کامل در کارت‌ها/چک‌مارک؛ هیچ رز/صورتی باقی ✓ (VLM: gold+silver frames present, no pink)
+- profile مهتاب (۱۱۲۰۰): EliteAvatar طلایی + TopTalentBanner «چهره برتر طلایی» + بنر زیر هدر نه + بدون دکمه روی بنر (VLM PASS هر ۵ آیتم) ✓
+- profile آژانس آرتا: آواتار مربعی + کاور سرمه‌ای رسمی + بدون stats عضوی (VLM PASS) ✓
+- my-profile: FAB پلاس + شیت انتخاب (پست/نمونه‌کار) → نمونه‌کار → تب portfolio + فرم باز شد ✓
+- چت با مهتاب: قاب طلایی هدر + چیپ طلایی (VLM: Yes/Yes) ✓
+- چت از گیت‌وی :81 → سوکت socket.io بدون خطا (تست قبلی localhost:3000 مستقیم از گیت‌وی رد نمی‌شد — آرتیفکت تست) ✓
+- چهره‌یاب (آرتا): edit-profile فقط ۳ سکشن (عکس‌ها/موقعیت/اطلاعات چهره‌یاب)؛ داشبورد = ۴ آمار اسکات + CTA بدون پنل ستاره ✓
+- جست‌وجوی استعداد چهره‌یاب: فیلتر موسیقی → ۶ نفر، جایگاه‌ها recompute ✓
+- toast: DOM→«درخواست ارسال شد» rect y=720 h=48 bottom-center بالای تبار ✓
+- tsc 0 خطا؛ eslint 0؛ dev 200.
+
+Stage Summary:
+- همهٔ ۱۴ خواستهٔ کاربر پیاده و تست شد؛ سیستم قاب نقره‌ای/طلایی در همهٔ نقاط اپ (پروفایل/چت/کارت‌ها/ادمین/هدر) یکدست.

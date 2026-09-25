@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { categoryColorMap, resolveUserColor } from "@/lib/cat-color";
 import { usersStarInfo, postsRatingStats } from "@/lib/stars";
+import { myRank } from "@/lib/rankings";
 import type { PostWithRelations, TalentListItem } from "@/lib/types";
 
 /* GET /api/feed/home — صفحهٔ خانهٔ شخصی (سبک لینکدین)
@@ -167,11 +168,12 @@ export async function GET() {
       ),
     }));
 
-  // ── ۳. آمار شخصی + ستاره‌های من ──
-  const [myPostsCount, myFollowers, myStars] = await Promise.all([
+  // ── ۳. آمار شخصی + ستاره‌های من + جایگاه من ──
+  const [myPostsCount, myFollowers, myStars, rank] = await Promise.all([
     db.post.count({ where: { userId: me.id } }),
     db.connection.count({ where: { receiverId: me.id, status: "accepted" } }),
     usersStarInfo([me.id]).then((m) => m.get(me.id)!),
+    myRank(me.id).catch(() => null),
   ]);
 
   return NextResponse.json({
@@ -182,8 +184,15 @@ export async function GET() {
       postsCount: myPostsCount,
       followersCount: myFollowers,
       totalStars: myStars.totalStars,
+      votes: myStars.votes,
       frame: myStars.frame,
       nextAt: myStars.nextAt,
+      nextFrame: myStars.nextFrame,
+    },
+    rank: rank && {
+      overall: { rank: rank.overall.rank, total: rank.overall.total },
+      category: rank.category ? { name: rank.category.name, rank: rank.category.rank, total: rank.category.total } : null,
+      skill: rank.skill ? { name: rank.skill.name, rank: rank.skill.rank, total: rank.skill.total } : null,
     },
   });
 }

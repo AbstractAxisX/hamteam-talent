@@ -13,25 +13,29 @@ import { PostCard } from "@/components/shared/post-card";
 import { Sheet } from "@/components/shared/sheet";
 import { ComposerInline } from "@/components/composer";
 import { BannerSlider } from "@/components/shared/banner-slider";
-import { GoldCheckMark, GoldSparkle, RoseGoldCheckMark } from "@/components/ui/elite";
-import { toFa, formatCount, formatFaDate } from "@/lib/format";
+import { EliteCheckMark } from "@/components/ui/elite";
+import { toFa, formatCount } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { PostWithRelations, TalentListItem, CategoryWithSkills, ProfileDetail, ProfileMeta } from "@/lib/types";
 import type { FrameLevel } from "@/lib/stars";
 
 /* ═══════════════════════════════════════════════════════════
-   HomeView — صفحهٔ خانهٔ فرصتینو (ترکیب کامل)
-   · بنرها و تبلیغات + خوش‌آمد + آمار (ارتباط / پست)
-   · چک‌لیست قدم‌به‌قدم تکمیل پروفایل (شورتکات مستقیم)
-   · فرم معمولی پست (روی صفحه — بدون شیت)
-   · پنل پیشرفت ستاره «چهره برتر شو» (۵۰۰۰ طلایی / ۱۰۰۰۰ رزگلد)
-     + مسیر جایگزین: درخواست بررسی مستقیم ادمین (EliteRequestDialog)
+   HomeView — صفحهٔ خانهٔ فرصتینو (کلاسیک · موبایل)
+   · بنرها + خوش‌آمد (فقط کلمهٔ خوش‌آمد — بدون تاریخ) + آمار
+   · چک‌لیست تکمیل پروفایل → آکاردئون با حافظهٔ localStorage
+   · فرم معمولی پست روی صفحه (بدون شیت)
+   · عضو → پنل رسمی تیرهٔ «چهره برتر شو»:
+     ۵۰۰۰ ستاره یا ۵۰۰ رأی → قاب نقره‌ای · ۱۰۰۰۰ ستاره → قاب طلایی
+     + ردیف جایگاه‌ها (کل / دسته / مهارت — فقط عدد) + مسیر جایگزین ادمین
+   · چهره‌یاب → کارت داشبورد چهره‌یاب (بدون پنل ستاره و چک‌لیست)
    · شاید بشناسید + دسته‌بندی‌ها + فید ارتباط‌ها
    ═══════════════════════════════════════════════════════════ */
 
-const GOLD_THRESHOLD = 5000;
-const ROSE_GOLD_THRESHOLD = 10000;
+/* کلید localStorage وضعیت آکاردئون تکمیل پروفایل — "1" یعنی بسته */
+const COMPLETION_COLLAPSED_KEY = "home-completion-collapsed";
+
+type RankRow = { rank: number; total: number };
 
 type HomeData = {
   posts: PostWithRelations[];
@@ -41,8 +45,15 @@ type HomeData = {
     postsCount: number;
     followersCount: number;
     totalStars: number;
+    votes: number;
     frame: FrameLevel;
     nextAt: number | null;
+    nextFrame: "silver" | "gold" | null;
+  };
+  rank: null | {
+    overall: RankRow;
+    category: ({ name: string } & RankRow) | null;
+    skill: ({ name: string } & RankRow) | null;
   };
 };
 
@@ -74,6 +85,11 @@ type EliteStatus = {
 
 const ELITE_REASON_MIN = 30;
 
+/** عدد فارسی با جداکنندهٔ هزارگان — ۵٬۰۰۰ */
+function faSep(n: number): string {
+  return toFa(n.toLocaleString("en-US")).replace(/,/g, "٬");
+}
+
 export function HomeView() {
   const { user, loading: userLoading } = useUser();
   const [data, setData] = useState<HomeData | null>(null);
@@ -86,14 +102,37 @@ export function HomeView() {
   const [eliteStatus, setEliteStatus] = useState<EliteStatus | null>(null);
   const [eliteDialogOpen, setEliteDialogOpen] = useState(false);
 
+  /* آکاردئون تکمیل پروفایل — پیش‌فرض باز؛ "1" در localStorage یعنی بسته */
+  const [completionCollapsed, setCompletionCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem(COMPLETION_COLLAPSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCompletion = useCallback(() => {
+    setCompletionCollapsed((c) => {
+      const next = !c;
+      try {
+        window.localStorage.setItem(COMPLETION_COLLAPSED_KEY, next ? "1" : "0");
+      } catch {
+        /* حافظهٔ محلی در دسترس نیست — فقط وضعیت همین جلسه */
+      }
+      return next;
+    });
+  }, []);
+
   const refreshEliteStatus = useCallback(() => {
     api<EliteStatus>("/api/elite/request")
       .then((d) => setEliteStatus(d))
       .catch(() => {});
   }, []);
 
+  /* مسیر جایگزین فقط برای اعضا (چهره‌یاب پنل ستاره ندارد) */
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.isScout) return;
     refreshEliteStatus();
   }, [user, refreshEliteStatus]);
 
@@ -126,6 +165,8 @@ export function HomeView() {
     hour < 17 ? "ظهر بخیر" :
     hour < 20 ? "عصر بخیر" : "شب بخیر";
 
+  const isScout = !!user?.isScout;
+
   /* ── چک‌لیست تکمیل پروفایل ── */
   const steps: CompletionStep[] = useMemo(() => {
     if (!profile) return [];
@@ -146,12 +187,17 @@ export function HomeView() {
   const profilePct = steps.length ? Math.round((doneSteps / steps.length) * 100) : 100;
   const incomplete = steps.filter((s) => !s.done);
 
-  /* ── پیشرفت ستارهٔ من — سطح فعلی/بعدی برای پنل «چهره برتر شو» ── */
+  /* ── پیشرفت ستارهٔ من — آستانه‌ها از سرور (stats.nextAt) ──
+     ۵۰۰۰ ستاره یا ۵۰۰ رأی → قاب نقره‌ای · ۱۰۰۰۰ ستاره → قاب طلایی */
   const myStars = data?.stats.totalStars ?? 0;
-  const myFrame = data?.stats.frame ?? null;
-  const target = myFrame === "rosegold" ? null : data?.stats.nextAt ?? (myFrame === "gold" ? ROSE_GOLD_THRESHOLD : GOLD_THRESHOLD);
-  const starPct = target ? Math.min(100, Math.round((myStars / target) * 100)) : 100;
-  const remaining = target ? Math.max(0, target - myStars) : 0;
+  const myFrame: FrameLevel = data?.stats.frame ?? null;
+  const target = data?.stats.nextAt ?? (myFrame === "silver" ? 10000 : 5000);
+  const starPct = myFrame === "gold" ? 100 : Math.min(100, Math.round((myStars / target) * 100));
+  const remaining = myFrame === "gold" ? 0 : Math.max(0, target - myStars);
+  const rank = data?.rank ?? null;
+
+  /* تینت پنل = هدف بعدی: بدون قاب → نقره‌ای (سلیت تیره)؛ نقره‌ای/طلایی → طلایی */
+  const goldTint = myFrame === "silver" || myFrame === "gold";
 
   /* ── مسیر جایگزین — فقط برای کاربرانی که هنوز چهره برتر نیستند
      (درخواست تأییدشده همیشه چیپ تأیید ادمین را نشان می‌دهد) ── */
@@ -183,262 +229,379 @@ export function HomeView() {
   if (userLoading || !user) return null;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5 pb-4">
-      {/* ═══ بنرها و تبلیغات (از صفحهٔ عمومی) ═══ */}
+    <div className="max-w-2xl mx-auto space-y-4 pb-4">
+      {/* ═══ بنرها و تبلیغات ═══ */}
       <BannerSlider />
 
-      {/* ═══ نوار خوش‌آمد + آمار (ارتباط / پست) ═══ */}
-      <motion.section
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-[26px] glass border border-border/60 p-5 md:p-6"
-      >
-        <div className="relative flex items-center gap-4">
-          <button
-            onClick={() => navigate({ view: "my-profile" })}
-            className="shrink-0 hover:opacity-90 transition-opacity"
-            aria-label="پروفایل من"
-          >
-            <UserAvatar
-              name={user.name}
-              avatarUrl={user.profile?.avatarUrl || null}
-              verified={user.isVerifiedBadge}
-              frame={user.frame ?? undefined}
-              topTalent={user.isTopTalent}
-              gender={user.profile?.gender}
-              size="xl"
-            />
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] md:text-xs text-primary font-bold tracking-wide">
-              {greeting} ✦ {formatFaDate(new Date())}
-            </p>
-            <h1 className="text-xl md:text-2xl font-black truncate leading-tight mt-0.5">{user.name}</h1>
-          </div>
-          {/* آمار — ارتباط = دنبال‌کننده (یک عدد) */}
-          <div className="shrink-0 grid grid-cols-2 gap-2 md:gap-3">
-            <MiniStat
-              value={data ? formatCount(data.stats.connectionsCount) : "—"}
-              label="ارتباط"
-              icon="users"
-            />
-            <MiniStat
-              value={data ? formatCount(data.stats.postsCount) : "—"}
-              label="پست"
-              icon="image"
-            />
-          </div>
+      {loading ? (
+        /* بارگذاری ناحیهٔ بالای صفحه — اسپینر جمع‌وجور (فید خودش اسکلتون دارد) */
+        <div role="status" aria-label="در حال بارگذاری" className="grid place-items-center py-12">
+          <Icon name="loader" size={28} className="animate-spin text-primary" />
         </div>
-      </motion.section>
-
-      {/* ═══ چک‌لیست قدم‌به‌قدم تکمیل پروفایل (اگر ناقص است) ═══ */}
-      {!loading && incomplete.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.06 }}
-          className="rounded-[26px] glass border border-border/60 p-5 md:p-6"
-        >
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div>
-              <p className="text-[11px] font-bold text-primary tracking-widest">تکمیل پروفایل</p>
-              <h2 className="text-lg font-black tracking-tight">
-                پروفایلت {toFa(profilePct)}٪ کامله — قدم آخر!
-              </h2>
-            </div>
-            <div className="shrink-0 relative grid place-items-center size-14">
-              <svg viewBox="0 0 36 36" className="size-14 -rotate-90">
-                <circle cx="18" cy="18" r="15.5" fill="none" stroke="currentColor" strokeWidth="3.5" className="text-muted" />
-                <circle
-                  cx="18" cy="18" r="15.5" fill="none" stroke="var(--primary)" strokeWidth="3.5"
-                  strokeLinecap="round" strokeDasharray={`${(profilePct / 100) * 97.4} 97.4`}
-                />
-              </svg>
-              <span className="absolute text-[11px] font-black nums-fa">{toFa(profilePct)}٪</span>
-            </div>
-          </div>
-
-          {/* نوار پیشرفت */}
-          <div className="h-1.5 rounded-full bg-muted overflow-hidden mb-4">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${profilePct}%` }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="h-full grad-brand rounded-full"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {incomplete.slice(0, 6).map((s) => (
+      ) : (
+        <>
+          {/* ═══ کارت خوش‌آمد — فقط کلمهٔ خوش‌آمد + نام (دو خط) + آمار در ردیف جدا ═══ */}
+          <motion.section
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="rounded-2xl border border-border bg-card p-4 md:p-5"
+          >
+            <div className="flex items-center gap-3">
               <button
-                key={s.key}
-                onClick={() => navigate({ view: "edit-profile", params: { section: s.section } })}
-                className="group flex items-center gap-3 p-3 rounded-2xl bg-muted/40 border border-border/50
-                           hover:border-primary/40 hover:bg-primary/5 transition-colors text-right"
+                onClick={() => navigate({ view: "my-profile" })}
+                className="shrink-0 hover:opacity-90 transition-opacity"
+                aria-label="پروفایل من"
               >
-                <span className="shrink-0 grid place-items-center size-9 rounded-xl bg-primary/10 text-primary">
-                  <Icon name="arrowLeft" size={16} strokeWidth={2.4} className="rotate-180 group-hover:-translate-x-0.5 transition-transform" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-extrabold text-foreground leading-tight">{s.label}</span>
-                  <span className="block text-[10.5px] text-muted-foreground font-medium mt-0.5 leading-4">{s.hint}</span>
-                </span>
+                <UserAvatar
+                  name={user.name}
+                  avatarUrl={user.profile?.avatarUrl || null}
+                  verified={user.isVerifiedBadge}
+                  frame={user.frame ?? undefined}
+                  topTalent={user.isTopTalent}
+                  gender={user.profile?.gender}
+                  size="lg"
+                />
               </button>
-            ))}
-          </div>
-          {incomplete.length > 6 && (
-            <button
-              onClick={() => navigate({ view: "edit-profile" })}
-              className="mt-3 w-full h-10 rounded-xl grad-brand text-white font-extrabold text-[13px] shadow-grad"
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold text-primary tracking-wide leading-none">{greeting}</p>
+                <h1 className="text-lg md:text-xl font-black leading-snug line-clamp-2 break-words mt-1">{user.name}</h1>
+              </div>
+            </div>
+            {/* آمار — ارتباط = دنبال‌کننده (یک عدد) — ردیف جدا با جداکننده */}
+            <div className="mt-3.5 grid grid-cols-2 border-t border-border pt-3">
+              <MiniStat
+                value={data ? formatCount(data.stats.connectionsCount) : "—"}
+                label="ارتباط"
+                icon="users"
+              />
+              <div className="border-r border-border">
+                <MiniStat
+                  value={data ? formatCount(data.stats.postsCount) : "—"}
+                  label="پست"
+                  icon="image"
+                />
+              </div>
+            </div>
+          </motion.section>
+
+          {/* ═══ آکاردئون تکمیل پروفایل — فقط اعضا؛ ۱۰۰٪ کامل → مخفی ═══ */}
+          {!isScout && incomplete.length > 0 && (
+            <motion.section
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.22 }}
+              className="rounded-2xl border border-border bg-card p-4 md:p-5"
             >
-              تکمیل بقیهٔ گام‌ها ({toFa(incomplete.length - 6)} مورد)
-            </button>
+              <button
+                onClick={toggleCompletion}
+                aria-expanded={!completionCollapsed}
+                aria-controls="home-completion-body"
+                className="w-full flex items-center gap-3 text-right"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[11px] font-bold text-primary tracking-widest leading-none">تکمیل پروفایل</span>
+                  <span className="block text-lg font-black tracking-tight mt-1">
+                    پروفایلت {toFa(profilePct)}٪ کامله
+                  </span>
+                </span>
+                {/* پیشرفت دایره‌ای کوچک */}
+                <span className="shrink-0 relative grid place-items-center size-10" aria-hidden>
+                  <svg viewBox="0 0 36 36" className="size-10 -rotate-90">
+                    <circle cx="18" cy="18" r="15.5" fill="none" stroke="currentColor" strokeWidth="3.5" className="text-muted" />
+                    <circle
+                      cx="18" cy="18" r="15.5" fill="none" stroke="var(--primary)" strokeWidth="3.5"
+                      strokeLinecap="round" strokeDasharray={`${(profilePct / 100) * 97.4} 97.4`}
+                    />
+                  </svg>
+                  <span className="absolute text-[10px] font-black nums-fa">{toFa(profilePct)}٪</span>
+                </span>
+                <Icon
+                  name="chevronDown"
+                  size={18}
+                  className={cn(
+                    "shrink-0 text-muted-foreground transition-transform duration-200",
+                    !completionCollapsed && "rotate-180"
+                  )}
+                />
+              </button>
+
+              <AnimatePresence initial={false}>
+                {!completionCollapsed && (
+                  <motion.div
+                    key="home-completion-body"
+                    id="home-completion-body"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-3 pt-3 border-t border-border">
+                      {/* نوار پیشرفت */}
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden mb-3.5">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${profilePct}%` }}
+                          transition={{ duration: 0.6, ease: "easeOut" }}
+                          className="h-full bg-primary rounded-full"
+                        />
+                      </div>
+
+                      {/* گام‌های ناقص (حداکثر ۶) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {incomplete.slice(0, 6).map((s) => (
+                          <button
+                            key={s.key}
+                            onClick={() => navigate({ view: "edit-profile", params: { section: s.section } })}
+                            className="group flex items-center gap-3 p-3 rounded-2xl bg-muted/40 border border-border/50
+                                       hover:border-primary/40 hover:bg-primary/5 transition-colors text-right"
+                          >
+                            <span className="shrink-0 grid place-items-center size-9 rounded-xl bg-primary/10 text-primary">
+                              <Icon name="arrowLeft" size={16} strokeWidth={2.4} className="rotate-180 group-hover:-translate-x-0.5 transition-transform" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-[13px] font-extrabold text-foreground leading-tight">{s.label}</span>
+                              <span className="block text-[10.5px] text-muted-foreground font-medium mt-0.5 leading-4">{s.hint}</span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                      {incomplete.length > 6 && (
+                        <button
+                          onClick={() => navigate({ view: "edit-profile" })}
+                          className="mt-3 w-full h-10 rounded-xl bg-primary text-primary-foreground font-extrabold text-[13px] hover:bg-primary/90 transition-colors"
+                        >
+                          تکمیل بقیهٔ گام‌ها ({toFa(incomplete.length - 6)} مورد)
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.section>
           )}
-        </motion.section>
+        </>
       )}
 
       {/* ═══ فرم معمولی پست — روی صفحه، بدون شیت ═══ */}
       <ComposerInline onPosted={() => load()} />
 
-      {/* ═══ پنل پیشرفت ستاره — «چهره برتر شو» (۵۰۰۰ طلایی / ۱۰۰۰۰ رزگلد) ═══ */}
-      <motion.section
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.08 }}
-        className="relative overflow-hidden rounded-[26px] p-5 md:p-6"
-        style={{
-          background: "linear-gradient(120deg,#2a1a04 0%,#171005 45%,#241604 100%)",
-          boxShadow: "inset 0 0 0 1px rgba(245,200,76,.32), 0 10px 30px rgba(146,97,14,.22)",
-        }}
-      >
-        <GoldSparkle size={11} delay={0.2} style={{ top: "14%", left: "12%" }} />
-        <GoldSparkle size={9} delay={1.1} style={{ top: "58%", left: "6%" }} />
-        <GoldSparkle size={12} delay={0.6} style={{ top: "12%", right: "20%" }} />
-        <div className="relative z-10">
-          <div className="flex items-center gap-4">
-            <span
-              className="shrink-0 grid place-items-center size-14 rounded-full"
-              style={{
-                background:
-                  myFrame === "rosegold"
-                    ? "linear-gradient(135deg,#ffe4e6,#fb7185 45%,#be123c)"
-                    : "linear-gradient(135deg,#fef3c7,#f5c84c 45%,#b45309)",
-                boxShadow:
-                  myFrame === "rosegold"
-                    ? "0 8px 24px rgba(225,29,72,.4), inset 0 2px 8px rgba(255,255,255,.5)"
-                    : "0 8px 24px rgba(217,119,6,.4), inset 0 2px 8px rgba(255,255,255,.5)",
-              }}
-            >
-              {myFrame === "rosegold" ? <RoseGoldCheckMark size={26} /> : <GoldCheckMark size={26} />}
+      {/* ═══ چهره‌یاب → کارت داشبورد (بدون پنل ستاره و چک‌لیست) ═══ */}
+      {!loading && isScout && (
+        <motion.section
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.25 }}
+          className="rounded-2xl border border-emerald-600/20 bg-emerald-600/5 p-4 md:p-5"
+        >
+          <div className="flex items-center gap-3">
+            <span className="shrink-0 grid place-items-center size-11 rounded-xl border border-emerald-600/20 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400">
+              <Icon name="search" size={20} strokeWidth={2.2} />
             </span>
             <div className="min-w-0 flex-1">
-              <h2 className="text-base md:text-lg font-black tracking-tight text-gold-grad leading-snug">
+              <h2 className="text-base font-black tracking-tight leading-snug">داشبورد چهره‌یاب</h2>
+              <p className="text-[11.5px] text-muted-foreground font-medium leading-5 mt-0.5">
+                جست‌وجوی استعدادها، بررسی ویترین‌ها و مدیریت نیازمندی‌ها
+              </p>
+            </div>
+          </div>
+          <div className="mt-3.5 flex gap-2">
+            <button
+              onClick={() => navigate({ view: "scout" })}
+              className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground font-extrabold text-[12.5px] hover:bg-primary/90 transition-colors"
+            >
+              ورود به داشبورد چهره‌یاب
+            </button>
+            <button
+              onClick={() => navigate({ view: "create-need" })}
+              className="h-10 px-4 rounded-xl border border-border bg-card text-foreground font-bold text-[12.5px]
+                         hover:border-primary/40 transition-colors inline-flex items-center gap-1.5"
+            >
+              <Icon name="plus" size={14} />
+              ثبت نیازمندی
+            </button>
+          </div>
+        </motion.section>
+      )}
+
+      {/* ═══ پنل رسمی «چهره برتر شو» — فقط اعضا ═══
+          ۵۰۰۰ ستاره یا ۵۰۰ رأی → قاب نقره‌ای · ۱۰۰۰۰ ستاره → قاب طلایی */}
+      {!loading && !isScout && (
+        <motion.section
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.25 }}
+          className="relative overflow-hidden rounded-2xl p-4 md:p-5"
+          style={{
+            background: goldTint
+              ? "linear-gradient(120deg,#2a1a04 0%,#171005 45%,#241604 100%)"
+              : "linear-gradient(120deg,#1e293b 0%,#0f172a 45%,#1a2433 100%)",
+            boxShadow: goldTint
+              ? "inset 0 0 0 1px rgba(245,200,76,.32), 0 10px 30px rgba(146,97,14,.22)"
+              : "inset 0 0 0 1px rgba(203,213,225,.32), 0 10px 30px rgba(51,65,85,.22)",
+          }}
+        >
+          <div className="flex items-center gap-3.5">
+            <EliteCheckMark size={30} tint={myFrame ?? "silver"} />
+            <div className="min-w-0 flex-1">
+              <h2
+                className={cn(
+                  "text-base md:text-lg font-black tracking-tight leading-snug",
+                  goldTint ? "text-gold-grad" : "text-white"
+                )}
+              >
                 چهره برتر شو
               </h2>
-              <p className="text-[11.5px] text-amber-100/70 font-medium leading-5 mt-1">
-                ۵۰۰۰ ستاره یا ۵۰۰ رأی → قاب طلایی و ارسال هفته‌ای یک پست به چهره برتر · ۱۰۰۰۰ ستاره → قاب رزگلد
+              <p
+                className={cn(
+                  "text-[11px] font-medium leading-4 mt-1",
+                  goldTint ? "text-amber-100/70" : "text-slate-300/70"
+                )}
+              >
+                ۵۰۰۰ ستاره یا ۵۰۰ رأی → قاب نقره‌ای · ۱۰۰۰۰ ستاره → قاب طلایی
               </p>
             </div>
           </div>
 
           {/* نوار پیشرفت ستارهٔ من */}
           <div className="mt-4">
-            <div className="flex items-center justify-between text-[11px] font-bold mb-1.5">
-              <span className="text-amber-100/90 nums-fa inline-flex items-center gap-1">
-                <Icon name="star" size={13} className="text-amber-300" />
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <span
+                className={cn(
+                  "text-[11px] font-bold nums-fa inline-flex items-center gap-1",
+                  goldTint ? "text-amber-100/90" : "text-slate-100/90"
+                )}
+              >
+                <Icon name="star" size={13} className={goldTint ? "text-amber-300" : "text-slate-300"} />
                 {formatCount(myStars)} ستارهٔ دریافتی
               </span>
-              {myFrame === "rosegold" ? (
-                <span className="text-rose-200/90 font-black">بالاترین سطح — رزگلد ✓</span>
-              ) : target ? (
-                <span className="text-amber-100/60 nums-fa">هدف: {formatCount(target)}</span>
-              ) : null}
+              {myFrame === "gold" ? (
+                <span className="shrink-0 inline-flex items-center h-7 px-2.5 rounded-full grad-gold text-white text-[10.5px] font-black">
+                  بالاترین سطح — طلایی ✓
+                </span>
+              ) : (
+                <span
+                  className={cn(
+                    "shrink-0 text-[11px] font-bold nums-fa",
+                    goldTint ? "text-amber-100/70" : "text-slate-300/70"
+                  )}
+                >
+                  هدف: {faSep(target)} (قاب {myFrame === "silver" ? "طلایی" : "نقره‌ای"})
+                </span>
+              )}
             </div>
-            <div className="h-2.5 rounded-full overflow-hidden bg-black/40 border border-amber-500/20">
+            <div
+              className={cn(
+                "h-2.5 rounded-full overflow-hidden bg-black/40 border",
+                goldTint ? "border-amber-500/20" : "border-slate-400/20"
+              )}
+            >
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${starPct}%` }}
-                transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
                 className="h-full rounded-full"
-                style={
-                  myFrame === "rosegold"
-                    ? { background: "linear-gradient(90deg,#be123c,#fb7185,#fecdd3)" }
-                    : { background: "linear-gradient(90deg,#b45309,#f5c84c,#fef3c7)" }
-                }
+                style={{
+                  background: goldTint
+                    ? "linear-gradient(90deg,#b45309,#f5c84c,#fef3c7)"
+                    : "linear-gradient(90deg,#475569,#cbd5e1,#f8fafc)",
+                }}
               />
             </div>
-            <p className="text-[10.5px] text-amber-100/50 font-medium mt-1.5 leading-4">
-              {myFrame === "rosegold"
-                ? "در بالاترین سطح چهره برتری — قاب رزگلد را داری."
-                : myFrame === "gold"
-                ? `تا قاب رزگلد ${formatCount(remaining)} ستاره مانده — هر پست می‌تواند ستاره بیاورد.`
-                : `تا قاب طلایی و ارسال پست به چهره برتر ${formatCount(remaining)} ستاره مانده.`}
+            <p
+              className={cn(
+                "text-[10.5px] font-medium mt-1.5 leading-4",
+                goldTint ? "text-amber-100/50" : "text-slate-300/60"
+              )}
+            >
+              {myFrame === "gold"
+                ? "در بالاترین سطح چهره برتری — قاب طلایی را داری."
+                : myFrame === "silver"
+                ? `تا قاب طلایی ${formatCount(remaining)} ستاره مانده`
+                : `تا قاب نقره‌ای ${formatCount(remaining)} ستاره مانده`}
             </p>
           </div>
 
-          <motion.button
-            whileTap={{ scale: 0.95 }}
+          {/* جایگاه‌ها — فقط عدد، بدون نمایش قبل/بعد */}
+          {rank && (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <RankChip label="جایگاه در کل:" rank={rank.overall.rank} total={rank.overall.total} />
+              {rank.category && (
+                <RankChip
+                  label={`جایگاه در ${rank.category.name}:`}
+                  rank={rank.category.rank}
+                  total={rank.category.total}
+                  truncateLabel
+                />
+              )}
+              {rank.skill && (
+                <RankChip
+                  label={`جایگاه در ${rank.skill.name}:`}
+                  rank={rank.skill.rank}
+                  total={rank.skill.total}
+                  truncateLabel
+                />
+              )}
+            </div>
+          )}
+
+          <button
             onClick={() => navigate({ view: "explore" })}
-            className="mt-4 w-full h-11 rounded-2xl text-white font-extrabold text-[13px] shadow-glow-gold"
+            className="mt-4 w-full h-11 rounded-xl text-white font-extrabold text-[13px] shadow-glow-gold transition-transform active:scale-[0.98]"
             style={{ background: "linear-gradient(135deg,#f59e0b,#d97706 60%,#b45309)" }}
           >
             مشاهده چهره برتر
-          </motion.button>
+          </button>
 
           {/* ═══ مسیر جایگزین — درخواست بررسی مستقیم ادمین ═══ */}
           {showEliteAltPath &&
             (elitePending ? (
               <div className="mt-2.5 flex justify-center">
-                <span className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full border border-amber-300/35 bg-amber-400/10 text-amber-100/85 text-[11.5px] font-bold">
-                  <Icon name="clock" size={13} className="text-amber-300" />
+                <span className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full border border-white/25 bg-white/5 text-white/85 text-[11.5px] font-bold">
+                  <Icon name="clock" size={13} className="text-white/70" />
                   درخواست بررسی مستقیم: در انتظار بررسی ادمین
                 </span>
               </div>
             ) : eliteApproved ? (
               <div className="mt-2.5 flex justify-center">
                 <span className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full grad-gold text-white text-[11.5px] font-black shadow-glow-gold">
-                  <GoldCheckMark size={14} />
-                  چهره برتر — تأیید ادمین ⭐
+                  <EliteCheckMark size={14} tint="gold" />
+                  چهره برتر — تأیید ادمین
                 </span>
               </div>
             ) : (
               <button
                 onClick={() => setEliteDialogOpen(true)}
-                className="mt-2.5 w-full h-9 rounded-xl text-[12px] font-bold text-amber-100/60 hover:text-amber-100 hover:bg-amber-100/5 transition-colors"
+                className="mt-2.5 w-full h-9 rounded-xl text-[12px] font-bold text-white/70 hover:text-white hover:bg-white/5 transition-colors"
               >
                 استعداد برتری داری؟ درخواست بررسی مستقیم ادمین
               </button>
             ))}
-        </div>
-      </motion.section>
+        </motion.section>
+      )}
 
       {/* ═══ ریل «شاید بشناسید» — پیشنهاد افراد ═══ */}
       {!loading && data && data.suggestions.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-        >
-          <div className="flex items-end justify-between mb-3">
+        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+          <div className="flex items-end justify-between mb-2.5">
             <div>
               <p className="text-[11px] font-bold text-primary tracking-widest">پیشنهاد فرصتینو</p>
-              <h2 className="text-lg md:text-xl font-black tracking-tight">شاید بشناسید</h2>
+              <h2 className="text-lg font-black tracking-tight">شاید بشناسید</h2>
             </div>
             <button
               onClick={() => navigate({ view: "discover" })}
               className="inline-flex items-center gap-1 text-[13px] font-bold text-primary hover:gap-1.5 transition-all"
             >
               کشف بیشتر
-              <Icon name="arrowLeft" size={14} strokeWidth={2.6} className="text-primary" />
+              <Icon name="arrowLeft" size={14} strokeWidth={2.6} />
             </button>
           </div>
           <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1.5">
-            {data.suggestions.slice(0, 8).map((t, i) => (
+            {data.suggestions.slice(0, 8).map((t) => (
               <SuggestionCard
                 key={t.id}
                 talent={t}
-                index={i}
                 busy={connectingIds.has(t.id)}
                 onConnect={() => handleConnect(t)}
               />
@@ -447,55 +610,46 @@ export function HomeView() {
         </motion.section>
       )}
 
-      {/* ═══ دسته‌بندی‌ها (از صفحهٔ عمومی) ═══ */}
+      {/* ═══ دسته‌بندی‌ها ═══ */}
       {!loading && cats.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.12 }}
-        >
-          <div className="flex items-end justify-between mb-3">
+        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+          <div className="flex items-end justify-between mb-2.5">
             <div>
               <p className="text-[11px] font-bold text-primary tracking-widest">دسته‌بندی‌ها</p>
-              <h2 className="text-lg md:text-xl font-black tracking-tight">دنبالِ چی هستی؟</h2>
+              <h2 className="text-lg font-black tracking-tight">دنبالِ چی هستی؟</h2>
             </div>
             <button
               onClick={() => navigate({ view: "discover" })}
               className="inline-flex items-center gap-1 text-[13px] font-bold text-primary hover:gap-1.5 transition-all"
             >
               همه
-              <Icon name="arrowLeft" size={14} strokeWidth={2.6} className="text-primary" />
+              <Icon name="arrowLeft" size={14} strokeWidth={2.6} />
             </button>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
             {cats.slice(0, 10).map((c) => (
-              <motion.button
+              <button
                 key={c.id}
                 onClick={() => navigate({ view: "category", id: c.id })}
-                whileTap={{ scale: 0.94 }}
-                className="aspect-square rounded-2xl glass border border-border/60 flex flex-col items-center justify-center gap-1
-                           hover:border-primary/40 transition-colors"
+                className="aspect-square rounded-2xl border border-border bg-card flex flex-col items-center justify-center gap-1
+                           hover:border-primary/40 active:scale-95 transition-[border-color,transform]"
               >
                 <span className="grid place-items-center size-10 rounded-xl text-xl" style={{ backgroundColor: `${c.color || "#0f569e"}22` }}>
                   {c.iconUrl || "✨"}
                 </span>
                 <span className="text-[10.5px] font-bold text-foreground line-clamp-1 px-1 text-center">{c.name}</span>
-              </motion.button>
+              </button>
             ))}
           </div>
         </motion.section>
       )}
 
       {/* ═══ فید پست‌ها — من + ارتباط‌هایم ═══ */}
-      <motion.section
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.14 }}
-      >
-        <div className="flex items-end justify-between mb-3">
+      <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+        <div className="flex items-end justify-between mb-2.5">
           <div>
             <p className="text-[11px] font-bold text-primary tracking-widest">خط زمانی</p>
-            <h2 className="text-lg md:text-xl font-black tracking-tight">از ارتباط‌های شما</h2>
+            <h2 className="text-lg font-black tracking-tight">از ارتباط‌های شما</h2>
           </div>
           <span className="text-[11px] font-bold text-muted-foreground nums-fa">
             {data ? `${toFa(data.posts.length)} پست` : "…"}
@@ -504,9 +658,9 @@ export function HomeView() {
 
         {loading ? (
           <div className="space-y-4">
-            <Skeleton className="h-40 rounded-[24px]" />
-            <Skeleton className="h-64 rounded-[24px]" />
-            <Skeleton className="h-40 rounded-[24px]" />
+            <Skeleton className="h-40 rounded-2xl" />
+            <Skeleton className="h-64 rounded-2xl" />
+            <Skeleton className="h-40 rounded-2xl" />
           </div>
         ) : !data || data.posts.length === 0 ? (
           <EmptyState
@@ -517,7 +671,7 @@ export function HomeView() {
               <div className="flex flex-wrap gap-2 justify-center">
                 <button
                   onClick={() => navigate({ view: "discover" })}
-                  className="h-10 px-4 rounded-xl grad-brand text-white font-extrabold text-[13px] shadow-grad"
+                  className="h-10 px-4 rounded-xl bg-primary text-primary-foreground font-extrabold text-[13px] hover:bg-primary/90 transition-colors"
                 >
                   کشف استعدادها
                 </button>
@@ -535,18 +689,20 @@ export function HomeView() {
         )}
       </motion.section>
 
-      {/* ═══ مودال مسیر جایگزین چهره برتر ═══ */}
-      <EliteRequestDialog
-        open={eliteDialogOpen}
-        onClose={() => setEliteDialogOpen(false)}
-        onSubmitted={refreshEliteStatus}
-      />
+      {/* ═══ مودال مسیر جایگزین چهره برتر — فقط اعضا ═══ */}
+      {!isScout && (
+        <EliteRequestDialog
+          open={eliteDialogOpen}
+          onClose={() => setEliteDialogOpen(false)}
+          onSubmitted={refreshEliteStatus}
+        />
+      )}
     </div>
   );
 }
 
 /* ── مودال «مسیر جایگزین چهره برتر» — درخواست بررسی مستقیم ادمین ──
-   الگوی RatingModal: AnimatePresence + اورلی fixed + ESC/بک‌دراپ */
+   الگوی RatingModal: Sheet + ESC/بک‌دراپ */
 function EliteRequestDialog({
   open,
   onClose,
@@ -609,13 +765,13 @@ function EliteRequestDialog({
       open={open}
       onClose={() => !submitting && onClose()}
       title="مسیر جایگزین چهره برتر"
-      description="اگر سابقه و افتخارات شما نشان می‌دهد استعدادی برتر هستید، می‌توانید به‌جای مسیر ستاره (۵٬۰۰۰ ستاره یا ۵۰۰ رأی) از ادمین بررسی مستقیم بخواهید. درخواست شما با صلاح‌دید ادمین و نظر چهره‌یاب‌ها بررسی می‌شود."
+      description="اگر سابقه و افتخارات شما نشان می‌دهد استعدادی برتر هستید، می‌توانید به‌جای مسیر ستاره (۵٬۰۰۰ ستاره یا ۵۰۰ رأی) درخواست بررسی مستقیم ادمین را ثبت کنید تا قاب نقره‌ای/طلایی برای شما فعال شود. درخواست شما با صلاح‌دید ادمین و نظر چهره‌یاب‌ها بررسی می‌شود."
       footer={
         <button
           onClick={submit}
           disabled={submitting || tooShort}
-          className="w-full h-12 rounded-2xl text-white font-extrabold text-sm disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-[filter] hover:brightness-105 outline-none"
-          style={{ background: "linear-gradient(135deg,#d97706,#f59e0b)" }}
+          className="w-full h-12 rounded-xl text-white font-extrabold text-sm disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-[filter] hover:brightness-105 outline-none"
+          style={{ background: "linear-gradient(135deg,#f59e0b,#d97706 60%,#b45309)" }}
         >
           {submitting ? (
             <Icon name="loader" size={16} className="animate-spin" />
@@ -627,65 +783,85 @@ function EliteRequestDialog({
       }
     >
       <div>
-          {/* متن ادعا — حداقل ۳۰ کاراکتر */}
-          <div>
-                <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="سابقه، افتخارات و دلیل برتری شما…"
-                  rows={5}
-                  maxLength={2000}
-                  className="w-full min-h-[120px] rounded-2xl border-[1.5px] border-input bg-muted/60 px-4 py-3 text-[13px] leading-6 placeholder:text-muted-foreground/70 outline-none focus:border-ring focus:bg-card transition-[border-color,background-color] resize-y"
-                />
-                <p className="mt-1.5 px-1 text-[11px] font-bold nums-fa">
-                  <span className={tooShort ? "text-muted-foreground" : "text-emerald-600"}>
-                    {toFa(trimmed.length)}/{toFa(ELITE_REASON_MIN)} کاراکتر حداقل
-                  </span>
-                </p>
-              </div>
+        {/* متن ادعا — حداقل ۳۰ کاراکتر */}
+        <div>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="سابقه، افتخارات و دلیل برتری شما…"
+            rows={5}
+            maxLength={2000}
+            className="w-full min-h-[120px] rounded-2xl border-[1.5px] border-input bg-muted/60 px-4 py-3 text-[13px] leading-6 placeholder:text-muted-foreground/70 outline-none focus:border-ring focus:bg-card transition-[border-color,background-color] resize-y"
+          />
+          <p className="mt-1.5 px-1 text-[11px] font-bold nums-fa">
+            <span className={tooShort ? "text-muted-foreground" : "text-emerald-600"}>
+              {toFa(trimmed.length)}/{toFa(ELITE_REASON_MIN)} کاراکتر حداقل
+            </span>
+          </p>
+        </div>
 
-          {error && (
-            <p className="mt-1.5 text-[12px] font-bold text-destructive" role="alert">
-              {error}
-            </p>
-          )}
+        {error && (
+          <p className="mt-1.5 text-[12px] font-bold text-destructive" role="alert">
+            {error}
+          </p>
+        )}
       </div>
       <p className="mt-2 text-center text-[10.5px] text-muted-foreground/80 leading-4">
-        نتیجه از طریق اعلان‌ها اعلام می‌شود — با تأیید ادمین، قاب طلایی/رزگلد بدون نیاز به آستانهٔ ستاره فعال می‌شود.
+        با تأیید ادمین، قاب نقره‌ای/طلایی بدون نیاز به آستانهٔ ستاره فعال می‌شود.
       </p>
     </Sheet>
   );
 }
 
-/* ── آمار کوچک ── */
+/* ── آمار کوچک — ردیفی (آیکون + عدد + برچسب) ── */
 function MiniStat({ value, label, icon }: { value: string; label: string; icon: string }) {
   return (
-    <div className="grid place-items-center gap-0.5 min-w-[54px]">
-      <Icon name={icon as any} size={14} className="text-primary" />
+    <div className="flex items-center justify-center gap-2">
+      <Icon name={icon} size={15} className="text-primary shrink-0" />
       <span className="text-[15px] font-black nums-fa leading-none">{value}</span>
-      <span className="text-[9.5px] font-bold text-muted-foreground leading-none">{label}</span>
+      <span className="text-[10.5px] font-bold text-muted-foreground leading-none">{label}</span>
     </div>
   );
 }
 
-/* ── کارت پیشنهاد فرد ── */
+/* ── چیپ جایگاه — داخل پنل تیرهٔ «چهره برتر شو» (فقط عدد) ── */
+function RankChip({
+  label,
+  rank,
+  total,
+  truncateLabel,
+}: {
+  label: string;
+  rank: number;
+  total: number;
+  truncateLabel?: boolean;
+}) {
+  return (
+    <span className="inline-flex items-center h-8 px-2.5 rounded-lg bg-white/5 border border-white/10 text-white/85 text-[11px] font-bold nums-fa">
+      <span className={truncateLabel ? "max-w-[150px] truncate" : ""}>{label}{" "}</span>
+      <span className="shrink-0 whitespace-nowrap">
+        {toFa(rank)} از {toFa(total)}
+      </span>
+    </span>
+  );
+}
+
+/* ── کارت پیشنهاد فرد — کلاسیک، فقط محو ── */
 function SuggestionCard({
   talent,
-  index,
   busy,
   onConnect,
 }: {
   talent: TalentListItem;
-  index: number;
   busy: boolean;
   onConnect: () => void;
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.4) }}
-      className="shrink-0 w-[180px] p-4 rounded-[22px] glass border border-border/60 flex flex-col items-center text-center gap-2"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.22 }}
+      className="shrink-0 w-[180px] p-4 rounded-2xl border border-border bg-card flex flex-col items-center text-center gap-2"
     >
       <button onClick={() => navigate({ view: "profile", id: talent.id })} aria-label={talent.name}>
         <UserAvatar
@@ -715,18 +891,15 @@ function SuggestionCard({
           <p className="text-[10px] text-muted-foreground/80 line-clamp-2 mt-1 leading-4">{talent.bioShort}</p>
         )}
       </div>
-      <motion.button
-        whileTap={{ scale: 0.94 }}
+      <button
         onClick={onConnect}
         disabled={busy}
-        className={cn(
-          "w-full h-9 rounded-xl text-[11.5px] font-extrabold inline-flex items-center justify-center gap-1.5 transition-colors disabled:opacity-60",
-          "grad-brand text-white shadow-grad"
-        )}
+        className="w-full h-9 rounded-xl text-[11.5px] font-extrabold inline-flex items-center justify-center gap-1.5
+                   bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60"
       >
         <Icon name={busy ? "loader" : "userPlus"} size={13} className={busy ? "animate-spin" : ""} />
         {busy ? "در حال ارسال" : "برقراری ارتباط"}
-      </motion.button>
+      </button>
     </motion.div>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useNav, navigate, type Route } from "@/lib/nav";
 import { useUser } from "@/lib/use-user";
+import type { SafeUser } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Icon } from "@/components/shared/icon";
 import { LogoFull } from "@/components/shared/illustrations";
@@ -210,10 +211,10 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
 
   return (
     <div className="relative min-h-screen flex flex-col bg-background">
-      {/* ═══ Mobile: هدر رسمی چسبان — سطح تک‌رنگ کلاسیک (بدون شیشه) ═══ */}
+      {/* ═══ Mobile: هدر چسبان — شیشه‌ی ظریف (bg-card/85 + blur) ═══ */}
       <MobileHeader user={user} loading={loading} unread={unread} showBack={showBack} />
 
-      {/* ═══ Desktop: clean top bar — سطح تک‌رنگ، لوگو راست، ناو وسط ═══ */}
+      {/* ═══ Desktop: top bar چسبان در جریان سند — دیگر fixed نیست و هیچ جبران‌سازی padding لازم نیست ═══ */}
       <DesktopTopBar
         isActive={isActive}
         nav={desktopNav}
@@ -227,10 +228,10 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
       {/* ═══ Mobile: floating chat FAB (bottom-left, above tab bar) — کوچک، سفید، آبی ═══ */}
       {user && activeView !== "chat" && (
         <motion.button
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 500, damping: 25, delay: 0.15 }}
-          whileTap={{ scale: 0.88 }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          whileTap={{ scale: 0.9 }}
           onClick={() => navigate({ view: "chat" })}
           className={cn(
             "md:hidden fixed left-4 z-40 grid place-items-center rounded-full",
@@ -252,20 +253,19 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
         </motion.button>
       )}
 
-      {/* ═══ Main content ═══ */}
+      {/* ═══ Main content — هدرها sticky در جریان سندند؛ هیچ pt- جبرانی وجود ندارد ═══ */}
       <main ref={mainRef} className="relative flex-1 w-full">
-        <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-1 md:pt-[4.75rem] pb-24 md:pb-12">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={routeKey}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.14, ease: "easeOut" }}
-            >
-              {renderView(route)}
-            </motion.div>
-          </AnimatePresence>
+        <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-1 pb-24 md:pb-12">
+          {/* تغییر مسیر بدون AnimatePresence (بدون گپ خالی = بدون فلیکر):
+              کلید عوض می‌شود، محتوای جدید بلافاصله جایگزین و فقط fade-in می‌گیرد */}
+          <motion.div
+            key={routeKey}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+          >
+            {renderView(route)}
+          </motion.div>
         </div>
       </main>
 
@@ -289,7 +289,7 @@ function MobileHeader({
   unread,
   showBack,
 }: {
-  user: any;
+  user: SafeUser | null;
   loading: boolean;
   unread: number;
   showBack: boolean;
@@ -304,21 +304,20 @@ function MobileHeader({
 
   return (
     <header
-      className="md:hidden sticky top-0 z-40 h-16 bg-card border-b border-border"
+      className="md:hidden sticky top-0 z-40 h-16 bg-card/85 backdrop-blur-md supports-[backdrop-filter]:bg-card/75 border-b border-border"
       aria-label="هدر موبایل"
     >
       <div className="h-full px-3 flex items-center justify-between gap-2">
         {/* راست: بازگشت (صفحات داخلی) + لوگو */}
         <div className="flex items-center gap-1.5 min-w-0">
           {showBack && (
-            <motion.button
-              whileTap={{ scale: 0.88 }}
+            <button
               onClick={goBack}
-              className="grid place-items-center w-9 h-9 rounded-xl text-foreground hover:bg-muted/60 transition-colors shrink-0"
+              className="grid place-items-center w-9 h-9 rounded-xl text-foreground hover:bg-muted/60 active:scale-90 transition-all shrink-0"
               aria-label="بازگشت"
             >
               <Icon name="arrowRight" size={19} strokeWidth={2.4} className="rtl:rotate-0" />
-            </motion.button>
+            </button>
           )}
           <button
             onClick={() => navigate({ view: "feed" })}
@@ -350,7 +349,8 @@ function MobileHeader({
                   name={user.name}
                   avatarUrl={user.profile?.avatarUrl}
                   verified={user.isVerifiedBadge}
-                  frame={user.frame}
+                  frame={user.frame ?? undefined}
+                  square={!!user.isScout}
                   gender={user.profile?.gender}
                   size="sm"
                 />
@@ -384,7 +384,7 @@ function DesktopTopBar({
 }: {
   isActive: (key: string) => boolean;
   nav: typeof DESKTOP_NAV;
-  user: any;
+  user: SafeUser | null;
   loading: boolean;
   unread: number;
   chatUnread: number;
@@ -392,7 +392,7 @@ function DesktopTopBar({
 }) {
   return (
     <header
-      className="hidden md:flex fixed top-0 inset-x-0 z-40 h-16 bg-card border-b border-border"
+      className="hidden md:flex sticky top-0 z-40 h-16 bg-card/85 backdrop-blur-md supports-[backdrop-filter]:bg-card/75 border-b border-border"
     >
       <div className="mx-auto w-full max-w-7xl px-6 flex items-center justify-between gap-6">
         {/* ── Start: Logo + wordmark ── */}
@@ -414,20 +414,13 @@ function DesktopTopBar({
                 key={item.key}
                 onClick={() => navigate(item.route)}
                 className={cn(
-                  "relative h-10 px-4 rounded-xl text-sm font-bold transition-colors",
+                  "h-10 px-4 rounded-xl text-sm font-bold transition-colors",
                   active
-                    ? "text-white"
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                 )}
               >
-                {active && (
-                  <motion.span
-                    layoutId="desktop-nav-pill"
-                    className="absolute inset-0 rounded-xl grad-brand shadow-glow"
-                    transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                  />
-                )}
-                <span className="relative">{label}</span>
+                {label}
               </button>
             );
           })}
@@ -476,6 +469,8 @@ function DesktopTopBar({
                   name={user.name}
                   avatarUrl={user.profile?.avatarUrl}
                   verified={user.isVerifiedBadge}
+                  frame={user.frame ?? undefined}
+                  square={!!user.isScout}
                   gender={user.profile?.gender}
                   size="sm"
                 />
@@ -520,12 +515,11 @@ function DesktopMoreMenu() {
           <>
             <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
             <motion.div
-              initial={{ opacity: 0, y: -8, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.96 }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="absolute end-0 mt-2 w-56 rounded-2xl glass-strong border border-border/60 overflow-hidden z-40"
-              style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.4)" }}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute end-0 mt-2 w-56 rounded-2xl bg-card border border-border shadow-lg overflow-hidden z-40"
             >
               <div className="p-1.5">
                 {items.map((item, i) => (
@@ -576,7 +570,7 @@ function MobileTabBar({
   tabs: typeof MOBILE_TABS;
   isActive: (key: string) => boolean;
   onTabClick: (tab: typeof MOBILE_TABS[number]) => void;
-  user: any;
+  user: SafeUser | null;
   unread: number;
   chatUnread: number;
 }) {
@@ -600,20 +594,20 @@ function MobileTabBar({
         className="md:hidden fixed z-40 inset-x-0 bottom-0 bg-card border-t border-border pb-safe"
         aria-label="ناوبری اصلی"
       >
-        {/* داک کلاسیک — سطح تک‌رنگ، خطِ بالایی، نشانگر فعال */}
-        <div className="grid grid-cols-6 h-[62px]">
+        {/* داک کلاسیک — h-14 + safe-area، نشانگر ۳px گردِ وسطِ تب فعال، فقط ترنزیشن رنگ CSS */}
+        <div className="grid grid-cols-6 h-14">
           {tabs.map((tab) => {
             const active = isActive(tab.key);
             return (
               <button
                 key={tab.key}
                 onClick={() => onTabClick(tab)}
-                className="relative flex flex-col items-center justify-center gap-1 pt-1.5 pb-1 outline-none"
+                className="relative flex flex-col items-center justify-center gap-[3px] outline-none"
                 aria-label={tab.label}
                 aria-current={active ? "page" : undefined}
               >
                 {active && (
-                  <span className="absolute top-0 w-9 h-[3px] rounded-b-full bg-primary" />
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-primary" />
                 )}
                 <Icon
                   name={tab.icon}
@@ -638,7 +632,7 @@ function MobileTabBar({
           {/* More button — opens swipe-up sheet */}
           <button
             onClick={() => setMoreOpen(true)}
-            className="relative flex flex-col items-center justify-center gap-1 pt-1.5 pb-1 outline-none"
+            className="relative flex flex-col items-center justify-center gap-[3px] outline-none"
             aria-label="بیشتر"
           >
             <Icon name="more" size={22} strokeWidth={2} className="text-muted-foreground" />
@@ -662,7 +656,7 @@ function MobileTabBar({
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               className="md:hidden fixed bottom-0 inset-x-0 z-50 pb-safe"
             >
               <div className="bg-card rounded-t-[20px] border-t border-border overflow-hidden" style={{ boxShadow: "0 -8px 30px rgba(16,24,53,0.14)" }}>
@@ -683,7 +677,7 @@ function MobileTabBar({
                     onClick={() => { navigate({ view: "my-profile" }); setMoreOpen(false); }}
                     className="mx-4 mb-3 flex items-center gap-3 p-3 rounded-2xl bg-accent w-[calc(100%-2rem)] text-right"
                   >
-                    <UserAvatar name={user.name} avatarUrl={user.profile?.avatarUrl} verified={user.isVerifiedBadge} frame={user.frame} gender={user.profile?.gender} size="md" />
+                    <UserAvatar name={user.name} avatarUrl={user.profile?.avatarUrl} verified={user.isVerifiedBadge} frame={user.frame ?? undefined} square={!!user.isScout} gender={user.profile?.gender} size="md" />
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm truncate">{user.name}</p>
                     </div>

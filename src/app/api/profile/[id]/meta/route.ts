@@ -39,7 +39,7 @@ export async function GET(
     return NextResponse.json({ error: "کاربر پیدا نشد" }, { status: 404 });
   }
 
-  // چهره برتر = مشتق از ستاره‌ها (≥5000 طلایی / ≥10000 رزگلد)
+  // چهره برتر = مشتق از ستاره‌ها (≥5000 نقره‌ای / ≥10000 طلایی)
   const { userStarInfo } = await import("@/lib/stars");
   const si = await userStarInfo(userId);
 

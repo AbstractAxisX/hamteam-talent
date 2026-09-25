@@ -179,7 +179,7 @@ type AdminUser = {
   isVerifiedBadge: boolean;
   isBanned: boolean;
   isTopTalent?: boolean;
-  frame?: "gold" | "rosegold" | null;
+  frame?: "silver" | "gold" | null;
   totalStars?: number;
   isAdminElite?: boolean;
   eliteLevel?: string;
@@ -270,7 +270,7 @@ type EliteRequestRow = {
     avatarUrl: string | null;
     totalStars: number;
     votes: number;
-    frame: "gold" | "rosegold" | null;
+    frame: "silver" | "gold" | null;
   };
   nominator: { id: string; name: string; avatarUrl: string | null } | null;
 };
@@ -1114,27 +1114,27 @@ function UserStarsCell({ user }: { user: AdminUser }) {
   if (!user.isTopTalent && !(user.totalStars ?? 0)) {
     return <span className="text-xs text-gray-400">—</span>;
   }
-  const rose = user.frame === "rosegold";
+  const gold = user.frame === "gold";
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       <span
         className="inline-flex items-center gap-1 text-xs font-bold nums-fa"
         title="مجموع ستاره‌های دریافتی"
       >
-        <Sparkles className={rose ? "w-3.5 h-3.5 text-rose-500" : "w-3.5 h-3.5 text-amber-500"} />
+        <Sparkles className={gold ? "w-3.5 h-3.5 text-amber-500" : "w-3.5 h-3.5 text-slate-500"} />
         {toFa(user.totalStars ?? 0)}
       </span>
       {user.frame && (
         <Badge
           className={cn(
             "text-[10px] h-5 rounded gap-1",
-            rose
-              ? "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-50"
-              : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50"
+            gold
+              ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50"
+              : "bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-100"
           )}
         >
           <Crown className="w-3 h-3" />
-          {rose ? "رزگلد" : "طلایی"}
+          {gold ? "طلایی" : "نقره‌ای"}
         </Badge>
       )}
     </div>
@@ -1560,7 +1560,7 @@ function UsersTab() {
   async function patchUser(
     id: string,
     action: "ban" | "unban" | "verify" | "unverify" | "elite" | "unelite",
-    level?: "gold" | "rosegold"
+    level?: "silver" | "gold"
   ) {
     setActionLoading(id + action);
     try {
@@ -1576,9 +1576,9 @@ function UsersTab() {
           ? "تایید لغو شد"
           : action === "unelite"
           ? "قاب چهره برتر لغو شد"
-          : level === "rosegold"
-          ? "چهره برتر رزگلد شد"
-          : "چهره برتر طلایی شد";
+          : level === "gold"
+          ? "چهره برتر طلایی شد"
+          : "چهره برتر نقره‌ای شد";
       toast({ title: verb });
       load();
     } catch (e) {
@@ -1891,20 +1891,20 @@ function UsersTab() {
                             ) : (
                               <>
                                 <DropdownMenuItem
+                                  onClick={() => patchUser(u.id, "elite", "silver")}
+                                  disabled={actionLoading === u.id + "elite"}
+                                  className="gap-2 cursor-pointer"
+                                >
+                                  <Crown className="w-4 h-4 text-slate-500" />
+                                  چهره برتر نقره‌ای (۵۰۰۰)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
                                   onClick={() => patchUser(u.id, "elite", "gold")}
                                   disabled={actionLoading === u.id + "elite"}
                                   className="gap-2 cursor-pointer"
                                 >
                                   <Crown className="w-4 h-4 text-amber-500" />
-                                  چهره برتر طلایی (۵۰۰۰)
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => patchUser(u.id, "elite", "rosegold")}
-                                  disabled={actionLoading === u.id + "elite"}
-                                  className="gap-2 cursor-pointer"
-                                >
-                                  <Crown className="w-4 h-4 text-rose-500" />
-                                  چهره برتر رزگلد (۱۰۰۰۰)
+                                  چهره برتر طلایی (۱۰۰۰۰)
                                 </DropdownMenuItem>
                               </>
                             )}
@@ -3559,7 +3559,7 @@ function EliteRequestsTab() {
   }, [status]);
   useEffect(load, [load]);
 
-  async function approveReq(r: EliteRequestRow, level: "gold" | "rosegold") {
+  async function approveReq(r: EliteRequestRow, level: "silver" | "gold") {
     setActionLoading(r.id + "approve");
     try {
       const res = await apiPost<{ ok: boolean; message: string }>("/api/admin/elite-requests", {
@@ -3649,13 +3649,13 @@ function EliteRequestsTab() {
                       <Badge
                         className={cn(
                           "text-[10px] h-5 rounded gap-1",
-                          r.user.frame === "rosegold"
-                            ? "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-50"
-                            : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50"
+                          r.user.frame === "gold"
+                            ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50"
+                            : "bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-100"
                         )}
                       >
                         <Crown className="w-3 h-3" />
-                        {r.user.frame === "rosegold" ? "رزگلد" : "طلایی"}
+                        {r.user.frame === "gold" ? "طلایی" : "نقره‌ای"}
                       </Badge>
                     )}
                     <ReviewStatusChip status={r.status} />
@@ -3713,25 +3713,25 @@ function EliteRequestsTab() {
                 <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-100">
                   <Button
                     size="sm"
-                    onClick={() => approveReq(r, "gold")}
+                    onClick={() => approveReq(r, "silver")}
                     disabled={actionLoading === r.id + "approve"}
-                    className="h-9 gap-1.5 bg-amber-500 hover:bg-amber-600 text-white border border-amber-400 shadow-sm"
+                    className="h-9 gap-1.5 bg-slate-600 hover:bg-slate-700 text-white border border-slate-500 shadow-sm"
                   >
                     {actionLoading === r.id + "approve" ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
                       <Crown className="w-3.5 h-3.5" />
                     )}
-                    تأیید → قاب طلایی (۵۰۰۰)
+                    تأیید → قاب نقره‌ای (۵۰۰۰)
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => approveReq(r, "rosegold")}
+                    onClick={() => approveReq(r, "gold")}
                     disabled={actionLoading === r.id + "approve"}
-                    className="h-9 gap-1.5 bg-rose-600 hover:bg-rose-700 text-white border border-rose-500 shadow-sm"
+                    className="h-9 gap-1.5 bg-amber-500 hover:bg-amber-600 text-white border border-amber-400 shadow-sm"
                   >
                     <Crown className="w-3.5 h-3.5" />
-                    تأیید → قاب رزگلد (۱۰۰۰۰)
+                    تأیید → قاب طلایی (۱۰۰۰۰)
                   </Button>
                   <OutlineButton
                     size="sm"

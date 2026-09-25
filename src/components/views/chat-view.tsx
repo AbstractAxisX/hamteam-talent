@@ -24,7 +24,7 @@ type OtherUser = {
   name: string;
   isVerifiedBadge: boolean;
   isTopTalent?: boolean;
-  frame?: "gold" | "rosegold" | null;
+  frame?: "silver" | "gold" | null;
   totalStars?: number;
   isScout?: boolean;
   avatarUrl: string | null;
@@ -890,6 +890,7 @@ function ConversationRow({
             gender={c.otherUser.gender}
             frame={c.otherUser.frame}
             size="md"
+            square={!!c.otherUser.isScout}
           />
           {c.unreadCount > 0 && c.status === "active" && (
             <span className="absolute -top-1 -left-1 min-w-[20px] h-5 px-1 grid place-items-center rounded-full bg-rose text-white text-[10px] font-bold shadow-md shadow-rose/30 tabular-nums">
@@ -1083,6 +1084,7 @@ function ChatThread({
                 gender={other.gender}
                 frame={other.frame}
                 size="md"
+                square={!!other.isScout}
               />
             </button>
             <div className="flex-1 min-w-0">
@@ -1122,13 +1124,14 @@ function ChatThread({
             gender={other.gender}
             size="xl"
             frame={other.frame}
+            square={!!other.isScout}
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="font-extrabold text-[15px] text-foreground truncate">{other.name}</span>
               {!!other.isScout && <ScoutBadge size="sm" />}
-              {other.frame === "rosegold" && <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: "linear-gradient(135deg,#e11d48,#be123c)" }}>چهره برتر رزگلد</span>}
-              {other.frame === "gold" && <span className="text-[10px] font-black px-2 py-0.5 rounded-full grad-gold text-white">چهره برتر</span>}
+              {other.frame === "gold" && <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: "linear-gradient(135deg,#d97706,#b45309)" }}>چهره برتر طلایی</span>}
+              {other.frame === "silver" && <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: "linear-gradient(135deg,#94a3b8,#475569)" }}>چهره برتر نقره‌ای</span>}
             </div>
             {other.bioShort && (
               <p className="text-[11.5px] text-muted-foreground mt-1 line-clamp-2 leading-5">{other.bioShort}</p>
@@ -1227,6 +1230,7 @@ function ChatThread({
                         gender={other.gender}
                         frame={other.frame}
                         size="sm"
+                        square={!!other.isScout}
                       />
                     </button>
                   )}
