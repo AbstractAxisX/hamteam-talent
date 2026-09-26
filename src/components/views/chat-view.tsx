@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api, apiPost } from "@/lib/api-client";
 import { useUser } from "@/lib/use-user";
 import { navigate } from "@/lib/nav";
-import { BackButton } from "@/components/shared/back-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -534,7 +533,7 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
   /* ── Not logged in ── */
   if (!userLoading && !user) {
     return (
-      <div className="fixed inset-0 z-30 lg:static lg:z-auto bg-background flex items-center justify-center p-6 pt-safe pb-safe">
+      <div className="h-full flex items-center justify-center p-6">
         <EmptyState
           kind="chat"
           title="برای چت کردن وارد شوید"
@@ -577,13 +576,15 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     }
   };
 
-  /* ── Layout: full-screen mobile, 2-pane desktop ── */
+  /* ── Layout: تمام‌صفحهٔ اپ‌مانند (موبایل) / دو‌پنلی (دسکتاپ) ──
+     ارتفاع را از رپرِ app-shell می‌گیرد (h-[calc(100dvh-4rem)]) — یعنی
+     دقیقاً بین هدر اپ و انتهای ویوپورت؛ بنابراین فرم ارسال پیام هرگز
+     زیر هدر یا تبار نمی‌رود (فیکس ساختاری، نه پدینگ) */
   return (
     <div
       className={cn(
-        "fixed inset-0 z-30 bg-background flex flex-col pt-safe pb-safe",
-        "lg:static lg:z-auto lg:inset-auto lg:bg-transparent lg:p-0",
-        "lg:grid lg:grid-cols-[360px_1fr] lg:gap-4 lg:h-[calc(100vh-5rem)]"
+        "h-full bg-background flex flex-col overflow-hidden",
+        "lg:grid lg:grid-cols-[360px_1fr] lg:gap-4 lg:bg-transparent lg:overflow-visible"
       )}
     >
       {/* ── List panel ── */}
@@ -625,7 +626,6 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
             currentUserId={user?.id || ""}
             isTyping={isTyping}
             messagesContainerRef={messagesContainerRef}
-            onBack={() => navigate({ view: "chat" })}
             onRespond={handleRespond}
           />
         ) : (
@@ -680,23 +680,9 @@ function ChatListPanel({
   ];
 
   return (
-    <div className="h-full flex flex-col glass lg:rounded-3xl overflow-hidden">
-      {/* Header */}
+    <div className="h-full flex flex-col bg-card lg:rounded-3xl overflow-hidden border-border/60 lg:border">
+      {/* Header — تب‌ها + جست‌وجو (ناوبری از هدر اپ انجام می‌شود) */}
       <div className="shrink-0 p-4 border-b border-border/60 space-y-3">
-        {/* Mobile title */}
-        <div className="flex items-center gap-3 lg:hidden">
-          <BackButton />
-          <div className="grid place-items-center w-11 h-11 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30">
-            <Icon name="chat" size={22} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-black leading-tight tracking-tight">چت</h1>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              گفتگوی زنده با همکاران
-            </p>
-          </div>
-        </div>
-
         {/* Tabs */}
         <div className="relative flex items-center gap-0.5 p-1 rounded-2xl bg-muted/60">
           <AnimatePresence>
@@ -976,7 +962,6 @@ function ChatThread({
   currentUserId,
   isTyping,
   messagesContainerRef,
-  onBack,
   onRespond,
 }: {
   conv: ConversationDetail | null;
@@ -989,7 +974,6 @@ function ChatThread({
   currentUserId: string;
   isTyping: boolean;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
-  onBack?: () => void;
   onRespond: (id: string, action: "accept" | "reject") => void;
 }) {
   const other = conv?.conversation?.otherUser;
@@ -1012,104 +996,36 @@ function ChatThread({
     }
   }
 
-  // Status pill for header
-  const StatusPill = () => {
-    if (isTyping) {
-      return (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary-foreground/85">
-          <span className="flex gap-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground/70 animate-bounce [animation-delay:-0.3s]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground/70 animate-bounce [animation-delay:-0.15s]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground/70 animate-bounce" />
-          </span>
-          در حال تایپ...
-        </span>
-      );
-    }
-    if (status === "active") {
-      return (
-        <span className="inline-flex items-center gap-1 text-[11px] text-primary-foreground/70">
-          <Icon name="userCheck" size={12} />
-          در ارتباط
-        </span>
-      );
-    }
-    if (isMyRequestPending) {
-      return (
-        <span className="inline-flex items-center gap-1 text-[11px] text-primary-foreground/70">
-          <Icon name="clock" size={12} />
-          درخواست ارسال شد
-        </span>
-      );
-    }
-    if (isTheirRequestPending) {
-      return (
-        <span className="inline-flex items-center gap-1 text-[11px] text-primary-foreground/70">
-          <Icon name="bell" size={12} />
-          درخواست پیام جدید
-        </span>
-      );
-    }
-    return (
-      <span className="text-[11px] text-primary-foreground/70 truncate">
-        {other?.bioShort || "مشاهده پروفایل"}
+  /* ── وضعیت زندهٔ گفتگو — داخل کارت پروفایل (هدر آبی حذف شد: ناوبری از
+     هدر اصلی اپ، هویت از کارت پروفایل؛ دیگر هیچ نوار جدا زیر هدر نیست) ── */
+  const statusNode = isTyping ? (
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary">
+      <span className="flex gap-0.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-primary/70 animate-bounce [animation-delay:-0.3s]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-primary/70 animate-bounce [animation-delay:-0.15s]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-primary/70 animate-bounce" />
       </span>
-    );
-  };
+      در حال تایپ…
+    </span>
+  ) : status === "active" ? (
+    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+      <Icon name="userCheck" size={12} />
+      در ارتباط
+    </span>
+  ) : isMyRequestPending ? (
+    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+      <Icon name="clock" size={12} />
+      درخواست ارسال شد
+    </span>
+  ) : isTheirRequestPending ? (
+    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary">
+      <Icon name="bell" size={12} />
+      درخواست پیام جدید
+    </span>
+  ) : null;
 
   return (
     <div className="h-full flex flex-col bg-background lg:rounded-3xl lg:border lg:border-border/60 lg:shadow-card overflow-hidden">
-      {/* ── Header ── */}
-      <div className="shrink-0 p-3 border-b border-border/60 flex items-center gap-3 bg-primary text-primary-foreground lg:rounded-t-3xl">
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="shrink-0 grid place-items-center w-9 h-9 rounded-xl hover:bg-white/10 text-primary-foreground transition-colors"
-            aria-label="بازگشت"
-          >
-            <Icon name="chevronRight" size={20} />
-          </button>
-        )}
-        {other ? (
-          <>
-            <button
-              onClick={() => navigate({ view: "profile", id: other.id })}
-              className="shrink-0"
-              aria-label="مشاهده پروفایل"
-            >
-              <UserAvatar
-                name={other.name}
-                avatarUrl={other.avatarUrl}
-                verified={other.isVerifiedBadge}
-                gender={other.gender}
-                frame={other.frame}
-                size="md"
-                square={!!other.isScout}
-              />
-            </button>
-            <div className="flex-1 min-w-0">
-              <button
-                onClick={() => navigate({ view: "profile", id: other.id })}
-                className="font-bold text-sm hover:opacity-90 transition-opacity text-right w-full min-w-0 flex items-center gap-1.5 h-6"
-                aria-label={`گفتگو با ${other.name}`}
-              >
-                <span className="truncate">{other.name}</span>
-                {!!other.isScout && <ScoutBadge size="sm" />}
-              </button>
-              <div className="h-4 mt-0.5">
-                <StatusPill />
-              </div>
-            </div>
-            <Icon name="chevronLeft" size={16} className="text-primary-foreground/40 shrink-0" />
-          </>
-        ) : (
-          <div className="flex-1">
-            <Skeleton className="h-4 w-32 rounded bg-primary-foreground/10" />
-            <Skeleton className="h-2.5 w-20 mt-1.5 rounded bg-primary-foreground/10" />
-          </div>
-        )}
-      </div>
-
       {/* ── کارت پروفایل فرد بالای گفتگو — «پروفایل او بالا می‌آید» ── */}
       {other && (
         <button
@@ -1142,6 +1058,7 @@ function ChatThread({
                 {other.province}{other.city && other.province ? " · " : ""}{other.city}
               </p>
             )}
+            {statusNode && <div className="mt-1.5">{statusNode}</div>}
           </div>
           <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-extrabold text-primary bg-primary/8 border border-primary/25 rounded-full px-3 py-1.5">
             پروفایل
@@ -1297,7 +1214,7 @@ function ChatThread({
                 exit={{ opacity: 0, y: -4 }}
                 className="flex items-start"
               >
-                <div className="glass border border-border/60 rounded-2xl rounded-tr-md px-4 py-3 flex gap-1 shadow-sm">
+                <div className="bg-card border border-border/60 rounded-2xl rounded-tr-md px-4 py-3 flex gap-1 shadow-sm">
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.3s]" />
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.15s]" />
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" />
@@ -1309,7 +1226,7 @@ function ChatThread({
       </div>
 
       {/* ── Input area ── */}
-      <div className="shrink-0 p-3 border-t border-border/60 glass lg:rounded-b-3xl pb-safe">
+      <div className="shrink-0 p-3 border-t border-border/60 bg-card pb-safe">
         {status === "active" || isMyRequestPending ? (
           <>
             {isMyRequestPending && (

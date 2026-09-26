@@ -364,9 +364,13 @@ export function ProfileView({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* ═══════ سطر هویت — آواتار (قاب متال / مربعی چهره‌یاب) ═══════ */}
+      {/* ═══════ سطر هویت — آواتار (قاب متال / مربعی چهره‌یاب) ═══════
+          الگوی لینکدین با مرز قطعی: ردیف با -mt-12 بالا می‌رود تا آواتار
+          روی بنر بنشیند (۴۸px)، اما متن با pt-12 دقیقاً از لبهٔ پایین بنر
+          شروع می‌شود و items-start است — یعنی هر چند خط که اسم طولانی شود
+          فقط به پایین رشد می‌کند و هرگز زیر بنر نمی‌رود */}
       <div className="relative px-4 -mt-12 z-10">
-        <div className="flex items-end gap-3.5">
+        <div className="flex items-start gap-3.5">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -413,7 +417,9 @@ export function ProfileView({ id }: { id: string }) {
             )}
           </motion.div>
 
-          <div className="flex-1 min-w-0 pb-1">
+          {/* pt-12 = همان ۴۸pxی که ردیف بالا رفته — متن دقیقاً از لبهٔ پایین
+              کاور شروع می‌شود؛ رشد فقط به سمت پایین است (رفع رفتن زیر بنر) */}
+          <div className="flex-1 min-w-0 pt-12">
             <div className="flex items-center gap-1.5 flex-wrap">
               <h1 className="text-[21px] font-black tracking-tight text-foreground leading-tight">
                 {profile.name}

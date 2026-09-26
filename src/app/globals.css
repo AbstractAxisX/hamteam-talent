@@ -371,6 +371,10 @@
 .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
 .safe-b { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 
+/* ارتفاع تبار موبایل (h-14 + بوردر ۱px + safe-area) — برای عناصر sticky-bottom
+   که باید بالای تبار بچسبند، نه زیرش (فرم نظر پست، …) */
+:root { --tabbar-h: calc(env(safe-area-inset-bottom, 0px) + 3.5625rem); }
+
 button, a { -webkit-tap-highlight-color: transparent; }
 
 /* ═══ Keyframes ═══ */

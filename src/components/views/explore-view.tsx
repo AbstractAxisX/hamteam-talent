@@ -641,26 +641,6 @@ function PostCard({
         }}
       />
 
-      {/* نشان «برتر» کارت — قاب نقره‌ای/طلاییِ نویسنده */}
-      {post.user.isTopTalent && (
-        <span
-          className={cn(
-            "absolute z-20 top-3 left-3 h-6 px-2.5 rounded-full text-[10px] font-black",
-            goldFrame ? "text-[#3a2405]" : "text-[#283445]"
-          )}
-          style={
-            goldFrame
-              ? { background: "linear-gradient(135deg, #fef3c7, #f5c84c 45%, #e08a00)" }
-              : { background: "linear-gradient(135deg, #f8fafc, #cbd5e1 45%, #94a3b8)" }
-          }
-        >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="inline">
-            <path d="M12 0c.9 6.2 4.9 10.2 12 12-7.1 1.8-11.1 5.8-12 12-.9-6.2-4.9-10.2-12-12C7.1 10.2 11.1 6.2 12 0z" />
-          </svg>
-          {goldFrame ? "چهره برتر طلایی" : "چهره برتر نقره‌ای"}
-        </span>
-      )}
-
       {/* ═══ Header ═══ */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-2">
         <button
@@ -2714,9 +2694,9 @@ export function PostDetailView({ id, fromProfile }: { id: string; fromProfile?: 
         )}
       </div>
 
-      {/* Sticky comment input */}
+      {/* Sticky comment input — روی موبایل بالای تبار می‌چسبد (نه زیرش) */}
       {me && (
-        <div className="sticky bottom-0 mt-4 -mx-1 px-1 py-2.5 bg-background/95 backdrop-blur-md border-t border-border">
+        <div className="sticky bottom-[var(--tabbar-h)] md:bottom-0 mt-4 -mx-1 px-1 py-2.5 bg-background/95 backdrop-blur-md border-t border-border">
           <div className="flex items-center gap-2">
             <UserAvatar
               name={me.name}

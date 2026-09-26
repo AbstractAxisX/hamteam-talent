@@ -255,29 +255,41 @@ export function AppShell({ children }: { children?: React.ReactNode }) {
 
       {/* ═══ Main content — هدرها sticky در جریان سندند؛ هیچ pt- جبرانی وجود ندارد ═══ */}
       <main ref={mainRef} className="relative flex-1 w-full">
-        <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-1 pb-24 md:pb-12">
-          {/* تغییر مسیر بدون AnimatePresence (بدون گپ خالی = بدون فلیکر):
-              کلید عوض می‌شود، محتوای جدید بلافاصله جایگزین و فقط fade-in می‌گیرد */}
-          <motion.div
-            key={routeKey}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-          >
+        {route.view === "chat" ? (
+          /* چت = صفحهٔ تمام‌صفحهٔ اپ‌مانند: دقیقاً زیر هدر (h-16) تا انتهای
+             ویوپورت — بدون تبار پایین، بدون پدینگ رپر؛ ارتفاع با dvh محاسبه
+             می‌شود تا فرم ارسال پیام همیشه کاملاً مرئی باشد (رفع رفتن زیر
+             تبار/هدر با تغییر ساختاری، نه پدینگ) */
+          <div className="h-[calc(100dvh-4rem)] lg:h-[calc(100vh-5rem)] lg:mx-auto lg:max-w-6xl lg:px-8">
             {renderView(route)}
-          </motion.div>
-        </div>
+          </div>
+        ) : (
+          <div className="mx-auto w-full max-w-6xl px-4 md:px-8 pt-1 pb-24 md:pb-12">
+            {/* تغییر مسیر بدون AnimatePresence (بدون گپ خالی = بدون فلیکر):
+                کلید عوض می‌شود، محتوای جدید بلافاصله جایگزین و فقط fade-in می‌گیرد */}
+            <motion.div
+              key={routeKey}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+            >
+              {renderView(route)}
+            </motion.div>
+          </div>
+        )}
       </main>
 
-      {/* ═══ Mobile: bottom tab bar (5 tabs + more sheet) ═══ */}
-      <MobileTabBar
-        tabs={mobileTabs}
-        isActive={isActive}
-        onTabClick={handleTabClick}
-        user={user}
-        unread={unread}
-        chatUnread={chatUnread}
-      />
+      {/* ═══ Mobile: bottom tab bar — در چت پنهان: چت خودش تمام‌صفحه است ═══ */}
+      {route.view !== "chat" && (
+        <MobileTabBar
+          tabs={mobileTabs}
+          isActive={isActive}
+          onTabClick={handleTabClick}
+          user={user}
+          unread={unread}
+          chatUnread={chatUnread}
+        />
+      )}
     </div>
   );
 }
