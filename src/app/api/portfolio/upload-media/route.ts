@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { uploadDir } from "@/lib/upload-path";
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
@@ -74,9 +75,9 @@ export async function POST(req: Request) {
 
   const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
   const filename = `portfolio-${me.id}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  await fs.mkdir(uploadDir, { recursive: true });
-  await fs.writeFile(path.join(uploadDir, filename), Buffer.from(await file.arrayBuffer()));
+  const dir = uploadDir();
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, filename), Buffer.from(await file.arrayBuffer()));
 
   const url = `/uploads/${filename}`;
   const count = await db.portfolioMedia.count({ where: { itemId } });

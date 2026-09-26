@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getCurrentAdmin } from "@/lib/auth";
+import { uploadDir } from "@/lib/upload-path";
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
@@ -64,10 +65,10 @@ export async function POST(req: Request) {
   const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const safeExt = ALLOWED_IMAGE_MIME.some((m) => m.endsWith(ext)) ? ext : "jpg";
   const filename = `${config.prefix}-${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${safeExt}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  await fs.mkdir(uploadDir, { recursive: true });
+  const dir = uploadDir();
+  await fs.mkdir(dir, { recursive: true });
   const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(path.join(uploadDir, filename), buffer);
+  await fs.writeFile(path.join(dir, filename), buffer);
 
   const url = `/uploads/${filename}`;
   return NextResponse.json({ ok: true, url });

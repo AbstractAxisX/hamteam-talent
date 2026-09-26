@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { uploadReadCandidates } from "@/lib/upload-path";
 import fs from "fs/promises";
 import path from "path";
 
@@ -44,11 +45,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   const safe = parts.filter((p) => p && !p.includes("..") && !p.startsWith("."));
   if (safe.length === 0) return new NextResponse("Not found", { status: 404 });
 
-  const candidates = [
-    path.join(process.cwd(), "public", "uploads", ...safe),
-    path.join(process.cwd(), "uploads", ...safe),
-    path.join(process.cwd(), "..", "public", "uploads", ...safe),
-  ];
+  const candidates = uploadReadCandidates().map((d) => path.join(d, ...safe));
 
   for (const p of candidates) {
     try {

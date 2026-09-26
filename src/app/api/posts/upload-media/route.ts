@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { uploadDir } from "@/lib/upload-path";
 import { db } from "@/lib/db";
 import crypto from "crypto";
 import fs from "fs/promises";
@@ -61,10 +62,10 @@ export async function POST(req: Request) {
 
   const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
   const filename = `post-media-${me.id}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  await fs.mkdir(uploadDir, { recursive: true });
+  const dir = uploadDir();
+  await fs.mkdir(dir, { recursive: true });
   const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(path.join(uploadDir, filename), buffer);
+  await fs.writeFile(path.join(dir, filename), buffer);
 
   const url = `/uploads/${filename}`;
 
