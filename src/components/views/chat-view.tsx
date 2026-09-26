@@ -10,7 +10,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { ScoutBadge } from "@/components/shared/scout-badge";
 import { Icon } from "@/components/shared/icon";
 import { toast } from "@/hooks/use-toast";
 import { timeAgoFa, toFa } from "@/lib/format";
@@ -407,6 +406,16 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
     const content = draft.trim();
     const convId = conversationId;
     if (!content || !convId || !user || !socketRef.current) return;
+
+    // اگر سوکت قطع است، پیام واقعاً ارسال نمی‌شود — به‌جای نمایش ارسالِ دروغین، خطا بده
+    if (!socketRef.current.connected) {
+      toast({
+        title: "اتصال قطع است",
+        description: "چند لحظه بعد دوباره تلاش کنید؛ در حال اتصال مجدد…",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setDraft("");
     socketRef.current.emit("typing", {
@@ -1026,11 +1035,11 @@ function ChatThread({
 
   return (
     <div className="h-full flex flex-col bg-background lg:rounded-3xl lg:border lg:border-border/60 lg:shadow-card overflow-hidden">
-      {/* ── کارت پروفایل فرد بالای گفتگو — «پروفایل او بالا می‌آید» ── */}
+      {/* ── نوار فشردهٔ هویت فرد مقابل — فقط آواتار کوچک + اسم (کلیک → پروفایل) ── */}
       {other && (
         <button
           onClick={() => navigate({ view: "profile", id: other.id })}
-          className="shrink-0 w-full flex items-center gap-3.5 px-4 py-3.5 border-b border-border/60 bg-card hover:bg-muted/50 transition-colors text-right"
+          className="shrink-0 w-full flex items-center gap-2.5 px-4 py-2 border-b border-border/60 bg-card hover:bg-muted/50 transition-colors text-right"
           aria-label={`مشاهده پروفایل ${other.name}`}
         >
           <UserAvatar
@@ -1038,32 +1047,12 @@ function ChatThread({
             avatarUrl={other.avatarUrl}
             verified={other.isVerifiedBadge}
             gender={other.gender}
-            size="xl"
+            size="sm"
             frame={other.frame}
             square={!!other.isScout}
           />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-extrabold text-[15px] text-foreground truncate">{other.name}</span>
-              {!!other.isScout && <ScoutBadge size="sm" />}
-              {other.frame === "gold" && <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: "linear-gradient(135deg,#d97706,#b45309)" }}>چهره برتر طلایی</span>}
-              {other.frame === "silver" && <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: "linear-gradient(135deg,#94a3b8,#475569)" }}>چهره برتر نقره‌ای</span>}
-            </div>
-            {other.bioShort && (
-              <p className="text-[11.5px] text-muted-foreground mt-1 line-clamp-2 leading-5">{other.bioShort}</p>
-            )}
-            {(other.city || other.province) && (
-              <p className="text-[10.5px] text-muted-foreground/80 mt-1 inline-flex items-center gap-1">
-                <Icon name="mapPin" size={11} />
-                {other.province}{other.city && other.province ? " · " : ""}{other.city}
-              </p>
-            )}
-            {statusNode && <div className="mt-1.5">{statusNode}</div>}
-          </div>
-          <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-extrabold text-primary bg-primary/8 border border-primary/25 rounded-full px-3 py-1.5">
-            پروفایل
-            <Icon name="chevronLeft" size={12} />
-          </span>
+          <span className="font-bold text-[13px] text-foreground truncate">{other.name}</span>
+          {statusNode && <span className="mr-auto shrink-0">{statusNode}</span>}
         </button>
       )}
 
