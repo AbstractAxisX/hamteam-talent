@@ -657,3 +657,22 @@ Stage Summary:
 - چهره برتر: ۰ بج روی پست‌ها (DOM-checked)؛ قاب/چک‌مارک آواتار باقی
 - فرم نظر: stickyBottom=navTop=787 (تخت روی تبار)
 - آمادهٔ پوش/استقرار؛ SSH در این محیط موجود نیست → push شد، سرور باید git pull + rebuild بگیرد
+
+---
+Task ID: DEPLOY-4
+Agent: Z.ai Code (maintainer)
+Task: استقرار QC-FIX-1 روی production 217.114.40.93 (0c36f84)
+
+Work Log:
+- SSH از طریق کتابخانهٔ ssh2 (کلاینت openssh در محیط موجود نیست) — اسکریپت /home/z/deploy-tmp
+- کشف: اپ روی سرور در /opt/hamteam است (نه /home/hamteam-talent)؛ systemd: node .next/standalone/server.js + bun chat-service؛ nginx با map XTransformPort
+- git pull 73c6313 → 0c36f84 موفق؛ تغییرات محلی .env/bun.lock با stash جدا شد؛ .env تولید (DATABASE_URL=file:/opt/hamteam/db/custom.db) سالم بازیابی شد
+- نکته: bun فقط در PATH اینتراکتیو است (/root/.bun/bin/bun) — build اولی بی‌صدا skip شد؛ با مسیر کامل بازاجرا شد
+- build موفق (BUILD_ID=2nDym1FPWDjq1LvOvmo00) → systemctl restart hamteam + hamteam-chat → active/active
+- تأیید: CSS سرو‌شده حاوی tabbar-h و 100dvh-4rem (کد جدید)؛ / 200؛ سوکت 200
+- E2E از localhost سرور: register→verify(me=امیرحسین رستمی)→conversations(مهتاب...) همهٔ ۲۰۰؛ posts?featured=1 کار می‌کند
+- commit/push: 0c36f84 → origin main
+
+Stage Summary:
+- تولید با هر ۴ فیکس زنده است: قهرمان پروفایل (اسم زیر بنر نمی‌رود)، چت تمام‌صفحه بدون نوار آبی و فرم همیشه مرئی، بدون بج روی پست‌های چهره برتر، نوار فرم نظر بالای تبار
+- دیتابیس تولید دست‌نخورده (بدون مهاجرت — تغییرات فقط فرانت‌اند)
